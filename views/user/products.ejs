@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Add Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Your custom CSS -->
+    <link rel="stylesheet" href="/css/products.css" />
+    <title>Products</title>
+
+</head>
+
+<body class="bg-gray-50">
+    <%- include("../partials/user/navbar") %>
+    <div class="mt-16"></div>
+
+    <!-- Page Content -->
+    <div class="bg-gray-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 class="text-3xl font-bold text-gray-900 mb-8 text-center">Products</h2>
+
+            <div class="flex flex-col md:flex-row gap-8">
+                <!-- Left Sidebar - Filters -->
+                <div class="md:w-1/4">
+                    <div class="sticky top-4 space-y-6 bg-white p-6 rounded-lg shadow-sm">
+                        <!-- Sorting Section -->
+                        <div class="mb-6">
+                            <label for="sortFilter" class="block text-gray-700 font-medium mb-2">Sort By</label>
+                            <select id="sortFilter" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-2 focus:border-gray-900">
+                                <option value="default">Default</option>
+                                <option value="priceLowToHigh">Price: Low to High</option>
+                                <option value="priceHighToLow">Price: High to Low</option>
+                                <option value="newArrivals">New Arrivals</option>
+                            </select>
+                        </div>
+
+                        <!-- Filter Section -->
+                        <div class="space-y-4">
+                            <div>
+                                <label for="category" class="block text-gray-700 font-medium mb-2">Category</label>
+                                <select id="category" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-2 focus:border-gray-900">
+                                    <option value="">All</option>
+                                    <% if (categories && categories.length > 0) { %>
+                                        <% categories.forEach(function(category) { %>
+                                            <option value="<%= category._id %>">
+                                                <%= category.name %>
+                                            </option>
+                                        <% }); %>
+                                    <% } else { %>
+                                        <option value="" disabled>No categories available</option>
+                                    <% } %>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label for="type" class="block text-gray-700 font-medium mb-2">Type</label>
+                                <select id="type" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-2 focus:border-gray-900">
+                                    <option value="">All</option>
+                                    <option value="ruled">Ruled</option>
+                                    <option value="unruled">Unruled</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-gray-700 font-medium mb-2">Price Range</label>
+                                <div class="flex gap-2">
+                                    <input type="number" id="minPrice" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-2 focus:border-gray-900" placeholder="Min" />
+                                    <input type="number" id="maxPrice" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-2 focus:border-gray-900" placeholder="Max" />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label for="stockFilter" class="block text-gray-700 font-medium mb-2">Stock Status</label>
+                                <select id="stockFilter" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-2 focus:border-gray-900">
+                                    <option value="">All Products</option>
+                                    <option value="inStock">In Stock</option>
+                                    <option value="outOfStock">Out of Stock</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Filter and Reset Button -->
+                        <div class="mt-6">
+                            <button type="button" class="mt-2 px-8 py-2 mr-2 bg-gray-900 text-white rounded-lg transform transition-transform duration-300 ease-in-out hover:bg-zinc-600 hover:scale-105 active:bg-zinc-700 active:scale-95">
+                                Filter
+                            </button>
+                            <button id="resetButton" class="px-4 py-2 bg-gray-900 text-white rounded-lg transform transition-transform duration-300 ease-in-out hover:bg-zinc-600 hover:scale-105 active:bg-zinc-700 active:scale-95">
+                                Reset Filters
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Side - Product Grid -->
+                <div class="md:w-3/4">
+                    <!-- Search Bar -->
+                    <div class="mb-6 flex-1 relative">
+                        <div class="flex items-center">
+                            <input type="text" 
+                                   id="searchInput" 
+                                   class="h-10 flex-grow px-4 py-2 border border-gray-300 rounded-l-lg focus:outline-none focus:border-2 focus:border-gray-900" 
+                                   placeholder="Search products..." 
+                                   autocomplete="off" />
+                            <button id="searchButton" 
+                                    class="h-10 px-4 py-2 bg-zinc-800 text-white rounded-r-lg transform transition-transform duration-300 ease-in-out hover:bg-zinc-600 hover:scale-105 active:bg-zinc-700 active:scale-95">
+                                Search
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Product Grid -->
+                    <div id="productGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <% if (products && products.length > 0) { %>
+                            <% products.forEach(function(product) { %>
+                                <div class="bg-white rounded-lg shadow-md p-4 flex flex-col">
+                                    <!-- Product Image -->
+                                    <a href="/product/<%= product._id %>">
+                                        <img class="w-full h-48 object-cover rounded-lg mb-4" 
+                                             src="<%= product.imageUrl %>" 
+                                             alt="<%= product.productName %>" />
+                                    </a>
+
+                                    <!-- Product Name -->
+                                    <h3 class="text-lg font-semibold text-gray-800 mb-2">
+                                        <%= product.productName %>
+                                    </h3>
+
+                                    <!-- Variant Details -->
+                                    <% if (product.variants && product.variants.length > 0) { %>
+                                        <% const firstVariant = product.variants[0]; %>
+                                        
+                                        <!-- Variant Type -->
+                                        <p class="text-gray-600 mb-2">
+                                            <%= firstVariant.variantType %>
+                                        </p>
+
+                                        <!-- Price -->
+                                        <div class="flex gap-2 mb-2">
+                                            <% if (firstVariant.discountPrice) { %>
+                                                <div class="text-xl font-bold text-gray-900">
+                                                    ₹<%= firstVariant.discountPrice.toLocaleString() %>
+                                                </div>
+                                                <% if (firstVariant.price) { %>
+                                                    <div class="text-gray-500 line-through mt-1">
+                                                        ₹<%= firstVariant.price.toLocaleString() %>
+                                                    </div>
+                                                <% } %>
+                                            <% } else if (firstVariant.price) { %>
+                                                <div class="text-xl font-bold text-gray-900">
+                                                    ₹<%= firstVariant.price.toLocaleString() %>
+                                                </div>
+                                            <% } %>
+                                        </div>
+
+                                        <!-- Stock Status -->
+                                        <div class="flex justify-between items-center mt-auto">
+                                            <a href="javascript:void(0)" 
+                                               class="hover:text-slate-500" 
+                                               onclick="addToWishlist('<%= product._id %>')">
+                                                <i class="fa-regular fa-heart"></i>
+                                            </a>
+                                            <% if (firstVariant.stock > 0) { %>
+                                                <div class="text-green-500">In Stock</div>
+                                            <% } else { %>
+                                                <div class="text-red-600 bg-red-100 px-2 py-1 rounded">
+                                                    Out of Stock
+                                                </div>
+                                            <% } %>
+                                        </div>
+                                    <% } else { %>
+                                        <div class="text-gray-500 mt-auto">No variants available</div>
+                                    <% } %>
+                                </div>
+                            <% }); %>
+                        <% } else { %>
+                            <div class="col-span-full text-center text-gray-500">
+                                No products found
+                            </div>
+                        <% } %>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="pt-6"><%- include("../partials/user/footer") %></div>
+
+    <script>
+        // ... [Previous JavaScript code for notifications] ...
+
+        document.addEventListener("DOMContentLoaded", async () => {
+            const elements = {
+                category: document.getElementById("category"),
+                type: document.getElementById("type"),
+                stockFilter: document.getElementById("stockFilter"),
+                sortFilter: document.getElementById("sortFilter"),
+                minPrice: document.getElementById("minPrice"),
+                maxPrice: document.getElementById("maxPrice"),
+                searchInput: document.getElementById("searchInput"),
+                productGrid: document.getElementById("productGrid")
+            };
+
+            async function updateProducts() {
+                try {
+                    const filters = {
+                        category: elements.category.value,
+                        type: elements.type.value,
+                        minPrice: elements.minPrice.value,
+                        maxPrice: elements.maxPrice.value,
+                        stockStatus: elements.stockFilter.value,
+                        sort: elements.sortFilter.value,
+                    };
+
+                    // Add search query if it exists
+                    const searchQuery = elements.searchInput.value.trim();
+                    if (searchQuery) {
+                        filters.query = searchQuery.toLowerCase();
+                    }
+
+                    const queryParams = new URLSearchParams();
+                    Object.entries(filters).forEach(([key, value]) => {
+                        if (value) queryParams.append(key, value);
+                    });
+
+                    const response = await fetch(`/products/searchFilter?${queryParams}`);
+                    const data = await response.json();
+
+                    if (!data.products || data.products.length === 0) {
+                        elements.productGrid.innerHTML = '<div class="col-span-full text-center text-gray-500">No products found</div>';
+                        return;
+                    }
+
+                    elements.productGrid.innerHTML = data.products.map(product => `
+                        <div class="bg-white rounded-lg shadow-md p-4 flex flex-col transition-transform transform hover:scale-105">
+                            <a href="/product/${product._id}">
+                                <img class="w-full h-auto rounded-lg mb-4" src="${product.imageUrl}" alt="${product.productName}" />
+                            </a>
+                            <h3 class="text-lg font-semibold text-gray-800">
+                                ${product.productName}
+                            </h3>
+                            ${product.variants && product.variants[0] ? `
+                                <p class="text-gray-600">${product.variants[0].variantType}</p>
+                                <div class="text-yellow-500 flex items-center">
+                                    <i class="fa fa-star"></i>
+                                    <p class="ml-1 text-gray-800 font-medium">
+                                        ${product.variants[0].rating || 'No rating'}
+                                    </p>
+                                </div>
+                                <div class="flex gap-2">
+                                    <div class="text-xl font-bold text-gray-900">
+                                        ₹${product.variants[0].discountPrice.toLocaleString()}
+                                    </div>
+                                </div>
+                                <div class="flex justify-between items-center mt-4">
+                                    <a href="javascript:void(0)" class="hover:text-slate-500" onclick="addToWishlist('${product._id}')">
+                                        <i class="fa-regular fa-heart"></i>
+                                    </a>
+                                    ${product.variants[0].stock > 0 ? 
+                                        `<div class="mt-2 text-green-500">In Stock</div>` :
+                                        `<div class="mt-2 font-semibold text-red-600 bg-red-100 border border-red-600 rounded-lg p-2">
+                                            Out of Stock
+                                         </div>`
+                                    }
+                                </div>
+                            ` : `
+                                <div class="text-xl font-bold text-gray-900">Price Not Available</div>
+                            `}
+                        </div>
+                    `).join('');
+                } catch (error) {
+                    console.error("Error updating products:", error);
+                    elements.productGrid.innerHTML = '<div class="col-span-full text-center text-red-500">Error loading products</div>';
+                }
+            }
+
+            // Add event listeners for all filters
+            Object.values(elements).forEach(element => {
+                if (element.tagName === "SELECT" || element.tagName === "INPUT") {
+                    element.addEventListener("change", updateProducts);
+                }
+            });
+
+            // Add search input listener with debounce
+            elements.searchInput.addEventListener("input", debounce(updateProducts, 300));
+
+            // Add search button click handler
+            document.getElementById("searchButton").addEventListener("click", updateProducts);
+
+            // Reset button handler
+            document.getElementById("resetButton").addEventListener("click", () => {
+                elements.category.value = "";
+                elements.type.value = "";
+                elements.stockFilter.value = "";
+                elements.sortFilter.value = "default";
+                elements.minPrice.value = "";
+                elements.maxPrice.value = "";
+                elements.searchInput.value = "";
+                updateProducts();
+            });
+        });
+
+        // Debounce function
+        function debounce(func, wait) {
+            let timeout;
+            return function (...args) {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(this, args), wait);
+            };
+        }
+
+        // Add CSS styles
+        const styles = `
+            #searchSuggestions {
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+                transition: all 0.3s ease;
+                background-color: #f8f9fa; /* Light gray background */ 
+            }
+            #searchSuggestions .suggestion-item {
+                background-color: #f8f9fa; /* Light gray background */
+                transition: background-color 0.2s;
+            }
+            #searchSuggestions .suggestion-item:hover {
+                background-color: #e9ecef; /* Slightly darker on hover */
+            }
+            #searchSuggestions .aspect-w-1 {
+                position: relative;
+                padding-bottom: 100%;
+            }
+            #searchSuggestions .aspect-w-1 img {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+            }
+            .line-clamp-2 {
+                display: -webkit-box;
+                -webkit-line-clamp: 2;
+                -webkit-box-orient: vertical;
+                overflow: hidden;
+            }
+        `;
+
+        const styleSheet = document.createElement("style");
+        styleSheet.innerText = styles;
+        document.head.appendChild(styleSheet);
+    </script>
+</body>
+</html>

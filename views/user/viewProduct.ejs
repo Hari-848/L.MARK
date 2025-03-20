@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Product Page</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Add any other necessary CSS/JS files -->
+    
+    <style>
+        /* Keep the zoom functionality styles */
+        #imageZoom {
+            width: 100%;
+            position: relative;
+            cursor: zoom-in;
+        }
+
+        #imageZoom img {
+            width: 100%;
+            height: auto;
+            object-fit: cover;
+        }
+
+        #imageZoom::after {
+            display: var(--display);
+            content: "";
+            width: 100%;
+            height: 100%;
+            background-color: black;
+            background-image: var(--url);
+            background-size: 200%;
+            background-position: var(--zoom-x) var(--zoom-y);
+            position: absolute;
+            left: 0;
+            top: 0;
+            pointer-events: none;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100">
+    <%- include("../partials/user/navbar") %>
+    <div class="mt-16"></div>
+
+    <!-- Breadcrumb -->
+    <div class="bg-gray-100 pt-4">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <nav class="text-sm font-medium text-gray-500" aria-label="Breadcrumb">
+                <ol class="flex items-center space-x-2">
+                    <li><a href="/home" class="text-gray-800 hover:text-gray-900 transition">Home</a></li>
+                    <li><span class="text-gray-400">/</span></li>
+                    <li><a href="/products" class="text-gray-800 hover:text-gray-900 transition">Products</a></li>
+                    <li><span class="text-gray-400">/</span></li>
+                    <li class="text-gray-500"><%= product.productName %></li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Product Details Section -->
+    <div class="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+        <div class="flex flex-wrap md:flex-nowrap">
+            <div class="flex flex-col md:flex-row space-x-4">
+                <!-- Thumbnails -->
+                <div class="w-1/5 md:w-1/6 space-y-4">
+                    <% product.imageUrl.forEach((image, index) => { %>
+                        <img src="<%= image %>" 
+                             alt="<%= product.productName %> Thumbnail <%= index + 1 %>"
+                             class="w-full h-auto rounded-md shadow-md cursor-pointer border-2 border-transparent hover:border-gray-400"
+                             onclick="updateMainImage('<%= image %>')" />
+                    <% }) %>
+                </div>
+
+                <!-- Main Image with Zoom -->
+                <div class="w-4/5">
+                    <div id="imageZoom" class="relative" style="--url: url(<%= product.imageUrl[0] %>); --zoom-x: 0%; --zoom-y: 0%; --display: none;">
+                        <img id="main-product-image" 
+                             src="<%= product.imageUrl[0] %>" 
+                             alt="<%= product.productName %> Main Image"
+                             class="w-full h-auto rounded-md shadow-md" />
+                    </div>
+                </div>
+
+                <!-- Product Info -->
+                <div class="w-full md:w-2/3 md:pl-12">
+                    <!-- Product Title and Wishlist -->
+                    <div class="flex items-center">
+                        <h1 class="text-2xl font-bold text-gray-800 mr-4"><%= product.productName %></h1>
+                        <a href="javascript:void(0)" 
+                           class="hover:text-slate-500 wishlist-button"
+                           onclick="addToWishlist('<%= product._id %>', '<%= product.variants[0].variants_id %>')">
+                            <i class="fa-regular fa-heart"></i>
+                        </a>
+                    </div>
+
+                    <!-- Price Information -->
+                    <div class="flex items-center space-x-4 my-4">
+                        <p class="text-lg text-gray-800 font-bold variant-price ">
+                            ₹<%= product.variants[0]?.discountPrice.toLocaleString() || 'N/A' %>
+                        </p>
+                        <p class="text-gray-500 line-through variant-original-price font-size-20">
+                            ₹<%= product.variants[0]?.price.toLocaleString() || 'N/A' %>
+                        </p>
+                        <p class="text-green-600 font-semibold variant-discount">
+                            <%= product.variants[0]?.discountPercentage.toLocaleString() || 0 %>% off
+                        </p>
+                    </div>
+
+                    <!-- Rating -->
+                    <div class="text-yellow-500 flex items-center">
+                        <i class="fa fa-star"></i>
+                        <p class="mr-2 text-gray-800 font-medium variant-rating">
+                            <%= product.variants[0]?.rating || 'No rating' %>
+                        </p>
+                    </div>
+
+                    <!-- Stock Status -->
+                    <div class="variant-stock mt-2">
+                        <% if (product.variants[0].stock === 0) { %>
+                            <div class="font-bold text-red-600 bg-red-100 border border-red-600 rounded-lg p-2" style="width: fit-content">
+                                Out of Stock
+                            </div>
+                        <% } else { %>
+                            <div class="text-green-500">
+                                <p class="font-semibold">In stock (<%= product.variants[0].stock %> left)</p>
+                            </div>
+                        <% } %>
+                    </div>
+
+                   <!-- Product Description -->
+                               
+                   <div class="mt-6">
+                    <h4 class="text-lg font-semibold text-gray-900 mb-2">Product Description</h4>
+                    <div class="prose prose-sm text-gray-600">
+                        <% if (product.description) { %>
+                                        <p class="whitespace-pre-line"><%= product.description %></p>
+                                    <% } else { %>
+                                        <p class="text-gray-500">No description available</p>
+                                    <% } %>
+                                </div>
+                            </div>
+
+                    <!-- Variant Selection -->
+                    <div class="mt-6">
+                        <label for="variantType" class="block font-medium text-gray-700">Select Type</label>
+                        <select id="variantType" class="mt-2 px-4 py-2 border rounded-lg shadow-sm">
+                            <% product.variants.forEach(variant => { %>
+                                <option value="<%= variant.variantType %>">
+                                    <%= variant.variantType === 'Ruled' ? 'Ruled' : 'Unruled' %>
+                                </option>
+                            <% }) %>
+                        </select>
+                    </div>
+
+                    <!-- Add to Cart Button -->
+                    <div class="mt-8 flex space-x-4" id="div-for-addToCart">
+                        <% if (product.variants[0].stock > 0) { %>
+                            <button id="addToCartButton" 
+                                    class="px-6 py-3 bg-black text-white rounded-lg font-bold shadow-md hover:bg-gray-800">
+                                Add To Cart
+                            </button>
+                        <% } %>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Related Products Section -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-12">
+        <h3 class="text-2xl font-bold text-gray-900 mb-6">Related Products</h3>
+        <div class="mx-4 mb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            <% relatedProducts.slice(0, 4).forEach(product => { %>
+                <div class="bg-white rounded-lg shadow-md p-4 flex flex-col transition-transform transform hover:scale-105">
+                    <a href="/product/<%= product._id %>">
+                        <img class="w-full h-48 object-cover rounded-lg mb-4" 
+                             src="<%= product.imageUrl %>" 
+                             alt="<%= product.productName %>" />
+                    </a>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">
+                        <%= product.productName %>
+                    </h3>
+
+                    <% if (product.variants && product.variants[0]) { %>
+                        <div class="text-xl font-bold text-gray-900">
+                            ₹<%= (product.variants[0].discountPrice || product.variants[0].price || 0).toLocaleString() %>
+                        </div>
+                    <% } else { %>
+                        <div class="text-gray-500">Price Not Available</div>
+                    <% } %>
+                </div>
+            <% }); %>
+        </div>
+    </div>
+
+    <%- include("../partials/user/footer") %>
+
+    <script>
+        // Image zoom functionality
+        const imageZoom = document.getElementById("imageZoom");
+
+        imageZoom.addEventListener("mousemove", (event) => {
+            imageZoom.style.setProperty("--display", "block");
+            const pointer = {
+                x: (event.offsetX * 100) / imageZoom.offsetWidth,
+                y: (event.offsetY * 100) / imageZoom.offsetHeight,
+            };
+            imageZoom.style.setProperty("--zoom-x", pointer.x + "%");
+            imageZoom.style.setProperty("--zoom-y", pointer.y + "%");
+        });
+
+        imageZoom.addEventListener("mouseout", () => {
+            imageZoom.style.setProperty("--display", "none");
+        });
+
+        function updateMainImage(imageUrl) {
+            const mainImage = document.getElementById("main-product-image");
+            mainImage.src = imageUrl;
+            imageZoom.style.setProperty("--url", `url(${imageUrl})`);
+        }
+
+        // Add to Cart functionality
+        document.getElementById("addToCartButton")?.addEventListener("click", async function() {
+            try {
+                const response = await fetch("/cart/add", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        productId: "<%= product._id %>",
+                        variantId: document.getElementById("variantType").value,
+                        quantity: 1
+                    })
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    notyf.success("Added to cart successfully");
+                    updateCartBadge(data.cartQuantity);
+                } else {
+                    throw new Error(data.message);
+                }
+            } catch (error) {
+                notyf.error(error.message || "Failed to add to cart");
+            }
+        });
+
+        // Variant selection handling
+        document.getElementById("variantType").addEventListener("change", function () {
+            const selectedType = this.value;
+            const productId = document.getElementById("product-details").getAttribute("data-product-id");
+
+            if (!productId) {
+                console.error("Product ID is missing.");
+                return;
+            }
+
+            // Fetch the variant details
+            fetch(`/product/getvariant?productId=${productId}&type=${selectedType}`)
+                .then((response) => response.json())
+                .then((variant) => {
+                    updateVariantDetails(variant);
+                })
+                .catch((error) => console.error("Error fetching variant details:", error));
+        });
+    </script>
+</body>
+</html>

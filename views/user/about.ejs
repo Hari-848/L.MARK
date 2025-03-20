@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <title>About Us</title>
+</head>
+<body class="bg-gray-50">
+    <%- include("../partials/user/navbar") %>
+    
+    <!-- Banner Section -->
+    <div class="relative w-full h-screen">
+        <img src="/images/banner-collage.png" alt="L.Mark Banner" class="w-full h-full object-cover object-center">
+        <div class="absolute inset-0 flex flex-col justify-center items-center px-4">
+           
+            <div class="bg-white p-6 md:p-10 shadow-lg max-w-xl text-center rounded-lg">
+                <h1 class="text-gray-700 text-3xl md:text-4xl leading-relaxed" style="font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;">ABOUT US</h1>
+                <p class="text-gray-700 text-lg leading-relaxed" style="font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;">
+                    Welcome to L.Mark! We're here to provide high-quality notebooks that make your work, studies, and creativity easier and more enjoyable. Stay organized and inspired with our premium collection!
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Content Section -->
+    <div class="max-w-3xl mx-auto px-6 py-12 text-center">
+        <p class="text-gray-800 text-lg leading-relaxed" style="font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;">
+            Welcome to L.Mark, your trusted destination for premium notebooks. We understand the importance of having the right notebook to spark creativity and boost productivity.
+        </p>
+        <p class="text-gray-800 text-lg leading-relaxed mt-4" style="font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;">
+            Our collection features high-quality notebooks designed for students, professionals, and creatives alike. Whether you're jotting down notes, organizing your day, or capturing new ideas, we're here to support your journey.
+        </p>
+        <p class="text-gray-800 text-lg leading-relaxed mt-4" style="font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;">
+            At L.Mark, we're dedicated to quality, style, and affordability, ensuring that every notebook adds value to your daily life. Let us help you turn your ideas into reality, one page at a time!
+        </p>
+    </div>
+    
+    <%- include("../partials/user/footer") %>
+</body>
+</html>

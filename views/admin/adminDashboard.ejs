@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+</head>
+<body class="bg-[#1E0033] text-gray-200 min-h-screen">
+
+  <!-- Sidebar -->
+  <%- include("../partials/admin/sidebar") %>
+
+  <!-- Main Content -->
+  <main class="p-6">
+    
+    <!-- Header -->
+    <header class="flex items-center justify-between mb-6">
+      <h1 class="text-3xl font-semibold text-gray-100">L.Mark</h1>
+      <div class="flex items-center space-x-4">
+        <select id="yearFilter" class="px-4 py-2 text-gray-800 bg-gray-100 rounded-md">
+          <option value="2024"></option>
+          <option value="2023"></option>
+          <option value="2022"></option>
+        </select>
+        <button class="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"></button>
+        <button class="px-4 py-2 bg-purple-400 text-white rounded-md hover:bg-purple-500"></button>
+      </div>
+    </header>
+
+    <!-- Sales Summary Cards -->
+    <section class="grid grid-cols-4 gap-6 mb-8">
+      
+      <!-- Revenue -->
+      <div class="bg-purple-800 p-4 rounded-lg shadow-md">
+        <h2 class="text-lg font-semibold"></h2>
+        <p class="text-2xl font-bold"></p>
+        <p class="text-yellow-400"></p>
+      </div>
+
+      <!-- Orders -->
+      <div class="bg-blue-900 p-4 rounded-lg shadow-md border border-blue-500">
+        <h2 class="text-lg font-semibold"></h2>
+        <p class="text-2xl font-bold"></p>
+        <p class="text-red-500"></p>
+      </div>  
+
+      <!-- Products Sold -->
+      <div class="bg-purple-800 p-4 rounded-lg shadow-md">
+        <h2 class="text-lg font-semibold"></h2>
+        <p class="text-2xl font-bold"></p>
+        <p class="text-green-400"></p>
+      </div>
+
+      <!-- Total Customers -->
+      <div class="bg-purple-800 p-4 rounded-lg shadow-md">
+        <h2 class="text-lg font-semibold"></h2>
+        <p class="text-2xl font-bold"></p>
+        <p class="text-yellow-400"></p>
+      </div>
+
+    </section>
+
+    <!-- Orders Chart -->
+    <section class="bg-zinc-800 p-6 rounded-lg shadow-md">
+      <div class="flex items-center justify-between">
+        <h2 class="text-xl font-semibold"></h2>
+        <a href="#" class="text-purple-400 hover:underline"></a>
+      </div>
+      <canvas id="ordersChart"></canvas>
+    </section>
+
+  </main>
+
+</body>
+</html>

@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Product Images</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+</head>
+
+<body class="bg-black text-white min-h-screen">
+
+  <!-- Sidebar -->
+   <%- include("../partials/admin/sidebar")  %>
+
+
+  <!-- Main Content -->
+<main class="ml-64 p-8">
+   <header class="flex items-center justify-between mb-8">
+              <h1 class="text-2xl font-semibold text-gray-200">
+              Edit Product Images - <%= productName %>
+          </h1>
+   </header>
+  <!-- <main class="ml-64 p-8"> -->
+    <div class="container mx-auto max-w-4xl">
+        <div class="bg-zinc-800 rounded-lg p-6">
+
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <% 
+                    const maxImages = 4; // Define the maximum number of images allowed
+                    const images = locals.imageUrl || []; // Add safety check
+                    const currentCount = images.length;
+                    const missingFields = maxImages - currentCount; // Calculate how many slots are missing
+                %>
+
+                <% images.forEach((url, index) => { %>
+                    <!-- Existing image display -->
+                    <div class="bg-gray-100 border rounded-lg p-4 flex flex-col items-center space-y-4 shadow-sm">
+                        <img 
+                            src="<%= url %>" 
+                            alt="Product Image <%= index + 1 %>" 
+                            class="w-full h-48 object-cover rounded-md mb-4"
+                        >
+                        <form id="productForm" enctype="multipart/form-data" method="POST">
+                            <div class="flex items-center justify-center mb-4">
+                            <!-- Custom file input button -->
+                            <label for="fileInput<%= index %>" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-md cursor-pointer shadow-md">
+                                Choose Image
+                            </label>
+                            
+                            <input 
+                                id="fileInput<%= index %>" 
+                                type="file" 
+                                accept="image/*" 
+                                class="hidden"
+                                name="imageFiles"
+                                onchange="handleImageSelect(event, '<%= index %>')"
+                            >
+                            </div>
+                        </form>
+                    </div>
+                <% }); %>
+
+                <% for (let i = 0; i < missingFields; i++) { %>
+                    <!-- Empty slot for new image -->
+                    <div class="bg-gray-50 border rounded-lg p-4 flex flex-col items-center space-y-4 shadow-sm">
+                        <div class="w-full h-48 bg-gray-200 flex items-center justify-center rounded-md mb-4">
+                            <span class="text-gray-500">Empty Slot</span>
+                        </div>
+                        <form id="productForm" enctype="multipart/form-data" method="POST">
+                            <input 
+                                type="file" 
+                                accept="image/*" 
+                                class="file-input mb-4 border border-gray-300 rounded-md p-2 w-full"
+                                name="imageFiles"
+                                onchange="handleImageSelect(event, '<%= currentCount + i %>')"
+                            >
+                        </form>
+                    </div>
+                <% } %>
+            </div>
+
+        
+        
+            <div id="loadingIndicator" class="hidden fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-50">
+                <div class="flex flex-col items-center justify-center space-y-4 p-6 rounded-lg shadow-lg bg-gray-800">
+                    <!-- Spinning Circle with Glowing Effect -->
+                    <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-indigo-600 border-solid mb-4"></div>
+                    <!-- Loading Text with a subtle animation -->
+                    <span class="text-white text-lg font-semibold animate-pulse">Uploading images...</span>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+
+    <!-- Crop Modal -->
+    <div 
+        id="cropperModal" 
+        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50"
+    >
+        <div class="bg-white p-4 rounded-lg shadow-lg max-w-lg w-full">
+            <h2 class="text-lg font-bold mb-4">Crop Your Image</h2>
+            <div class="cropper-container">
+                <img id="cropperImage" src="" class="max-w-full h-auto" />
+            </div>
+            <div class="flex justify-end mt-4">
+                <button 
+                    onclick="closeCropModal()" 
+                    class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded mr-2"
+                >
+                    Cancel
+                </button>
+                <button 
+                    onclick="applyCrop()" 
+                    class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
+                >
+                    Save
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="imagePreview" class="grid grid-cols-1 gap-4 mt-6"></div>
+</main>
+
+
+<script>
+    let cropper = null;
+    let selectedFile = null;
+    let currentImageIndex = null;
+
+    // Handle file selection
+    function handleImageSelect(event, index) {
+        selectedFile = event.target.files[0];
+        currentImageIndex = index;
+
+        if (!selectedFile) return;
+
+        // Validate file type and size
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        const maxSize = 10 * 1024 * 1024; // 10MB
+
+        if (!allowedTypes.includes(selectedFile.type)) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Invalid File Type',
+                text: 'Please upload a valid image (JPEG, PNG, GIF, WebP)'
+            });
+            event.target.value = ''; // Clear the file input
+            return;
+        }
+
+        if (selectedFile.size > maxSize) {
+            Swal.fire({
+                icon: 'error',
+                title: 'File Too Large',
+                text: 'Image size should not exceed 10MB'
+            });
+            event.target.value = ''; // Clear the file input
+            return;
+        }
+
+        openCropModal();
+    }
+
+    // Open the Crop Modal
+    function openCropModal() {
+        const cropperModal = document.getElementById("cropperModal");
+        const cropperImage = document.getElementById("cropperImage");
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            cropperImage.src = e.target.result;
+
+            if (cropper) cropper.destroy(); // Destroy any previous cropper instance
+
+            cropper = new Cropper(cropperImage, {
+                aspectRatio: 1, // Square crop
+                viewMode: 1,
+                zoomable: true,
+                scalable: false,
+                minCropBoxWidth: 100,
+                minCropBoxHeight: 100
+            });
+
+            cropperModal.classList.remove("hidden"); // Show modal
+        };
+        reader.readAsDataURL(selectedFile);
+    }
+
+    // Close the Crop Modal
+    function closeCropModal() {
+        const cropperModal = document.getElementById("cropperModal");
+        cropperModal.classList.add("hidden");
+
+        if (cropper) {
+            cropper.destroy();
+            cropper = null; // Clean up cropper instance
+        }
+    }
+
+    // Apply Crop and Save
+    async function applyCrop() {
+        if (!cropper) return;
+        const loadingIndicator = document.getElementById("loadingIndicator");
+
+        try {
+            // Create form data for upload
+            const formData = new FormData();
+            
+            // Get cropped image as blob
+            const canvas = cropper.getCroppedCanvas({
+                width: 1024,
+                height: 1024,
+                imageSmoothingEnabled: true,
+                imageSmoothingQuality: 'high'
+            });
+
+            // Convert canvas to blob
+            const blob = await new Promise(resolve => {
+                canvas.toBlob(resolve, 'image/jpeg', 0.9);
+            });
+
+            // Append blob and index to FormData
+            formData.append('imageFiles', blob, 'cropped-image.jpg');
+            formData.append('imageIndex', currentImageIndex);
+            
+            // Close crop modal and show loading
+            closeCropModal();
+            loadingIndicator.classList.remove("hidden");
+
+            try {
+                // Send to server
+                const response = await fetch(`/admin/products/<%= _id %>/update-image`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                // Always hide loading indicator
+                loadingIndicator.classList.add("hidden");
+
+                if (response.ok && result.success) {
+                    // Update image source
+                    const imageElements = document.querySelectorAll('img');
+                    if (imageElements[currentImageIndex]) {
+                        imageElements[currentImageIndex].src = result.newImageUrl;
+                    }
+
+                    // Show success notification
+                    await Swal.fire({
+                        icon: 'success',
+                        title: 'Image Updated',
+                        text: 'Your image has been successfully updated',
+                        confirmButtonText: 'OK'
+                    });
+
+                    // Reload the page
+                    window.location.reload();
+                } else {
+                    throw new Error(result.error || 'Failed to update image');
+                }
+            } catch (error) {
+                console.error('Upload Error:', error);
+                loadingIndicator.classList.add("hidden");
+                await Swal.fire({
+                    icon: 'error',
+                    title: 'Upload Failed',
+                    text: error.message || 'An error occurred during upload',
+                    confirmButtonText: 'OK'
+                });
+            }
+        } catch (cropError) {
+            console.error('Crop Error:', cropError);
+            loadingIndicator.classList.add("hidden");
+            await Swal.fire({
+                icon: 'error',
+                title: 'Crop Error',
+                text: 'Failed to crop image',
+                confirmButtonText: 'OK'
+            });
+        }
+    }
+
+    // Additional error handling for file input
+    document.querySelectorAll('input[type="file"]').forEach((fileInput, index) => {
+        fileInput.addEventListener('change', (event) => handleImageSelect(event, index));
+    });
+</script>
+</body>
+</html>
