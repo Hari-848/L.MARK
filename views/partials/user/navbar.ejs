@@ -4,6 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>L.Mark - Home</title>
+    <!-- Add this script before your existing links -->
+    <script>
+        window.addEventListener('pageshow', function(event) {
+            if (event.persisted || (window.performance && window.performance.navigation.type === 2)) {
+                window.location.reload(true);
+            }
+        });
+
+        window.addEventListener('popstate', function(event) {
+            if (!document.cookie.includes('connect.sid')) {
+                window.location.replace('/signin');
+            }
+        });
+    </script>
+    <!-- Your existing links continue here -->
     <link rel="stylesheet" href="/css/home.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -77,16 +92,36 @@
         document.addEventListener("DOMContentLoaded", () => {
             const logoutBtn = document.getElementById("logoutBtn");
             if (logoutBtn) {
-                logoutBtn.addEventListener("click", () => {
-                    fetch("/user/logout", { method: "POST" })
-                        .then(response => {
-                            if (response.redirected) {
-                                window.location.href = response.url;
-                            } else {
-                                alert("Logout failed!");
-                            }
-                        })
-                        .catch(error => console.error("Logout failed", error));
+                logoutBtn.addEventListener("click", async () => {
+                    try {
+                        const response = await fetch("/user/logout", {
+                            method: "POST",
+                            headers: {
+                                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                                'Pragma': 'no-cache',
+                                'Expires': '0'
+                            },
+                            credentials: 'same-origin'
+                        });
+                        
+                        if (response.ok) {
+                            // Clear all storage
+                            localStorage.clear();
+                            sessionStorage.clear();
+                            
+                            // Prevent back navigation after logout
+                            window.location.replace('/signin');
+                            window.history.pushState(null, '', '/signin');
+                            window.addEventListener('popstate', function(event) {
+                                window.location.replace('/signin');
+                            });
+                        } else {
+                            throw new Error('Logout failed');
+                        }
+                    } catch (error) {
+                        console.error("Logout failed:", error);
+                        alert("Logout failed. Please try again.");
+                    }
                 });
             }
         });

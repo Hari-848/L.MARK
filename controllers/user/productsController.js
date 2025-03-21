@@ -6,6 +6,18 @@ const mongoose = require('mongoose'); // Import mongoose
 
 exports.products = async (req, res) => {
   try {
+    // Authentication check
+    if (!req.session.user) {
+      return res.redirect('/signin');
+    }
+
+    // Set cache control headers
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate, private',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
+    
     // Fetch categories
     const categories = await Category.find({}, '_id name').lean();
 
@@ -84,6 +96,18 @@ exports.getFilterOptions = async (req, res) => {
 
 exports.searchAndFilterProducts = async (req, res) => {
   try {
+    // Authentication check
+    if (!req.session.user) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+
+    // Set cache control headers
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate, private',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
+    
     console.log('Received query params:', req.query);
     let { query, type, minPrice, maxPrice, category, stockStatus, sort } =
       req.query;
@@ -252,6 +276,18 @@ exports.searchAndFilterProducts = async (req, res) => {
 
 exports.viewProduct = async (req, res) => {
   try {
+    // Authentication check
+    if (!req.session.user) {
+      return res.redirect('/signin');
+    }
+
+    // Set cache control headers
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate, private',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
+
     const productId = req.params.id;
 
     if (!mongoose.Types.ObjectId.isValid(productId)) {

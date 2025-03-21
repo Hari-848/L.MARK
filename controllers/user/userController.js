@@ -140,6 +140,13 @@ exports.resendOTP = async (req, res) => {
 // In your route handler file
 exports.logoutPOST = (req, res) => {
   try {
+    // Set headers to prevent caching
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
+
     // Destroy the session
     req.session.destroy(err => {
       if (err) {
@@ -147,8 +154,13 @@ exports.logoutPOST = (req, res) => {
         return res.status(500).send('Failed to log out. Please try again.');
       }
 
-      // Clear the session cookie
-      res.clearCookie('connect.sid');
+      // Clear all session-related cookies
+      res.clearCookie('connect.sid', {
+        path: '/',
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict'
+      });
 
       // Handle Google logout if it's a Google user
       if (req.isAuthenticated()) {
@@ -156,11 +168,11 @@ exports.logoutPOST = (req, res) => {
           if (err) {
             console.error('Error logging out Google user:', err);
           }
-          res.redirect('/signin');
+          return res.status(200).json({ redirect: '/signin' });
         });
       } else {
         // Regular logout
-        res.redirect('/signin');
+        return res.status(200).json({ redirect: '/signin' });
       }
     });
   } catch (error) {

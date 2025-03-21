@@ -32,11 +32,14 @@ app.use(
     resave: false,
     saveUninitialized: false,
     store: MongoStore.create({
-      mongoUrl: process.env.MONGODB_URI, // Your existing MongoDB connection string
-      ttl: 24 * 60 * 60, // 1 day
+      mongoUrl: process.env.MONGODB_URI,
+      ttl: 24 * 60 * 60,
     }),
     cookie: {
-      maxAge: 24 * 60 * 60 * 1000, // 1 day
+      maxAge: 24 * 60 * 60 * 1000,
+      httpOnly: true, // Protect against XSS
+      secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
+      sameSite: 'strict' // Protect against CSRF
     },
   })
 );
