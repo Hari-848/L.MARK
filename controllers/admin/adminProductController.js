@@ -212,15 +212,15 @@ exports.getProductDetails = [
     try {
       const productId = req.params.id;
       const product = await Product.findById(productId)
-        .populate('categoriesId') // Populate the category reference
-        .populate('variants'); // Populate variants
+        .populate('categoriesId')
+        .populate('variants');
 
       if (!product) {
         return res.status(404).json({ error: 'Product not found' });
       }
 
       // Fetch all categories
-      const categories = await Category.find();
+      const categories = await Category.find().lean();
 
       const responseData = {
         product: {
@@ -230,23 +230,19 @@ exports.getProductDetails = [
           type: product.type,
           regularPrice: product.regularPrice,
           salePrice: product.salePrice,
-          photos: product.imageUrl || [], // Match with schema field name
+          photos: product.imageUrl || [],
           category: product.category,
-          categoriesId: product.categoriesId?._id, // Include the category ID
+          categoriesId: product.categoriesId?._id,
         },
-        variants: product.variants.map(variant => ({
-          _id: variant._id,
-          price: variant.price,
-          stock: variant.stock,
-          discountPrice: variant.discountPrice,
-          discountPercentage: variant.discountPercentage,
-        })),
-        categories: categories.map(category => ({
-          _id: category._id,
-          name: category.name, // Match with categoryModel field name
-        })),
+        variants: product.variants || [],
+        categories: categories.map(cat => ({
+          _id: cat._id,
+          name: cat.name,
+          selected: product.categoriesId && cat._id.toString() === product.categoriesId._id.toString()
+        }))
       };
 
+      console.log('Response Data:', responseData); // Debug log
       res.status(200).json(responseData);
     } catch (error) {
       console.error('Error fetching product details:', error);

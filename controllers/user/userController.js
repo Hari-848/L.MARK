@@ -69,13 +69,7 @@ exports.signupGET = (req, res) => {
   res.render('user/signup');
 };
 
-const transporter = nodemailer.createTransport({
-  service: 'Gmail',
-  auth: {
-    user: process.env.EMAIL,
-    pass: process.env.PASSWORD,
-  },
-});
+
 
 // Generate and send OTP, save OTP to database
 exports.signupPOST = async (req, res) => {

@@ -113,11 +113,13 @@
               </td>
               <td class="py-3 px-4 text-white">
                 <% if (product.variants && product.variants.length > 0) { %>
-                    ₹<%= product.variants[0].price.toLocaleString() %>
                     <% if (product.variants[0].discountPrice > 0) { %>
+                        ₹<%= product.variants[0].discountPrice.toLocaleString() %>
                         <span class="text-gray-500 line-through">
-                            ₹<%= product.variants[0].discountPrice.toLocaleString() %>
+                            ₹<%= product.variants[0].price.toLocaleString() %>
                         </span>
+                    <% } else { %>
+                        ₹<%= product.variants[0].price.toLocaleString() %>
                     <% } %>
                 <% } else { %>
                     Price Not Available
@@ -333,30 +335,35 @@
     });
 
     async function openEditModal(productId) {
-      const modal = document.getElementById("editModal");
-      const form = document.getElementById("editProductForm");
-      const variantsContainer = document.getElementById("variantsContainer");
-      const productPhotos = document.getElementById("productPhotos");
-      const categorySelect = document.getElementById("categorySelect");
-      const typeSelect = document.getElementById("type");
-
       try {
         const response = await fetch(`/admin/products/${productId}/details`);
         const data = await response.json();
+        const modal = document.getElementById("editModal");
 
         if (!response.ok) {
           throw new Error(data.message || 'Failed to fetch product details');
         }
 
         console.log('Product details received:', data);
-        console.log('Categories:', data.categories);
-        console.log('Product category:', data.product.category);
 
+        const form = document.getElementById("editProductForm");
         form.setAttribute("data-product-id", productId);
-
-        form.productName.value = data.product.productName || '';
-        form.type.value = data.product.type || 'ruled';
         
+        // Set product name and type
+        document.getElementById('productName').value = data.product.productName || '';
+        document.getElementById('type').value = data.product.type || 'ruled';
+
+        // Update category select - Single implementation
+        const categorySelect = document.getElementById('categorySelect');
+        if (categorySelect && data.categories) {
+          categorySelect.innerHTML = data.categories.map(category => `
+            <option value="${category._id}" 
+                    ${data.product.category && data.product.category.toLowerCase() === category.name.toLowerCase() ? 'selected' : ''}>
+              ${category.name}
+            </option>
+          `).join('');
+        }
+
         // Add hidden fields for required data
         const hiddenFields = `
             <input type="hidden" name="description" value="${data.product.description || 'Product description'}">
@@ -518,6 +525,7 @@
     </div>
   `).join("");
 
+        // Move this line to after getting the modal element
         modal.classList.remove("hidden");
 
       } catch (error) {

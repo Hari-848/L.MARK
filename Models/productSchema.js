@@ -15,7 +15,9 @@ const productSchema = new Schema(
     category: {
       type: String,
       required: true,
-      enum: ['Marvel', 'Anime', 'Sports'],
+      enum: ['marvel', 'anime', 'sports'],
+      set: v => v.toLowerCase(),  // Convert to lowercase before saving
+      get: v => v.charAt(0).toUpperCase() + v.slice(1)  // Capitalize first letter when retrieving
     },
     variants: [
       {
@@ -58,7 +60,7 @@ const productSchema = new Schema(
       ref: 'Category',
     },
   },
-  { timestamps: true }
+  { timestamps: true, toJSON: { getters: true }, toObject: { getters: true } }
 );
 
 const Product = mongoose.model('Product', productSchema);
