@@ -20,11 +20,12 @@ exports.loginGET = (req, res) => {
   res.render('user/signin');
 };
 
+// Update loginPOST function
 exports.loginPOST = async (req, res) => {
   try {
     const { email, password } = req.body;
-
     const user = await User.findOne({ email });
+    
     if (!user) {
       return res.render('user/signin', {
         error: 'User not registered',
@@ -54,12 +55,67 @@ exports.loginPOST = async (req, res) => {
       });
     }
 
-    req.session.user = user;
+    // Simplified session handling without encryption
+    const userObject = user.toObject();
+    delete userObject.password;
+    
+    req.session.user = userObject;
+    req.session.authenticated = true;
+    
+    // Use callback to ensure session is saved
+    req.session.save((err) => {
+      if (err) {
+        console.error('Session save error:', err);
+        return res.render('user/signin', { 
+          error: 'Login failed, please try again',
+          email 
+        });
+      }
+      res.redirect('/');
+    });
 
-    res.redirect('/');
   } catch (error) {
-    console.error('Error during login:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Login error:', error);
+    return res.render('user/signin', { 
+      error: 'An error occurred during login',
+      email: req.body.email 
+    });
+  }
+};
+
+// Update error handling in getAboutPage
+exports.getAboutPage = (req, res) => {
+  try {
+    res.render('user/about');
+  } catch (error) {
+    console.error('About page error:', error);
+    res.redirect('/'); // Redirect to home instead of showing error page
+  }
+};
+
+// Update logoutPOST function
+exports.logoutPOST = async (req, res) => {
+  try {
+    if (req.isAuthenticated()) {
+      await new Promise((resolve) => req.logout(resolve));
+    }
+    
+    req.session.destroy((err) => {
+      if (err) {
+        console.error('Session destroy error:', err);
+        return res.status(500).json({ error: 'Logout failed' });
+      }
+      res.clearCookie('connect.sid', {
+        path: '/',
+        httpOnly: true,
+        secure: false,
+        sameSite: 'lax'
+      });
+      res.status(200).json({ redirect: '/signin' });
+    });
+  } catch (error) {
+    console.error('Logout error:', error);
+    res.status(500).json({ error: 'Logout failed' });
   }
 };
 
@@ -143,41 +199,40 @@ exports.resendOTP = async (req, res) => {
 // -------------User Logout--------------------
 // In your route handler file
 exports.logoutPOST = (req, res) => {
-  console.log(req.session)
   try {
-    
-    req.session.destroy((err) => {
-      if (err) {
-        console.error('Session destroy error:', err);
-        return res.status(500).json({ error: 'Logout failed' });
-      }
-
-      // Clear the session cookie
-      res.clearCookie('connect.sid');
-
-      // Handle passport logout if user is authenticated
-      if (req.isAuthenticated()) {
-        req.logout((err) => {
+    // First handle passport logout if user is authenticated
+    if (req.isAuthenticated()) {
+      req.logout((err) => {
+        if (err) {
+          console.error('Passport logout error:', err);
+          return res.status(500).json({ error: 'Logout failed' });
+        }
+        
+        // Then destroy the session after passport logout
+        req.session.destroy((err) => {
           if (err) {
-            console.error('Passport logout error:', err);
+            console.error('Session destroy error:', err);
+            return res.status(500).json({ error: 'Logout failed' });
           }
+          
+          res.clearCookie('connect.sid');
           return res.status(200).json({ redirect: '/signin' });
         });
-      } else {
+      });
+    } else {
+      // If not authenticated with passport, just destroy the session
+      req.session.destroy((err) => {
+        if (err) {
+          console.error('Session destroy error:', err);
+          return res.status(500).json({ error: 'Logout failed' });
+        }
+        
+        res.clearCookie('connect.sid');
         return res.status(200).json({ redirect: '/signin' });
-      }
-    });
+      });
+    }
   } catch (error) {
     console.error('Logout error:', error);
     res.status(500).json({ error: 'Server error during logout' });
-  }
-};
-
-exports.getAboutPage = (req, res) => {
-  try {
-    res.render('user/about');
-  } catch (error) {
-    console.error('Error is getAboutPage:', error);
-    res.status(500).render('error', { message: 'Internal Server Error' });
   }
 };

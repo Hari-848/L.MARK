@@ -25,23 +25,100 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(nocache());
 
-// Session configuration
+// Update session configuration
 app.use(session({
-  secret: process.env.SESSION_SECRET || '123456755',
-  resave: true,
-  saveUninitialized: true,
+  secret: process.env.SESSION_SECRET || 'your-secret-key',
+  resave: false,
+  saveUninitialized: false,
   store: MongoStore.create({
     mongoUrl: process.env.MONGODB_URI,
+    collectionName: 'sessions',
     ttl: 24 * 60 * 60,
-    autoRemove: 'native'
+    autoRemove: 'interval',
+    autoRemoveInterval: 10,
+    touchAfter: 24 * 3600
   }),
   cookie: {
-    maxAge: 24 * 60 * 60 * 1000,
+    maxAge: 1000 * 60 * 60 * 24,
     httpOnly: true,
     secure: false,
     sameSite: 'lax'
   }
 }));
+
+// Update Google callback route
+app.get('/auth/google/callback', (req, res, next) => {
+  passport.authenticate('google', async (err, user, info) => {
+    try {
+      if (err || !user) {
+        return res.redirect('/signin?error=' + (err ? 'auth_error' : 'no_user'));
+      }
+
+      // Clear any existing sessions for this user
+      const sessionStore = req.sessionStore;
+      await new Promise((resolve, reject) => {
+        sessionStore.all((err, sessions) => {
+          if (err) reject(err);
+          const promises = Object.entries(sessions || {}).map(([sid, session]) => {
+            if (session?.user?._id === user._id) {
+              return new Promise((r) => sessionStore.destroy(sid, r));
+            }
+          }).filter(Boolean);
+          Promise.all(promises).then(resolve).catch(reject);
+        });
+      });
+
+      // Create new session
+      await new Promise((resolve, reject) => {
+        req.logIn(user, (err) => {
+          if (err) reject(err);
+          else resolve();
+        });
+      });
+
+      req.session.user = user;
+      req.session.authenticated = true;
+
+      await new Promise((resolve, reject) => {
+        req.session.save(err => {
+          if (err) reject(err);
+          else resolve();
+        });
+      });
+
+      return res.redirect('/');
+    } catch (error) {
+      console.error('Callback error:', error);
+      return res.redirect('/signin?error=server_error');
+    }
+  })(req, res, next);
+});
+
+// Create error view template
+const viewsPath = path.join(__dirname, 'views');
+if (!fs.existsSync(path.join(viewsPath, 'error.ejs'))) {
+  const errorTemplate = `
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Error</title>
+</head>
+<body>
+    <h1>Error</h1>
+    <p><%= error %></p>
+    <a href="/">Back to Home</a>
+</body>
+</html>`;
+  fs.writeFileSync(path.join(viewsPath, 'error.ejs'), errorTemplate);
+}
+
+// Update error handler
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).render('error', {
+    error: 'An unexpected error occurred'
+  });
+});
 
 // Passport initialization
 app.use(passport.initialize());
