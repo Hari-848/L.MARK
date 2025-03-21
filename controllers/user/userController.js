@@ -5,7 +5,11 @@ const userAuthenticated = require('../../middleware/authMiddleware');
 
 // -------------User Home Page--------------------
 exports.home = (req, res) => {
-  res.render('user/home');
+  const user = req.session.user || req.user;
+  if (!user) {
+    return res.redirect('/signin');
+  }
+  res.render('user/home', { user });
 };
 
 // -------------User signin Page--------------------
@@ -139,45 +143,33 @@ exports.resendOTP = async (req, res) => {
 // -------------User Logout--------------------
 // In your route handler file
 exports.logoutPOST = (req, res) => {
+  console.log(req.session)
   try {
-    // Set headers to prevent caching
-    res.set({
-      'Cache-Control': 'no-cache, no-store, must-revalidate',
-      'Pragma': 'no-cache',
-      'Expires': '0'
-    });
-
-    // Destroy the session
-    req.session.destroy(err => {
+    
+    req.session.destroy((err) => {
       if (err) {
-        console.error('Error during logout:', err);
-        return res.status(500).send('Failed to log out. Please try again.');
+        console.error('Session destroy error:', err);
+        return res.status(500).json({ error: 'Logout failed' });
       }
 
-      // Clear all session-related cookies
-      res.clearCookie('connect.sid', {
-        path: '/',
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict'
-      });
+      // Clear the session cookie
+      res.clearCookie('connect.sid');
 
-      // Handle Google logout if it's a Google user
+      // Handle passport logout if user is authenticated
       if (req.isAuthenticated()) {
-        req.logout(err => {
+        req.logout((err) => {
           if (err) {
-            console.error('Error logging out Google user:', err);
+            console.error('Passport logout error:', err);
           }
           return res.status(200).json({ redirect: '/signin' });
         });
       } else {
-        // Regular logout
         return res.status(200).json({ redirect: '/signin' });
       }
     });
   } catch (error) {
-    console.error('Error in logoutPOST:', error);
-    res.status(500).send('Server error during logout.');
+    console.error('Logout error:', error);
+    res.status(500).json({ error: 'Server error during logout' });
   }
 };
 
