@@ -110,257 +110,260 @@
 
 
     <script>
+      // Individual validation functions
       function validateFullName() {
-  const fullName = document.getElementById("fullName").value;
-  const fullNameError = document.getElementById("fullName-error");
-  const regex = /^[A-Za-z\s]+$/;
+        const fullName = document.getElementById("fullName").value;
+        const fullNameError = document.getElementById("fullName-error");
+        if (!fullName) {
+          fullNameError.textContent = "Full Name is required";
+          return false;
+        } else if (!/^[A-Za-z\s]+$/.test(fullName)) {
+          fullNameError.textContent = "Only alphabets are allowed";
+          return false;
+        }
+        fullNameError.textContent = "";
+        return true;
+      }
 
-  if (!regex.test(fullName)) {
-    fullNameError.textContent = "Only alphabets are allowed.";
-    return false;
-  } else {
-    fullNameError.textContent = "";
-    return true;
-  }
-}
+      function validateEmail() {
+        const email = document.getElementById("email").value;
+        const emailError = document.getElementById("email-error");
+        if (!email) {
+          emailError.textContent = "Email is required";
+          return false;
+        } else if (/^[0-9]/.test(email)) {
+          emailError.textContent = "Email cannot start with a number";
+          return false;
+        } else if (!/^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/.test(email)) {
+          emailError.textContent = "Enter a valid email address";
+          return false;
+        }
+        emailError.textContent = "";
+        return true;
+      }
 
-function validateEmail() {
-  const email = document.getElementById("email").value;
-  const emailError = document.getElementById("email-error");
+      function validatePhone() {
+        const phone = document.getElementById("phone").value.trim();
+        const phoneError = document.getElementById("phone-error");
+        if (!phone) {
+          phoneError.textContent = "Phone number is required";
+          return false;
+        } else if (!/^[6-9]\d{9}$/.test(phone)) {
+          phoneError.textContent = "Please enter a valid 10-digit mobile number starting with 6-9";
+          return false;
+        }
+        phoneError.textContent = "";
+        return true;
+      }
 
-  const startsWithNumber = /^[0-9]/.test(email);
+      function validatePassword() {
+        const password = document.getElementById("password").value;
+        const passwordError = document.getElementById("password-error");
+        if (!password) {
+          passwordError.textContent = "Password is required";
+          return false;
+        } else if (!/^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]{8,16}$/.test(password)) {
+          passwordError.textContent = "Password must be 8-16 characters with number, uppercase, lowercase, and special character";
+          return false;
+        }
+        passwordError.textContent = "";
+        return true;
+      }
 
-  if (startsWithNumber) {
-    emailError.textContent = "Email ID cannot start with a number.";
-    return false;
-  }
+      function validateConfirmPassword() {
+        const password = document.getElementById("password").value;
+        const confirmPassword = document.getElementById("confirmPassword").value;
+        const confirmPasswordError = document.getElementById("confirmPassword-error");
+        if (!confirmPassword) {
+          confirmPasswordError.textContent = "Confirm Password is required";
+          return false;
+        } else if (confirmPassword !== password) {
+          confirmPasswordError.textContent = "Passwords do not match";
+          return false;
+        }
+        confirmPasswordError.textContent = "";
+        return true;
+      }
 
-  const regex = /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/;
+      // Add event listeners for real-time validation
+      document.getElementById("fullName").addEventListener("input", validateFullName);
+      document.getElementById("email").addEventListener("input", validateEmail);
+      document.getElementById("phone").addEventListener("input", validatePhone);
+      document.getElementById("password").addEventListener("input", validatePassword);
+      document.getElementById("confirmPassword").addEventListener("input", validateConfirmPassword);
 
-  if (!regex.test(email)) {
-    emailError.textContent = "Enter a valid email address.";
-    return false;
-  } else {
-    emailError.textContent = "";
-    return true;
-  }
-}
+      // Update validateForm function
+      function validateForm() {
+        const isFullNameValid = validateFullName();
+        const isEmailValid = validateEmail();
+        const isPhoneValid = validatePhone();
+        const isPasswordValid = validatePassword();
+        const isConfirmPasswordValid = validateConfirmPassword();
 
-function validatePassword() {
-  const password = document.getElementById("password").value;
-  const passwordError = document.getElementById("password-error");
-  const regex =
-    /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]{8,16}$/;
+        return (
+          isFullNameValid && 
+          isEmailValid && 
+          isPhoneValid && 
+          isPasswordValid && 
+          isConfirmPasswordValid
+        );
+      }
 
-  if (!regex.test(password)) {
-    passwordError.textContent =
-      "Password must be 8-16 characters long, and include a number, uppercase, lowercase, and special character.";
-    return false;
-  } else {
-    passwordError.textContent = "";
-    return true;
-  }
-}
+      // Remove individual validation functions and event listeners
+      // Keep only the password visibility toggle function
+      
+      async function handleSignup(event) {
+        event.preventDefault();
+      
+        if (!validateForm()) {
+          return;
+        }
+      
+        const fullName = document.getElementById("fullName").value;
+        const email = document.getElementById("email").value;
+        const phone = document.getElementById("phone").value;
+        const password = document.getElementById("password").value;
+      
+        try {
+          const response = await fetch("/user/signup", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ fullName, email, phone, password }),
+          });
+      
+          // Parse the JSON response
+          const data = await response.json();
+      
+          // Check if the response is successful
+          if (response.status === 200) {
+            // Display success popup and only then show OTP modal
+            swal("Success!", data.message, "success").then(() => {
+              showOtpModal();
+              startTimer(30);
+            });
+          } else {
+            // Display error message
+            swal("Error!", data.message || "An error occurred. Please try again.", "error");
+          }
+        } catch (error) {
+          console.error("Error during signup:", error);
+          swal("Error!", "An error occurred during signup. Please try again.", "error");
+        }
+      }
 
-function validateConfirmPassword() {
-  const password = document.getElementById("password").value;
-  const confirmPassword = document.getElementById("confirmPassword").value;
-  const confirmPasswordError = document.getElementById("confirmPassword-error");
+      function showOtpModal() {
+        const modal = document.getElementById("otp-modal");
+        modal.style.display = "flex";
+      }
 
-  if (confirmPassword !== password) {
-    confirmPasswordError.textContent = "Passwords do not match.";
-    return false;
-  } else {
-    confirmPasswordError.textContent = "";
-    return true;
-  }
-}
+      function closeOtpModal() {
+        const modal = document.getElementById("otp-modal");
+        modal.style.display = "none";
+        clearInterval(timer);
+      }
 
-function validateForm() {
-  const isFullNameValid = validateFullName();
-  const isEmailValid = validateEmail();
-  const isPasswordValid = validatePassword();
-  const isConfirmPasswordValid = validateConfirmPassword();
+      async function resendOTP(event) {
+        event.preventDefault();
+        const loadingIndicator = document.getElementById("loadingIndicator");
+        loadingIndicator.classList.remove("hidden");
+      
+        try {
+          const email = document.getElementById("email").value;
+          const response = await fetch("/user/resend-otp", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ email }),
+          });
+      
+          const data = await response.json();
+          loadingIndicator.classList.add("hidden");
+      
+          if (response.status === 200) {
+            swal("", data.message, "success");
+            startTimer(30);
+          } else {
+            document.getElementById("otp-error").textContent = data.message;
+          }
+        } catch (error) {
+          loadingIndicator.classList.add("hidden");
+          document.getElementById("otp-error").textContent =
+            "An error occurred while resending OTP. Please try again.";
+        }
+      }
 
-  return (
-    isFullNameValid && isEmailValid && isPasswordValid && isConfirmPasswordValid
-  );
-}
+      function startTimer(duration) {
+        let timeRemaining = duration;
+        const timerDisplay = document.getElementById("timer");
+        const resendButton = document.getElementById("resend-otp");
+      
+        resendButton.style.display = "none";
+        console.log("timer started");
+        timer = setInterval(() => {
+          if (timeRemaining <= 0) {
+            clearInterval(timer);
+            timerDisplay.textContent = "You can now resend the OTP.";
+      
+            resendButton.style.display = "block";
+          } else {
+            timeRemaining--;
+            timerDisplay.textContent = `Resend OTP in ${timeRemaining} seconds.`;
+          }
+        }, 1000);
+      }
 
-document.getElementById("fullName").addEventListener("input", validateFullName);
-document.getElementById("email").addEventListener("input", validateEmail);
-document.getElementById("password").addEventListener("input", validatePassword);
-document
-  .getElementById("confirmPassword")
-  .addEventListener("input", validateConfirmPassword);
+      async function handleOTPVerification(event) {
+        event.preventDefault();
+      
+        const email = document.getElementById("email").value;
+        const otp = document.getElementById("otp").value;
+        const fullName = document.getElementById("fullName").value;
+        const password = document.getElementById("password").value;
+      
+        try {
+          const response = await fetch("/user/verify-otp", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ email, otp, fullName, password }),
+          });
+      
+          const data = await response.json();
+          if (response.status === 201) {
+            swal("", data.message, "success");
+      
+            window.location.href = "/home";
+          } else {
+            document.getElementById("otp-error").textContent = data.message;
+          }
+        } catch (error) {
+          document.getElementById("otp-error").textContent =
+            "An error occurred during OTP verification. Please try again.";
+        }
+      }
 
-// Toggle password visibility
-function togglePasswordVisibility(id) {
-  const passwordField = document.getElementById(id);
-  if (passwordField.type === "password") {
-    passwordField.type = "text";
-  } else {
-    passwordField.type = "password";
-  }
-}
 
-let timer;
+         // ... existing validation functions ...
 
-let otpTimer;
-let otpTimeout;
-
-function disableFields() {
-  document.getElementById("fullName").disabled = true;
-  document.getElementById("email").disabled = true;
-  document.getElementById("password").disabled = true;
-  document.getElementById("confirmPassword").disabled = true;
-}
-
-function enableFields() {
-  document.getElementById("fullName").disabled = false;
-  document.getElementById("email").disabled = false;
-  document.getElementById("password").disabled = false;
-  document.getElementById("confirmPassword").disabled = false;
-}
-
-// -------------------------------------------------------
-
-async function handleSignup(event) {
-  event.preventDefault();
-
-  // Validate the form
-  const isFormValid = validateForm();
-  if (!isFormValid) {
-    return;
-  }
-
-  // Get form data
-  const fullName = document.getElementById("fullName").value;
-  const email = document.getElementById("email").value;
-  const password = document.getElementById("password").value;
-
-  try {
-    // Send a POST request to the server
-    const response = await fetch("/user/signup", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ fullName, email, password }),
-    });
-
-    // Parse the JSON response
-    const data = await response.json();
-
-    // Check if the response is successful
-    if (response.status === 200) {
-      // Display success popup and only then show OTP modal
-      swal("Success!", data.message, "success").then(() => {
-        showOtpModal();
-        startTimer(30);
-      });
-    } else {
-      // Display error message
-      swal("Error!", data.message || "An error occurred. Please try again.", "error");
-    }
-  } catch (error) {
-    console.error("Error during signup:", error);
-    swal("Error!", "An error occurred during signup. Please try again.", "error");
-  }
-}
-
-function showOtpModal() {
-  const modal = document.getElementById("otp-modal");
-  modal.style.display = "flex";
-}
-
-function closeOtpModal() {
-  const modal = document.getElementById("otp-modal");
-  modal.style.display = "none";
-  clearInterval(timer);
-}
-
-async function resendOTP(event) {
-  event.preventDefault();
-  const loadingIndicator = document.getElementById("loadingIndicator");
-  loadingIndicator.classList.remove("hidden");
-
-  try {
-    const email = document.getElementById("email").value;
-    const response = await fetch("/user/resend-otp", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ email }),
-    });
-
-    const data = await response.json();
-    loadingIndicator.classList.add("hidden");
-
-    if (response.status === 200) {
-      swal("", data.message, "success");
-      startTimer(30);
-    } else {
-      document.getElementById("otp-error").textContent = data.message;
-    }
-  } catch (error) {
-    loadingIndicator.classList.add("hidden");
-    document.getElementById("otp-error").textContent =
-      "An error occurred while resending OTP. Please try again.";
-  }
-}
-
-function startTimer(duration) {
-  let timeRemaining = duration;
-  const timerDisplay = document.getElementById("timer");
-  const resendButton = document.getElementById("resend-otp");
-
-  resendButton.style.display = "none";
-  console.log("timer started");
-  timer = setInterval(() => {
-    if (timeRemaining <= 0) {
-      clearInterval(timer);
-      timerDisplay.textContent = "You can now resend the OTP.";
-
-      resendButton.style.display = "block";
-    } else {
-      timeRemaining--;
-      timerDisplay.textContent = `Resend OTP in ${timeRemaining} seconds.`;
-    }
-  }, 1000);
-}
-
-async function handleOTPVerification(event) {
-  event.preventDefault();
-
-  const email = document.getElementById("email").value;
-  const otp = document.getElementById("otp").value;
-  const fullName = document.getElementById("fullName").value;
-  const password = document.getElementById("password").value;
-
-  try {
-    const response = await fetch("/user/verify-otp", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ email, otp, fullName, password }),
-    });
-
-    const data = await response.json();
-    if (response.status === 201) {
-      swal("", data.message, "success");
-
-      window.location.href = "/home";
-    } else {
-      document.getElementById("otp-error").textContent = data.message;
-    }
-  } catch (error) {
-    document.getElementById("otp-error").textContent =
-      "An error occurred during OTP verification. Please try again.";
-  }
-}
+         function togglePasswordVisibility(inputId) {
+        const passwordInput = document.getElementById(inputId);
+        const eyeIcon = passwordInput.nextElementSibling.querySelector('i');
+        
+        if (passwordInput.type === "password") {
+          passwordInput.type = "text";
+          eyeIcon.classList.remove("fa-eye");
+          eyeIcon.classList.add("fa-eye-slash");
+        } else {
+          passwordInput.type = "password";
+          eyeIcon.classList.remove("fa-eye-slash");
+          eyeIcon.classList.add("fa-eye");
+        }
+      }
     </script>
-  </body>
+   
+    </body>
 </html>

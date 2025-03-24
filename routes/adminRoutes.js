@@ -64,6 +64,9 @@ router.post('/products/:id/update-image', adminProduct.updateProductImage);
 
 router.post('/products/delete/:id', adminProduct.deleteProduct);
 
+// Add this new route
+router.post('/products/:id/delete-image', adminProduct.deleteProductImage);
+
 // Admin  Customers
 router.get('/customers', adminAuthenticated, adminController.getCustomers);
 router.post('/customers/unblock/:id', adminController.unblockCustomer);

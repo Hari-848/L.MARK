@@ -631,21 +631,31 @@ exports.updateProductImage = [
         stream.end(req.file.buffer);
       });
 
-      // Update the specific image URL in the array
-      if (imageIndex >= 0 && imageIndex < product.imageUrl.length) {
-        product.imageUrl[imageIndex] = result.secure_url;
-        await product.save();
+      // Initialize imageUrl array if it doesn't exist
+      if (!Array.isArray(product.imageUrl)) {
+        product.imageUrl = [];
+      }
 
-        res.json({
-          success: true,
-          newImageUrl: result.secure_url,
-          message: 'Image updated successfully',
-        });
+      // Handle both updating existing images and adding new ones
+      if (imageIndex >= 0 && imageIndex < product.imageUrl.length) {
+        // Update existing image
+        product.imageUrl[imageIndex] = result.secure_url;
+      } else if (imageIndex >= 0 && imageIndex < 4) {
+        // Add new image (limit to 4 total images)
+        product.imageUrl.push(result.secure_url);
       } else {
-        res.status(400).json({
-          error: 'Invalid image index',
+        return res.status(400).json({
+          error: 'Invalid image index or maximum images reached',
         });
       }
+
+      await product.save();
+
+      res.json({
+        success: true,
+        newImageUrl: result.secure_url,
+        message: 'Image updated successfully',
+      });
     } catch (error) {
       console.error('Error updating image:', error);
       res.status(500).json({
@@ -653,4 +663,38 @@ exports.updateProductImage = [
       });
     }
   },
+];
+
+exports.deleteProductImage = [
+    adminAuthenticated,
+    async (req, res) => {
+        try {
+            const productId = req.params.id;
+            const { imageIndex } = req.body;
+
+            const product = await Product.findById(productId);
+            if (!product) {
+                return res.status(404).json({ error: 'Product not found' });
+            }
+
+            if (imageIndex < 0 || imageIndex >= product.imageUrl.length) {
+                return res.status(400).json({ error: 'Invalid image index' });
+            }
+
+            // Remove the image URL from the array
+            product.imageUrl.splice(imageIndex, 1);
+            await product.save();
+
+            res.json({
+                success: true,
+                message: 'Image deleted successfully'
+            });
+        } catch (error) {
+            console.error('Error deleting image:', error);
+            res.status(500).json({
+                success: false,
+                error: error.message || 'Failed to delete image'
+            });
+        }
+    }
 ];
