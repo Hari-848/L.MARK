@@ -120,10 +120,36 @@ exports.updateStatus = [
       const customerId = req.params.id;
       const status = req.body.status;
 
-      await User.findByIdAndUpdate(customerId, { status });
+      const user = await User.findByIdAndUpdate(customerId, { status });
+
+      // If user is being blocked, destroy their active sessions
+      if (status === 'blocked') {
+        // Get the session store
+        const sessionStore = req.sessionStore;
+        
+        // Find and destroy all sessions for this user
+        await new Promise((resolve, reject) => {
+          sessionStore.all((err, sessions) => {
+            if (err) {
+              reject(err);
+              return;
+            }
+
+            const promises = Object.entries(sessions || {}).map(([sid, session]) => {
+              if (session?.user?._id?.toString() === customerId || 
+                  session?.passport?.user === customerId) {
+                return new Promise((r) => sessionStore.destroy(sid, r));
+              }
+            }).filter(Boolean);
+
+            Promise.all(promises).then(resolve).catch(reject);
+          });
+        });
+      }
 
       res.json({ success: true });
     } catch (err) {
+      console.error('Error updating status:', err);
       res.json({ success: false, message: 'Error updating status' });
     }
   },
@@ -225,27 +251,21 @@ exports.updateCategory = async (req, res) => {
 
     // Validate the category name
     if (!categoriesName || categoriesName.trim() === '') {
-      return res.status(400).json({
-        error: 'Category name cannot be empty or just spaces.'
+      return res.status(400).render('admin/adminCategory', {
+        error: 'Category name cannot be empty or just spaces.',
+        categories: await Category.find(),
+        currentPage: 1,
+        totalPages: Math.ceil((await Category.countDocuments()) / 10),
       });
     }
 
     const containsAlphabets = /[a-zA-Z]/.test(categoriesName);
     if (!containsAlphabets) {
-      return res.status(400).json({
-        error: 'Category name must include at least one alphabetic character.'
-      });
-    }
-
-    // Check if category name already exists (excluding current category)
-    const existingCategory = await Category.findOne({
-      name: categoriesName,
-      _id: { $ne: req.params.id }
-    });
-
-    if (existingCategory) {
-      return res.status(400).json({
-        error: 'Category name already exists.'
+      return res.status(400).render('admin/adminCategory', {
+        error: 'Category name must include at least one alphabetic character.',
+        categories: await Category.find(),
+        currentPage: 1,
+        totalPages: Math.ceil((await Category.countDocuments()) / 10),
       });
     }
 
@@ -254,12 +274,10 @@ exports.updateCategory = async (req, res) => {
       name: categoriesName,
     });
 
-    res.json({ success: true });
+    res.redirect('/admin/category');
   } catch (err) {
     console.error('Error updating category:', err);
-    res.status(500).json({
-      error: 'Error updating category'
-    });
+    res.status(500).send('Error updating category');
   }
 };
 

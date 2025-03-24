@@ -1,4 +1,4 @@
- require('dotenv').config();
+require('dotenv').config();
 const express = require('express');
 const morgan = require('morgan');
 const fs = require('fs');
@@ -45,6 +45,34 @@ app.use(session({
     sameSite: 'lax'
   }
 }));
+
+// Add this after session middleware and before routes
+app.use(async (req, res, next) => {
+  try {
+    // Skip for admin routes and non-authenticated users
+    if (req.path.startsWith('/admin') || !req.session.user) {
+      return next();
+    }
+
+    // Check if user is blocked
+    const user = await User.findById(req.session.user._id);
+    if (user && user.status === 'blocked') {
+      // Clear user session
+      req.session.destroy((err) => {
+        if (err) {
+          console.error('Error destroying session:', err);
+        }
+        // Redirect to signin with blocked message
+        res.redirect('/signin?error=account_blocked');
+      });
+    } else {
+      next();
+    }
+  } catch (err) {
+    console.error('Error checking user status:', err);
+    next();
+  }
+});
 
 // Update Google callback route
 app.get('/auth/google/callback', (req, res, next) => {
@@ -141,8 +169,9 @@ passport.use(new GoogleStrategy({
       let user = await User.findOne({ email: profile.emails[0].value });
 
       if (user) {
+        // Check if user is blocked
         if (user.status === 'blocked') {
-          return done(null, false, { message: `${profile.emails[0].value} is blocked` });
+          return done(null, false, { message: 'Your account has been blocked by the Admin.' });
         }
         user.googleId = profile.id;
       } else {
@@ -150,7 +179,8 @@ passport.use(new GoogleStrategy({
           googleId: profile.id,
           fullName: profile.displayName,
           email: profile.emails[0].value,
-          isGoogleUser: true
+          isGoogleUser: true,
+          status: 'active' // Set default status
         });
       }
 
@@ -197,7 +227,15 @@ app.get('/signin', (req, res) => {
   if (req.session.user || req.isAuthenticated()) {
     return res.redirect('/');
   }
-  res.render('user/signin');
+  
+  const error = req.query.error;
+  let errorMessage = '';
+  
+  if (error === 'account_blocked') {
+    errorMessage = 'Your account has been blocked by the Admin.';
+  }
+  
+  res.render('user/signin', { error: errorMessage });
 });
 
 app.get('/auth/google/callback', (req, res, next) => {
