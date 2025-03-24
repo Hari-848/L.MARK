@@ -225,21 +225,27 @@ exports.updateCategory = async (req, res) => {
 
     // Validate the category name
     if (!categoriesName || categoriesName.trim() === '') {
-      return res.status(400).render('admin/adminCategory', {
-        error: 'Category name cannot be empty or just spaces.',
-        categories: await Category.find(),
-        currentPage: 1,
-        totalPages: Math.ceil((await Category.countDocuments()) / 10),
+      return res.status(400).json({
+        error: 'Category name cannot be empty or just spaces.'
       });
     }
 
     const containsAlphabets = /[a-zA-Z]/.test(categoriesName);
     if (!containsAlphabets) {
-      return res.status(400).render('admin/adminCategory', {
-        error: 'Category name must include at least one alphabetic character.',
-        categories: await Category.find(),
-        currentPage: 1,
-        totalPages: Math.ceil((await Category.countDocuments()) / 10),
+      return res.status(400).json({
+        error: 'Category name must include at least one alphabetic character.'
+      });
+    }
+
+    // Check if category name already exists (excluding current category)
+    const existingCategory = await Category.findOne({
+      name: categoriesName,
+      _id: { $ne: req.params.id }
+    });
+
+    if (existingCategory) {
+      return res.status(400).json({
+        error: 'Category name already exists.'
       });
     }
 
@@ -248,10 +254,12 @@ exports.updateCategory = async (req, res) => {
       name: categoriesName,
     });
 
-    res.redirect('/admin/category');
+    res.json({ success: true });
   } catch (err) {
     console.error('Error updating category:', err);
-    res.status(500).send('Error updating category');
+    res.status(500).json({
+      error: 'Error updating category'
+    });
   }
 };
 

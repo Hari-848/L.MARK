@@ -58,7 +58,7 @@
                   </a></td>
                 <td class="px-4 py-2">
                   <button class="bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600"
-                    onclick="openEditModal('<%= category._id %>', '<%= category.categoriesName %>')">Edit</button>
+                    onclick="openEditModal('<%= category._id %>', '<%= category.name %>')">Edit</button>
                   <button class="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600"
                     onclick="deleteCategory('<%= category._id %>')">Delete</button>
                 </td>
@@ -68,16 +68,21 @@
                   <div class="bg-zinc-500 bg-opacity-50 absolute inset-0"></div>
                   <div class="bg-black text-white rounded-lg shadow-xl relative z-10 p-6 w-1/3">
                     <h2 class="text-xl font-semibold mb-4">Edit Category</h2>
-                    <form id="editCategoryForm" method="POST">
+                    <form id="editCategoryForm" method="POST" onsubmit="return validateEditForm(event)">
                       <div class="mb-4">
-                        <label for="editCategoryName" class="block  text-gray-300">Category Name</label>
-                        <input type="text" id="editCategoryName" name="categoriesName"
-                          class="bg-zinc-900 w-full px-4 py-2 border rounded-lg" required>
+                        <label for="editCategoryName" class="block text-gray-300">Category Name</label>
+                        <input type="text" 
+                               id="editCategoryName" 
+                               name="categoriesName"
+                               class="bg-zinc-900 w-full px-4 py-2 border rounded-lg" 
+                               required>
                       </div>
                       <div class="flex justify-end space-x-4">
-                        <button type="button" onclick="closeEditModal()"
-                          class="px-4 py-2 bg-gray-700 text-white rounded-lg">Cancel</button>
-                        <button type="submit" class="px-4 py-2 bg-green-500 text-white rounded-lg">Update</button>
+                        <button type="button" 
+                                onclick="closeEditModal()"
+                                class="px-4 py-2 bg-gray-700 text-white rounded-lg">Cancel</button>
+                        <button type="submit" 
+                                class="px-4 py-2 bg-green-500 text-white rounded-lg">Update</button>
                       </div>
                     </form>
                   </div>
@@ -161,7 +166,7 @@
 
           function openEditModal(id, name) {
             const form = document.getElementById('editCategoryForm');
-            form.action = '/admin/category/update/' + id;
+            form.action = `/admin/category/update/${id}`;
             document.getElementById('editCategoryName').value = name;
             document.getElementById('editCategoryModal').classList.remove('hidden');
           }
@@ -257,6 +262,66 @@
 
             return false;
           }
+
+          function validateEditForm(event) {
+            event.preventDefault();
+            const categoryName = document.getElementById('editCategoryName').value.trim();
+            const form = event.target;
+            
+            if (!categoryName) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Category name cannot be empty',
+                    confirmButtonText: 'OK'
+                });
+                return false;
+            }
+
+            // Submit form using fetch
+            fetch(form.action, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `categoriesName=${encodeURIComponent(categoryName)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                // Success
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Success',
+                    text: 'Category updated successfully',
+                    confirmButtonText: 'OK'
+                }).then(() => {
+                    window.location.reload();
+                });
+            })
+            .catch(error => {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: error.message || 'Failed to update category',
+                    confirmButtonText: 'OK'
+                });
+            });
+
+            return false;
+          }
+
+          // Fix the button onclick handler
+          document.querySelectorAll('button[onclick^="openEditModal"]').forEach(button => {
+            const onclick = button.getAttribute('onclick');
+            const matches = onclick.match(/openEditModal\('([^']+)', '([^']+)'\)/);
+            if (matches) {
+                const [_, id, name] = matches;
+                button.onclick = () => openEditModal(id, name);
+            }
+          });
 
         </script>
 
