@@ -20,6 +20,10 @@ const userSchema = new mongoose.Schema({
       return !this.googleId;
     },
   },
+  profilePhoto: {
+    type: String,
+    default: null
+  },
   googleId: {
     type: String,
     unique: true,

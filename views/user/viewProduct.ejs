@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Product Page</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <!-- Add any other necessary CSS/JS files -->
     
     <style>
@@ -34,6 +35,11 @@
             left: 0;
             top: 0;
             pointer-events: none;
+        }
+
+        /* Add this to your existing styles */
+        .fa-heart.fa-solid {
+            color: #e53e3e;
         }
     </style>
 </head>
@@ -88,7 +94,7 @@
                         <h1 class="text-2xl font-bold text-gray-800 mr-4"><%= product.productName %></h1>
                         <a href="javascript:void(0)" 
                            class="hover:text-slate-500 wishlist-button"
-                           onclick="addToWishlist('<%= product._id %>', '<%= product.variants[0].variants_id %>')">
+                           onclick="addToWishlist(event, '<%= product._id %>', '<%= product.variants[0]._id %>')">
                             <i class="fa-regular fa-heart"></i>
                         </a>
                     </div>
@@ -145,8 +151,8 @@
                         <label for="variantType" class="block font-medium text-gray-700">Select Type</label>
                         <select id="variantType" class="mt-2 px-4 py-2 border rounded-lg shadow-sm">
                             <% product.variants.forEach(variant => { %>
-                                <option value="<%= variant.variantType %>">
-                                    <%= variant.variantType === 'Ruled' ? 'Ruled' : 'Unruled' %>
+                                <option value="<%= variant._id %>">
+                                    <%= variant.variantType %>
                                 </option>
                             <% }) %>
                         </select>
@@ -154,12 +160,12 @@
 
                     <!-- Add to Cart Button -->
                     <div class="mt-8 flex space-x-4" id="div-for-addToCart">
-                        <% if (product.variants[0].stock > 0) { %>
-                            <button id="addToCartButton" 
-                                    class="px-6 py-3 bg-black text-white rounded-lg font-bold shadow-md hover:bg-gray-800">
-                                Add To Cart
-                            </button>
-                        <% } %>
+                        <button id="addToCartButton" 
+                                class="px-6 py-3 bg-black text-white rounded-lg font-bold shadow-md hover:bg-gray-800 <%= product.variants[0].stock > 0 ? '' : 'opacity-50 cursor-not-allowed' %>"
+                                <%= product.variants[0].stock > 0 ? '' : 'disabled' %>>
+                            <i class="fas fa-shopping-cart mr-2"></i>
+                            Add To Cart
+                        </button>
                     </div>
                 </div>
             </div>
@@ -219,49 +225,190 @@
             imageZoom.style.setProperty("--url", `url(${imageUrl})`);
         }
 
-        // Add to Cart functionality
+        // Replace your existing click handler with this updated version
         document.getElementById("addToCartButton")?.addEventListener("click", async function() {
+            console.log('Add to cart button clicked');
+            
             try {
-                const response = await fetch("/cart/add", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                const productId = "<%= product._id %>";
+                const variantSelect = document.querySelector('select#variantType');
+                console.log('Variant select element:', variantSelect);
+                
+                if (!variantSelect) {
+                    console.error('Variant select element not found!');
+                    throw new Error("Variant selection not available");
+                }
+                
+                // If no variant is selected, try to select the first one
+                if (!variantSelect.value && variantSelect.options.length > 0) {
+                    variantSelect.value = variantSelect.options[0].value;
+                    console.log('Auto-selected first variant:', variantSelect.value);
+                }
+                
+                const variantId = variantSelect.value;
+                console.log('Selected variant ID:', variantId);
+                
+                // Validate that we have a non-empty variant ID
+                if (!variantId) {
+                    console.error('No variant available for selection');
+                    throw new Error("No variants available for this product");
+                }
+                
+                console.log('Sending request with:', { productId, variantId, quantity: 1 });
+                
+                const response = await fetch('/cart/add', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
                     body: JSON.stringify({
-                        productId: "<%= product._id %>",
-                        variantId: document.getElementById("variantType").value,
+                        productId,
+                        variantId,
                         quantity: 1
                     })
                 });
-
+                
                 const data = await response.json();
+                console.log('Response received:', data);
+                
                 if (response.ok) {
-                    notyf.success("Added to cart successfully");
-                    updateCartBadge(data.cartQuantity);
+                    // Update cart count in navbar
+                    const cartCountElement = document.getElementById('cartCount');
+                    if (cartCountElement) {
+                        cartCountElement.textContent = data.cartCount;
+                        cartCountElement.classList.remove('hidden');
+                    }
+                    
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Added to Cart',
+                        text: 'Product has been added to your cart',
+                        showCancelButton: true,
+                        confirmButtonText: 'View Cart',
+                        cancelButtonText: 'Continue Shopping'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            window.location.href = '/cart';
+                        }
+                    });
                 } else {
-                    throw new Error(data.message);
+                    throw new Error(data.error || 'Failed to add to cart');
                 }
             } catch (error) {
-                notyf.error(error.message || "Failed to add to cart");
+                console.error('Error:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: error.message || 'Failed to add product to cart'
+                });
             }
         });
 
-        // Variant selection handling
-        document.getElementById("variantType").addEventListener("change", function () {
-            const selectedType = this.value;
-            const productId = document.getElementById("product-details").getAttribute("data-product-id");
-
-            if (!productId) {
-                console.error("Product ID is missing.");
-                return;
+        // Update Add to Cart button when variant changes
+        document.getElementById("variantType").addEventListener("change", function() {
+            const selectedId = this.value;
+            const variants = JSON.parse('<%- JSON.stringify(product.variants) %>');
+            const selectedVariant = variants.find(v => v._id === selectedId);
+            const addToCartButton = document.getElementById("addToCartButton");
+            
+            if (selectedVariant && selectedVariant.stock > 0) {
+                addToCartButton.classList.remove('opacity-50', 'cursor-not-allowed');
+                addToCartButton.removeAttribute('disabled');
+            } else {
+                addToCartButton.classList.add('opacity-50', 'cursor-not-allowed');
+                addToCartButton.setAttribute('disabled', '');
             }
-
-            // Fetch the variant details
-            fetch(`/product/getvariant?productId=${productId}&type=${selectedType}`)
-                .then((response) => response.json())
-                .then((variant) => {
-                    updateVariantDetails(variant);
-                })
-                .catch((error) => console.error("Error fetching variant details:", error));
+            
+            // Update variant details
+            updateVariantDetails(selectedVariant);
         });
+
+        // Add this function before the event listener for variant changes (around line 286)
+        function updateVariantDetails(selectedVariant) {
+            if (!selectedVariant) return;
+            
+            // Update price information
+            document.querySelector('.variant-price').textContent = 
+                `₹${selectedVariant.discountPrice.toLocaleString() || 'N/A'}`;
+            document.querySelector('.variant-original-price').textContent = 
+                `₹${selectedVariant.price.toLocaleString() || 'N/A'}`;
+            document.querySelector('.variant-discount').textContent = 
+                `${selectedVariant.discountPercentage.toLocaleString() || 0}% off`;
+            
+            // Update rating
+            document.querySelector('.variant-rating').textContent = 
+                selectedVariant.rating || 'No rating';
+            
+            // Update stock status
+            const stockElement = document.querySelector('.variant-stock');
+            if (selectedVariant.stock === 0) {
+                stockElement.innerHTML = `
+                    <div class="font-bold text-red-600 bg-red-100 border border-red-600 rounded-lg p-2" style="width: fit-content">
+                        Out of Stock
+                    </div>
+                `;
+            } else {
+                stockElement.innerHTML = `
+                    <div class="text-green-500">
+                        <p class="font-semibold">In stock (${selectedVariant.stock} left)</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Add this function at the end of your script section
+        async function addToWishlist(event, productId, variantId) {
+            try {
+                // Check if the item is already in wishlist (heart is solid)
+                const heartIcon = event.currentTarget.querySelector('i');
+                const isInWishlist = heartIcon && heartIcon.classList.contains('fa-solid');
+                
+                let url = isInWishlist ? `/wishlist/remove/${productId}` : '/wishlist/add';
+                let method = isInWishlist ? 'DELETE' : 'POST';
+                let body = null;
+                
+                if (!isInWishlist) {
+                    body = JSON.stringify({
+                        productId,
+                        variantId
+                    });
+                }
+                
+                const response = await fetch(url, {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // Toggle heart icon
+                    if (heartIcon) {
+                        heartIcon.classList.toggle('fa-regular');
+                        heartIcon.classList.toggle('fa-solid');
+                    }
+                    
+                    // Show success message
+                    Swal.fire({
+                        icon: 'success',
+                        title: isInWishlist ? 'Removed from Wishlist' : 'Added to Wishlist',
+                        text: isInWishlist ? 'Product has been removed from your wishlist' : 'Product has been added to your wishlist',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: error.message || 'Failed to update wishlist'
+                });
+            }
+        }
     </script>
 </body>
 </html>

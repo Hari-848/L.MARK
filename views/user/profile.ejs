@@ -15,7 +15,7 @@
       href="https://fonts.googleapis.com/icon?family=Material+Icons"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="style.css" />
+    <!-- <link rel="stylesheet" href="style.css" /> -->
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css"
@@ -23,123 +23,501 @@
       crossorigin="anonymous"
       referrerpolicy="no-referrer"
     />
-  </head>
-  <style>
-    .text-red-500 {
-      color: red;
-    }
+    <style>
+      .text-red-500 {
+        color: red;
+      }
 
-    .text-sm {
-      font-size: 0.875rem;
-    }
-  </style>
+      .text-sm {
+        font-size: 0.875rem;
+      }
+      
+      /* Enhanced section styling */
+      .section-container {
+        background-color: white;
+        border-radius: 0.5rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        padding: 1.75rem;
+        margin-bottom: 1.5rem;
+        border-top: 4px solid #3b82f6;
+        transition: all 0.3s ease;
+      }
+      
+      .section-container:hover {
+        box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+      }
+      
+      .section-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #1e3a8a;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid #e5e7eb;
+      }
+      
+      .form-input {
+        width: 100%;
+        padding: 0.625rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.375rem;
+        transition: border-color 0.15s ease-in-out;
+      }
+      
+      .form-input:focus {
+        border-color: #3b82f6;
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+      }
+      
+      .btn-primary {
+        background-color: #3b82f6;
+        color: white;
+        padding: 0.625rem 1.25rem;
+        border-radius: 0.375rem;
+        font-weight: 500;
+        transition: background-color 0.15s ease-in-out;
+      }
+      
+      .btn-primary:hover {
+        background-color: #2563eb;
+      }
+      
+      .password-field {
+        position: relative;
+      }
+      
+      .password-toggle {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        cursor: pointer;
+        color: #6b7280;
+      }
+    </style>
+  </head>
 
   <body class="bg-gray-50">
-  <%- include("partials/navBar") %>
+  <%- include("../partials/user/navbar") %>
     <div class="mt-16"></div>
 
-    <div class="flex min-h-screen bg-stone-100">
-      <!-- Sidebar -->
-      <div class="fixed bg-stone-100">
-        <%- include("partials/userProfileSideBar") %>
-      </div>
-
-      <!-- Main Content -->
-      <div class="flex-1 ml-64 w-3/4 bg-white p-6 shadow-md">
-        <h2 class="text-2xl font-semibold text-gray-800 mb-6">Personal Information</h2>
-        <form id="profile-form " class="space-y-4  ml-2">
-          <div>
-            <label for="fullName" class="block text-gray-700 mb-1">Full Name</label>
-            <input
-              type="text"
-              id="fullName"
-              name="fullName"
-              value="<%= user.fullName %>"
-              class="w-full px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <span id="fullNameError" class="text-red-500 text-sm"></span>
-            <!-- Dynamic error message -->
-          </div>
-
-          <div>
-            <label for="email" class="block text-gray-700 mb-1">Email</label>
-            <div
-              id="email"
-              class="w-full px-4 py-2 border border-gray-300 rounded-full bg-gray-100 text-gray-700"
-            >
-              <%= user.email %>
+    <div class="container mx-auto px-4 py-8">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Sidebar -->
+        <div class="bg-white p-6 rounded-lg shadow">
+          <div class="flex flex-col items-center space-y-4 mb-6">
+            <div class="relative group">
+              <div class="h-24 w-24 rounded-full overflow-hidden border-4 border-blue-100">
+                <img src="<%= user.profilePhoto || '/images/default-avatar.jpg' %>" 
+                     class="h-full w-full object-cover" 
+                     id="profile-image">
+              </div>
+              <div class="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                   onclick="document.getElementById('profilePhotoInput').click()">
+                <i class="fas fa-camera text-white text-xl"></i>
+              </div>
+              <input type="file" id="profilePhotoInput" class="hidden" accept="image/*" onchange="handleProfilePhotoChange(event)">
+            </div>
+            <div class="text-center">
+              <h2 class="text-xl font-serif font-semibold text-gray-800"><%= user.fullName %></h2>
             </div>
           </div>
+          
+          <div class="border-t border-gray-200 pt-4">
+            <nav class="space-y-1">
+              <a href="/profile#profile" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-700 transition-colors">
+                <i class="fas fa-user-circle w-6 text-blue-500"></i>
+                <span class="ml-3">My Profile</span>
+              </a>
+              <a href="/profile#orders" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-700 transition-colors">
+                <i class="fas fa-box w-6 text-blue-500"></i>
+                <span class="ml-3">My Orders</span>
+              </a>
+              <a href="/profile#addresses" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-700 transition-colors">
+                <i class="fas fa-map-marker-alt w-6 text-blue-500"></i>
+                <span class="ml-3">Addresses</span>
+              </a>
+              <a href="/profile#password" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-700 transition-colors">
+                <i class="fas fa-lock w-6 text-blue-500"></i>
+                <span class="ml-3">Change Password</span>
+              </a>
+              <div class="border-t border-gray-200 my-2"></div>
+              <a href="#" id="logout-btn" class="flex items-center px-4 py-3 text-red-600 rounded-lg hover:bg-red-50 transition-colors">
+                <i class="fas fa-sign-out-alt w-6"></i>
+                <span class="ml-3">Logout</span>
+              </a>
+            </nav>
+          </div>
+        </div>
 
-          <div>
-            <label for="mobile" class="block text-gray-700 mb-1">Mobile No.</label>
-            <input
-              type="text"
-              id="mobile"
-              name="mobile"
-              value="<%= user.mobile || '' %>"
-              class="w-full px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <span id="mobileError" class="text-red-500 text-sm"></span>
-            <!-- Dynamic error message -->
+        <!-- Main Content -->
+        <div class="col-span-2 space-y-6">
+          <!-- Profile Section -->
+          <div id="profile" class="section-container">
+            <h3 class="section-title">Profile Information</h3>
+            <form id="profileForm" class="space-y-5" onsubmit="updateProfile(event)">
+              <div>
+                <label for="fullName" class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                <input type="text" id="fullName" name="fullName" value="<%= user.fullName %>" 
+                       class="form-input">
+                <div id="fullNameError" class="text-red-500 text-sm mt-1"></div>
+              </div>
+              <div>
+                <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <input type="email" id="email" name="email" value="<%= user.email %>" 
+                       class="form-input">
+                <div id="emailError" class="text-red-500 text-sm mt-1"></div>
+              </div>
+              <div>
+                <label for="mobile" class="block text-sm font-medium text-gray-700 mb-1">Mobile</label>
+                <input type="tel" id="mobile" name="mobile" value="<%= user.mobile %>" 
+                       class="form-input">
+                <div id="mobileError" class="text-red-500 text-sm mt-1"></div>
+              </div>
+              <button type="submit" class="btn-primary">
+                Update Profile
+              </button>
+            </form>
           </div>
-          <div>
-            <button
-              id="updateButton"
-              class="w-full px-4 py-2 bg-black text-white rounded-full hover:bg-gray-800"
-              onclick="updateProfile(event)"
-            >
-              Update
-            </button>
+
+          <!-- Orders Section -->
+          <div id="orders" class="bg-white p-6 rounded-lg shadow">
+            <h3 class="text-xl font-semibold mb-4">Recent Orders</h3>
+            <% if (orders && orders.length > 0) { %>
+              <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody class="bg-white divide-y divide-gray-200">
+                    <% orders.forEach(order => { %>
+                      <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= order._id %></td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= new Date(order.createdAt).toLocaleDateString() %></td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">₹<%= order.totalAmount %></td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                          <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                            <%= order.status === 'Delivered' ? 'bg-green-100 text-green-800' : 
+                               order.status === 'Cancelled' ? 'bg-red-100 text-red-800' : 
+                               'bg-yellow-100 text-yellow-800' %>">
+                            <%= order.status %>
+                          </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <a href="/order/<%= order._id %>" class="text-blue-600 hover:text-blue-900">View</a>
+                        </td>
+                      </tr>
+                    <% }) %>
+                  </tbody>
+                </table>
+              </div>
+            <% } else { %>
+              <div class="text-center py-8">
+                <p class="text-gray-500">You haven't placed any orders yet.</p>
+                <a href="/products" class="mt-4 inline-block bg-blue-600 text-white px-4 py-2 rounded-md">
+                  Start Shopping
+                </a>
+              </div>
+            <% } %>
           </div>
-        </form>
+
+          <!-- Addresses Section -->
+          <div id="addresses" class="bg-white p-6 rounded-lg shadow">
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="text-xl font-semibold">Saved Addresses</h3>
+              <button id="addAddressBtn" class="bg-blue-600 text-white px-3 py-1 rounded-md text-sm">
+                Add New Address
+              </button>
+            </div>
+            
+            <div id="addressList" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <% if (addresses && addresses.length > 0) { %>
+                <% addresses.forEach(address => { %>
+                  <div class="border rounded-lg p-4 relative">
+                    <% if (address.isDefault) { %>
+                      <span class="absolute top-2 right-2 bg-green-100 text-green-800 text-xs px-2 py-1 rounded">Default</span>
+                    <% } %>
+                    <h4 class="font-medium"><%= address.fullName %></h4>
+                    <p class="text-sm text-gray-600"><%= address.mobile %></p>
+                    <p class="text-sm text-gray-600 mt-2">
+                      <%= address.address %>, <%= address.city %>, <%= address.state %> - <%= address.pincode %>
+                    </p>
+                    <div class="mt-3 flex space-x-2">
+                      <button class="text-blue-600 text-sm edit-address" data-address='<%= JSON.stringify(address) %>'>Edit</button>
+                      <button class="text-red-600 text-sm delete-address" data-id="<%= address._id %>">Delete</button>
+                      <% if (!address.isDefault) { %>
+                        <button class="text-green-600 text-sm set-default-address" data-id="<%= address._id %>">Set as Default</button>
+                      <% } %>
+                    </div>
+                  </div>
+                <% }) %>
+              <% } else { %>
+                <div class="col-span-2 text-center py-8">
+                  <p class="text-gray-500">You don't have any saved addresses.</p>
+                </div>
+              <% } %>
+            </div>
+          </div>
+          
+          <!-- Change Password Section -->
+          <div id="password" class="section-container">
+            <h3 class="section-title">Change Password</h3>
+            <form id="passwordForm" class="space-y-5">
+              <div>
+                <label for="currentPassword" class="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
+                <div class="password-field">
+                  <input type="password" id="currentPassword" name="currentPassword" 
+                         class="form-input">
+                  <span class="password-toggle" onclick="togglePasswordVisibility('currentPassword')">
+                    <i class="fas fa-eye"></i>
+                  </span>
+                </div>
+                <div id="currentPasswordError" class="text-red-500 text-sm mt-1"></div>
+              </div>
+              <div>
+                <label for="newPassword" class="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                <div class="password-field">
+                  <input type="password" id="newPassword" name="newPassword" 
+                         class="form-input">
+                  <span class="password-toggle" onclick="togglePasswordVisibility('newPassword')">
+                    <i class="fas fa-eye"></i>
+                  </span>
+                </div>
+                <div id="newPasswordError" class="text-red-500 text-sm mt-1"></div>
+              </div>
+              <div>
+                <label for="confirmPassword" class="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
+                <div class="password-field">
+                  <input type="password" id="confirmPassword" name="confirmPassword" 
+                         class="form-input">
+                  <span class="password-toggle" onclick="togglePasswordVisibility('confirmPassword')">
+                    <i class="fas fa-eye"></i>
+                  </span>
+                </div>
+                <div id="confirmPasswordError" class="text-red-500 text-sm mt-1"></div>
+              </div>
+              <button type="submit" class="btn-primary">
+                Change Password
+              </button>
+            </form>
+          </div>
+        </div>
       </div>
     </div>
 
     <script>
-      // Function to validate Mobile Number (only numbers, exactly 10 digits)
+      document.addEventListener('DOMContentLoaded', function() {
+        // Get all the navigation links
+        const profileLink = document.querySelector('a[href="/profile#profile"]');
+        const ordersLink = document.querySelector('a[href="/profile#orders"]');
+        const addressesLink = document.querySelector('a[href="/profile#addresses"]');
+        const passwordLink = document.querySelector('a[href="/profile#password"]');
+        
+        // Get all the content sections
+        const profileSection = document.getElementById('profile');
+        const ordersSection = document.getElementById('orders');
+        const addressesSection = document.getElementById('addresses');
+        const passwordSection = document.getElementById('password');
+        
+        // Function to hide all sections
+        function hideAllSections() {
+          profileSection.style.display = 'none';
+          ordersSection.style.display = 'none';
+          addressesSection.style.display = 'none';
+          passwordSection.style.display = 'none';
+        }
+        
+        // Function to show a specific section
+        function showSection(section) {
+          hideAllSections();
+          section.style.display = 'block';
+        }
+        
+        // Add click event listeners to the navigation links
+        profileLink.addEventListener('click', function(e) {
+          e.preventDefault();
+          showSection(profileSection);
+          // Update URL without reloading the page
+          history.pushState(null, '', '/profile#profile');
+        });
+        
+        ordersLink.addEventListener('click', function(e) {
+          e.preventDefault();
+          showSection(ordersSection);
+          history.pushState(null, '', '/profile#orders');
+        });
+        
+        addressesLink.addEventListener('click', function(e) {
+          e.preventDefault();
+          showSection(addressesSection);
+          history.pushState(null, '', '/profile#addresses');
+        });
+        
+        passwordLink.addEventListener('click', function(e) {
+          e.preventDefault();
+          showSection(passwordSection);
+          history.pushState(null, '', '/profile#password');
+        });
+        
+        // Handle password form submission
+        document.getElementById('passwordForm').addEventListener('submit', async function(e) {
+          e.preventDefault();
+          
+          const currentPassword = document.getElementById('currentPassword').value;
+          const newPassword = document.getElementById('newPassword').value;
+          const confirmPassword = document.getElementById('confirmPassword').value;
+          
+          // Clear previous errors
+          document.getElementById('currentPasswordError').textContent = '';
+          document.getElementById('newPasswordError').textContent = '';
+          document.getElementById('confirmPasswordError').textContent = '';
+          
+          // Validate inputs
+          let isValid = true;
+          
+          if (!currentPassword) {
+            document.getElementById('currentPasswordError').textContent = 'Current password is required';
+            isValid = false;
+          }
+          
+          // Password validation regex - at least 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special char
+          const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+          
+          if (!newPassword) {
+            document.getElementById('newPasswordError').textContent = 'New password is required';
+            isValid = false;
+          } else if (!passwordRegex.test(newPassword)) {
+            document.getElementById('newPasswordError').textContent = 
+              'Password must be at least 8 characters and include uppercase, lowercase, number, and special character';
+            isValid = false;
+          }
+          
+          if (newPassword !== confirmPassword) {
+            document.getElementById('confirmPasswordError').textContent = 'Passwords do not match';
+            isValid = false;
+          }
+          
+          if (!isValid) return;
+          
+          try {
+            // Show loading indicator
+            Swal.fire({
+              title: 'Updating...',
+              text: 'Changing your password',
+              allowOutsideClick: false,
+              didOpen: () => {
+                Swal.showLoading();
+              }
+            });
+            
+            const response = await axios.post('/change-password', {
+              currentPassword,
+              newPassword
+            });
+            
+            // Clear form
+            document.getElementById('passwordForm').reset();
+            
+            Swal.fire({
+              title: 'Success!',
+              text: response.data.message + ' Please log in again with your new password.',
+              icon: 'success',
+              confirmButtonText: 'OK'
+            }).then(() => {
+              // Redirect to logout after password change
+              window.location.href = '/logout';
+            });
+            
+          } catch (error) {
+            console.error('Error changing password:', error);
+            
+            Swal.fire({
+              title: 'Error!',
+              text: error.response?.data?.error || 'Failed to change password',
+              icon: 'error',
+              confirmButtonText: 'OK'
+            });
+          }
+        });
+        
+        // Check URL hash on page load to show the correct section
+        const hash = window.location.hash;
+        if (hash === '#orders') {
+          showSection(ordersSection);
+        } else if (hash === '#addresses') {
+          showSection(addressesSection);
+        } else if (hash === '#password') {
+          showSection(passwordSection);
+        } else {
+          // Default to profile section
+          showSection(profileSection);
+        }
+      });
+
+      // Function to validate mobile number
       const validateMobile = (mobile) => {
-        const mobileRegex = /^[0-9]{10}$/; // Ensure it's exactly 10 digits
+        const mobileRegex = /^[0-9]{10}$/;
         const mobileError = document.getElementById("mobileError");
-
+        
         if (!mobile) {
-          mobileError.textContent = "Mobile number cannot be blank.";
+          mobileError.textContent = "Mobile number is required";
           return false;
         }
+        
         if (!mobileRegex.test(mobile)) {
-          mobileError.textContent = "Mobile number must be exactly 10 digits.";
+          mobileError.textContent = "Please enter a valid 10-digit mobile number";
           return false;
         }
-        // Check for repeated digits (e.g., 0000000000, 5555555555)
-        if (/^(\d)\1{9}$/.test(mobile)) {
-          mobileError.textContent =
-            "Mobile number cannot contain the same digit repeated 10 times.";
-          return false;
-        }
-
-        mobileError.textContent = ""; // Clear error message when valid
+        
+        mobileError.textContent = "";
         return true;
       };
 
-      // Function to validate Full Name (only alphabets and spaces, no blanks)
+      // Function to validate Full Name
       const validateFullName = (fullName) => {
-        const fullNameRegex = /^[A-Za-z\s]+$/;
         const fullNameError = document.getElementById("fullNameError");
-
+        
         if (!fullName) {
-          fullNameError.textContent = "Full name cannot be blank.";
+          fullNameError.textContent = "Full name is required";
           return false;
         }
-        if (!fullNameRegex.test(fullName)) {
-          fullNameError.textContent = "Full name must only contain alphabets.";
+        
+        if (fullName.length < 3) {
+          fullNameError.textContent = "Full name must be at least 3 characters";
           return false;
         }
-
-        fullNameError.textContent = ""; // Clear error message when valid
+        
+        fullNameError.textContent = "";
         return true;
       };
 
-      // Add event listeners to input fields for live validation
+      // Function to validate Email
+      const validateEmail = (email) => {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        const emailError = document.getElementById("emailError");
+        
+        if (!email) {
+          emailError.textContent = "Email is required";
+          return false;
+        }
+        
+        if (!emailRegex.test(email)) {
+          emailError.textContent = "Please enter a valid email address";
+          return false;
+        }
+        
+        emailError.textContent = "";
+        return true;
+      };
+
+      // Add event listeners for validation
       document.getElementById("mobile").addEventListener("input", (e) => {
         const mobile = e.target.value;
         validateMobile(mobile);
@@ -150,36 +528,49 @@
         validateFullName(fullName);
       });
 
-      // Update the submit button based on validation status
+      document.getElementById("email").addEventListener("input", (e) => {
+        const email = e.target.value;
+        validateEmail(email);
+      });
+
+      // Function to update profile
       const updateProfile = async (e) => {
         e.preventDefault(); // Prevent default form submission
 
         const fullName = document.getElementById("fullName").value.trim();
+        const email = document.getElementById("email").value.trim();
         const mobile = document.getElementById("mobile").value.trim();
 
         // Perform validation
         const isMobileValid = validateMobile(mobile);
         const isFullNameValid = validateFullName(fullName);
+        const isEmailValid = validateEmail(email);
 
-        if (!isMobileValid || !isFullNameValid) {
+        if (!isMobileValid || !isFullNameValid || !isEmailValid) {
           return; // Stop execution if validation fails
         }
 
         try {
           // Send data to the server
           const response = await axios.post(
-            "/user/profile",
-            { fullName, mobile },
+            "/profile",
+            { fullName, email, mobile },
             { headers: { "Content-Type": "application/json" } }
           );
 
-          // Display success message using SweetAlert
-          Swal.fire({
-            title: "Success!",
-            text: response.data.message,
-            icon: "success",
-            confirmButtonText: "OK",
-          });
+          // Check if email verification is required
+          if (response.data.requireEmailVerification) {
+            // Show OTP verification dialog
+            showEmailVerificationDialog(response.data.newEmail);
+          } else {
+            // Display success message using SweetAlert
+            Swal.fire({
+              title: "Success!",
+              text: response.data.message,
+              icon: "success",
+              confirmButtonText: "OK",
+            });
+          }
         } catch (error) {
           console.error(
             "Error updating profile:",
@@ -196,6 +587,456 @@
           });
         }
       };
+
+      // Function to handle profile photo change
+      function handleProfilePhotoChange(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        // Check file type
+        if (!file.type.match('image.*')) {
+          Swal.fire({
+            title: 'Error!',
+            text: 'Please select an image file',
+            icon: 'error',
+            confirmButtonText: 'OK'
+          });
+          return;
+        }
+        
+        // Check file size (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+          Swal.fire({
+            title: 'Error!',
+            text: 'Image size should not exceed 5MB',
+            icon: 'error',
+            confirmButtonText: 'OK'
+          });
+          return;
+        }
+        
+        // Create FormData
+        const formData = new FormData();
+        formData.append('profilePhoto', file);
+        
+        // Show loading
+        Swal.fire({
+          title: 'Uploading...',
+          text: 'Please wait while we upload your photo',
+          allowOutsideClick: false,
+          didOpen: () => {
+            Swal.showLoading();
+          }
+        });
+        
+        // Upload photo
+        axios.post('/user/profile/photo', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        })
+        .then(response => {
+          // Update image in UI
+          document.getElementById('profile-image').src = response.data.photoUrl;
+          
+          Swal.fire({
+            title: 'Success!',
+            text: response.data.message,
+            icon: 'success',
+            confirmButtonText: 'OK'
+          });
+        })
+        .catch(error => {
+          console.error('Error uploading profile photo:', error);
+          
+          Swal.fire({
+            title: 'Error!',
+            text: error.response?.data?.error || 'Failed to upload profile photo',
+            icon: 'error',
+            confirmButtonText: 'OK'
+          });
+        });
+      }
+
+      // Function to show email verification dialog
+      function showEmailVerificationDialog(newEmail) {
+        Swal.fire({
+          title: 'Verify Your Email',
+          html: `
+            <p class="mb-4">We've sent a verification code to <strong>${newEmail}</strong></p>
+            <div class="mb-4">
+              <input type="text" id="email-otp" class="swal2-input" placeholder="Enter verification code">
+            </div>
+            <div id="otp-error" class="text-red-500 text-sm"></div>
+          `,
+          showCancelButton: true,
+          confirmButtonText: 'Verify',
+          cancelButtonText: 'Cancel',
+          showLoaderOnConfirm: true,
+          footer: '<a href="#" id="resend-otp">Resend verification code</a>',
+          didOpen: () => {
+            // Add event listener for resend link
+            document.getElementById('resend-otp').addEventListener('click', () => {
+              resendEmailOTP(newEmail);
+            });
+          },
+          preConfirm: () => {
+            const otp = document.getElementById('email-otp').value;
+            if (!otp) {
+              Swal.showValidationMessage('Please enter the verification code');
+              return false;
+            }
+            
+            return verifyEmailOTP(newEmail, otp);
+          }
+        }).then((result) => {
+          if (result.isConfirmed) {
+            Swal.fire({
+              title: 'Success!',
+              text: 'Your email has been updated successfully',
+              icon: 'success'
+            });
+          }
+        });
+      }
+
+      // Function to verify email OTP
+      async function verifyEmailOTP(email, otp) {
+        try {
+          const response = await axios.post('/verify-email-change', { email, otp });
+          return response.data;
+        } catch (error) {
+          console.error('Error verifying email:', error);
+          Swal.showValidationMessage(
+            error.response?.data?.error || 'Failed to verify email'
+          );
+          return false;
+        }
+      }
+
+      // Function to resend email OTP
+      async function resendEmailOTP(email) {
+        try {
+          Swal.fire({
+            title: 'Sending...',
+            text: 'Sending verification code',
+            allowOutsideClick: false,
+            didOpen: () => {
+              Swal.showLoading();
+            }
+          });
+          
+          const response = await axios.post('/resend-email-change-otp', { email });
+          
+          Swal.fire({
+            title: 'Sent!',
+            text: response.data.message,
+            icon: 'success',
+            confirmButtonText: 'OK'
+          });
+        } catch (error) {
+          console.error('Error resending OTP:', error);
+          Swal.fire({
+            title: 'Error!',
+            text: error.response?.data?.error || 'Failed to send verification code',
+            icon: 'error',
+            confirmButtonText: 'OK'
+          });
+        }
+      }
+
+      // Add Address Button Click Handler
+      document.getElementById('addAddressBtn').addEventListener('click', function() {
+        showAddressForm();
+      });
+
+      // Function to show address form (for add/edit)
+      function showAddressForm(addressData = null) {
+        const isEdit = !!addressData;
+        console.log('Address data in form:', addressData); // Debug log
+        
+        Swal.fire({
+          title: isEdit ? 'Edit Address' : 'Add New Address',
+          html: `
+            <form id="addressForm" class="text-left">
+              <input type="hidden" id="address-id" value="${isEdit ? addressData._id : ''}">
+              <div class="mb-3">
+                <label class="block text-sm font-medium text-gray-700">Name</label>
+                <input type="text" id="address-name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" 
+                       value="${isEdit ? addressData.fullName : ''}">
+              </div>
+              <div class="mb-3">
+                <label class="block text-sm font-medium text-gray-700">Mobile</label>
+                <input type="tel" id="address-mobile" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" 
+                       value="${isEdit ? addressData.mobile : ''}">
+              </div>
+              <div class="mb-3">
+                <label class="block text-sm font-medium text-gray-700">Address</label>
+                <textarea id="address-line" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" rows="2">${isEdit ? addressData.address : ''}</textarea>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div class="mb-3">
+                  <label class="block text-sm font-medium text-gray-700">City</label>
+                  <input type="text" id="address-city" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" 
+                         value="${isEdit ? addressData.city : ''}">
+                </div>
+                <div class="mb-3">
+                  <label class="block text-sm font-medium text-gray-700">State</label>
+                  <input type="text" id="address-state" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" 
+                         value="${isEdit ? addressData.state : ''}">
+                </div>
+              </div>
+              <div class="mb-3">
+                <label class="block text-sm font-medium text-gray-700">Pincode</label>
+                <input type="text" id="address-pincode" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" 
+                       value="${isEdit ? addressData.pincode : ''}">
+              </div>
+              <div class="mb-3">
+                <label class="flex items-center">
+                  <input type="checkbox" id="address-default" class="rounded border-gray-300 text-blue-600 shadow-sm" 
+                         ${isEdit && addressData.isDefault ? 'checked' : ''}>
+                  <span class="ml-2 text-sm text-gray-700">Set as default address</span>
+                </label>
+              </div>
+            </form>
+          `,
+          showCancelButton: true,
+          confirmButtonText: isEdit ? 'Update' : 'Add',
+          showLoaderOnConfirm: true,
+          preConfirm: () => {
+            // Get form values
+            const addressId = document.getElementById('address-id').value;
+            const name = document.getElementById('address-name').value;
+            const mobile = document.getElementById('address-mobile').value;
+            const address = document.getElementById('address-line').value;
+            const city = document.getElementById('address-city').value;
+            const state = document.getElementById('address-state').value;
+            const pincode = document.getElementById('address-pincode').value;
+            const isDefault = document.getElementById('address-default').checked;
+            
+            // Validate
+            if (!name || !mobile || !address || !city || !state || !pincode) {
+              Swal.showValidationMessage('All fields are required');
+              return false;
+            }
+            
+            if (!/^\d{10}$/.test(mobile)) {
+              Swal.showValidationMessage('Please enter a valid 10-digit mobile number');
+              return false;
+            }
+            
+            if (!/^\d{6}$/.test(pincode)) {
+              Swal.showValidationMessage('Please enter a valid 6-digit pincode');
+              return false;
+            }
+            
+            return { _id: addressId, name, mobile, address, city, state, pincode, isDefault };
+          }
+        }).then((result) => {
+          if (result.isConfirmed) {
+            const addressData = result.value;
+            console.log('Address data to save:', addressData); // Debug log
+            
+            if (isEdit && addressData._id) {
+              // Update existing address
+              updateAddress(addressData._id, addressData);
+            } else {
+              // Add new address
+              addAddress(addressData);
+            }
+          }
+        });
+      }
+
+      // Function to add a new address
+      async function addAddress(addressData) {
+        try {
+          const response = await axios.post('/address', addressData);
+          
+          Swal.fire({
+            title: 'Success!',
+            text: 'Address added successfully',
+            icon: 'success',
+            confirmButtonText: 'OK'
+          }).then(() => {
+            // Reload the page to show the new address
+            window.location.reload();
+          });
+        } catch (error) {
+          console.error('Error adding address:', error);
+          
+          Swal.fire({
+            title: 'Error!',
+            text: error.response?.data?.error || 'Failed to add address',
+            icon: 'error',
+            confirmButtonText: 'OK'
+          });
+        }
+      }
+
+      // Function to update an existing address
+      async function updateAddress(addressId, addressData) {
+        try {
+          console.log('Updating address:', addressId, addressData); // Debug log
+          
+          const response = await axios.put(`/address/${addressId}`, addressData);
+          
+          Swal.fire({
+            title: 'Success!',
+            text: 'Address updated successfully',
+            icon: 'success',
+            confirmButtonText: 'OK'
+          }).then(() => {
+            window.location.reload();
+          });
+        } catch (error) {
+          console.error('Error updating address:', error);
+          
+          Swal.fire({
+            title: 'Error!',
+            text: error.response?.data?.error || 'Failed to update address',
+            icon: 'error',
+            confirmButtonText: 'OK'
+          });
+        }
+      }
+
+      // Function to delete an address
+      async function deleteAddress(addressId) {
+        try {
+          const result = await Swal.fire({
+            title: 'Are you sure?',
+            text: 'You won\'t be able to revert this!',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Yes, delete it!'
+          });
+          
+          if (result.isConfirmed) {
+            const response = await axios.delete(`/address/${addressId}`);
+            
+            Swal.fire({
+              title: 'Deleted!',
+              text: 'Your address has been deleted.',
+              icon: 'success',
+              confirmButtonText: 'OK'
+            }).then(() => {
+              // Reload the page to update the address list
+              window.location.reload();
+            });
+          }
+        } catch (error) {
+          console.error('Error deleting address:', error);
+          
+          Swal.fire({
+            title: 'Error!',
+            text: error.response?.data?.error || 'Failed to delete address',
+            icon: 'error',
+            confirmButtonText: 'OK'
+          });
+        }
+      }
+
+      // Add event listeners for edit and delete buttons
+      document.querySelectorAll('.edit-address').forEach(button => {
+        button.addEventListener('click', function() {
+          try {
+            const addressData = JSON.parse(this.getAttribute('data-address'));
+            console.log('Edit address data:', addressData); // Add this for debugging
+            showAddressForm(addressData);
+          } catch (error) {
+            console.error('Error parsing address data:', error);
+            Swal.fire({
+              title: 'Error!',
+              text: 'Failed to load address data',
+              icon: 'error',
+              confirmButtonText: 'OK'
+            });
+          }
+        });
+      });
+
+      document.querySelectorAll('.delete-address').forEach(button => {
+        button.addEventListener('click', function() {
+          const addressId = this.getAttribute('data-id');
+          deleteAddress(addressId);
+        });
+      });
+
+      // Update the set default address event listener
+      document.querySelectorAll('.set-default-address').forEach(button => {
+        button.addEventListener('click', async function() {
+          const addressId = this.getAttribute('data-id');
+          
+          try {
+            const response = await axios.put(`/address/${addressId}/default`);
+            
+            Swal.fire({
+              title: 'Success!',
+              text: 'Default address updated',
+              icon: 'success',
+              confirmButtonText: 'OK'
+            }).then(() => {
+              // Reload the page to update the address list
+              window.location.reload();
+            });
+          } catch (error) {
+            console.error('Error setting default address:', error);
+            
+            Swal.fire({
+              title: 'Error!',
+              text: error.response?.data?.error || 'Failed to update default address',
+              icon: 'error',
+              confirmButtonText: 'OK'
+            });
+          }
+        });
+      });
+
+      // Function to toggle password visibility
+      function togglePasswordVisibility(inputId) {
+        const passwordInput = document.getElementById(inputId);
+        const eyeIcon = document.querySelector(`[onclick="togglePasswordVisibility('${inputId}')"] i`);
+        
+        if (passwordInput.type === "password") {
+          passwordInput.type = "text";
+          eyeIcon.classList.remove("fa-eye");
+          eyeIcon.classList.add("fa-eye-slash");
+        } else {
+          passwordInput.type = "password";
+          eyeIcon.classList.remove("fa-eye-slash");
+          eyeIcon.classList.add("fa-eye");
+        }
+      }
+
+      // Handle logout
+      document.getElementById('logout-btn').addEventListener('click', function(e) {
+        e.preventDefault();
+        
+        Swal.fire({
+          title: 'Logout',
+          text: 'Are you sure you want to logout?',
+          icon: 'question',
+          showCancelButton: true,
+          confirmButtonColor: '#3085d6',
+          cancelButtonColor: '#d33',
+          confirmButtonText: 'Yes, logout'
+        }).then((result) => {
+          if (result.isConfirmed) {
+            // Send logout request
+            axios.post('/user/logout')
+              .then(() => {
+                window.location.href = '/user/signin';
+              })
+              .catch(error => {
+                console.error('Logout error:', error);
+                Swal.fire('Error', 'Failed to logout', 'error');
+              });
+          }
+        });
+      });
     </script>
   </body>
 </html>

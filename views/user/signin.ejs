@@ -117,6 +117,20 @@
             document.querySelector('form').prepend(errorDiv);
           }
         }
+
+        // Password visibility toggle function
+        function togglePasswordVisibility(inputId) {
+          const passwordInput = document.getElementById(inputId);
+          const eyeIcon = event.currentTarget.querySelector('i');
+          
+          if (passwordInput.type === 'password') {
+            passwordInput.type = 'text';
+            eyeIcon.className = 'fa-regular fa-eye-slash';
+          } else {
+            passwordInput.type = 'password';
+            eyeIcon.className = 'fa-regular fa-eye';
+          }
+        }
       </script>
 </body>
 

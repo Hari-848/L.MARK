@@ -15,6 +15,7 @@ const userRoutes = require('./routes/userRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const Product = require('./Models/productSchema');
 const MongoStore = require('connect-mongo');
+const cartRoutes = require('./routes/cartRoutes');
 
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
@@ -277,6 +278,7 @@ app.get('/auth/google/callback', (req, res, next) => {
 
 app.use('/', userRoutes);
 app.use('/admin', adminRoutes);
+app.use('/cart', cartRoutes);
 
 // Error handlers
 app.use((req, res, next) => {
@@ -296,6 +298,14 @@ const logsDirectory = path.join(__dirname, 'logs');
 if (!fs.existsSync(logsDirectory)) {
   fs.mkdirSync(logsDirectory);
 }
+
+// Ensure upload directories exist
+const uploadDirs = ['public/uploads', 'public/uploads/profiles'];
+uploadDirs.forEach(dir => {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+});
 
 app.use(morgan('dev'));
 const accessLogStream = fs.createWriteStream(path.join(logsDirectory, 'access.log'), { flags: 'a' });

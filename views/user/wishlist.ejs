@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Wishlist | L.Mark</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body class="bg-gray-100">
+    <%- include("../partials/user/navbar") %>
+    
+    <div class="container mx-auto px-4 py-8 mt-16">
+        <h1 class="text-3xl font-bold mb-8">My Wishlist</h1>
+        
+        <% if (!wishlistItems || wishlistItems.length === 0) { %>
+            <div class="bg-white rounded-lg shadow-md p-8 text-center">
+                <i class="fas fa-heart text-gray-300 text-6xl mb-4"></i>
+                <h2 class="text-2xl font-semibold text-gray-700 mb-2">Your wishlist is empty</h2>
+                <p class="text-gray-500 mb-6">Add items to your wishlist to keep track of products you love</p>
+                <a href="/products" class="bg-black text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-800 transition-colors">
+                    Browse Products
+                </a>
+            </div>
+        <% } else { %>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <% wishlistItems.forEach(item => { %>
+                    <div class="bg-white rounded-lg shadow-md overflow-hidden wishlist-item" data-id="<%= item._id %>">
+                        <div class="relative">
+                            <img src="<%= item.product.image %>" alt="<%= item.product.name %>" class="w-full h-48 object-cover">
+                            <button class="absolute top-2 right-2 bg-white rounded-full p-2 shadow-md hover:bg-gray-100 remove-wishlist-item">
+                                <i class="fas fa-times text-gray-600"></i>
+                            </button>
+                        </div>
+                        <div class="p-4">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-2"><%= item.product.name %></h3>
+                            
+                            <% if (item.product.variants && item.product.variants.length > 0) { %>
+                                <div class="mb-4">
+                                    <select class="variant-select px-2 py-1 border rounded">
+                                        <% item.product.variants.forEach(variant => { %>
+                                            <option value="<%= variant._id %>"><%= variant.variantType %></option>
+                                        <% }); %>
+                                    </select>
+                                </div>
+                                
+                                <div class="flex justify-between items-center mt-4">
+                                    <span class="text-gray-500 text-sm">
+                                        Added on <%= new Date(item.addedOn).toLocaleDateString() %>
+                                    </span>
+                                    
+                                    <button class="add-to-cart-btn bg-black text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-800 transition-colors"
+                                            data-product-id="<%= item.product._id %>">
+                                        Add to Cart
+                                    </button>
+                                </div>
+                            <% } else { %>
+                                <p class="text-red-500">No variants available</p>
+                            <% } %>
+                        </div>
+                    </div>
+                <% }); %>
+            </div>
+            
+            <div class="mt-8 text-center">
+                <button id="clearWishlistBtn" class="bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition-colors">
+                    Clear Wishlist
+                </button>
+            </div>
+        <% } %>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Remove item from wishlist
+            document.querySelectorAll('.remove-wishlist-item').forEach(button => {
+                button.addEventListener('click', async function() {
+                    const wishlistItem = this.closest('.wishlist-item');
+                    const itemId = wishlistItem.dataset.id;
+                    
+                    try {
+                        const response = await fetch(`/wishlist/item/${itemId}`, {
+                            method: 'DELETE'
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (response.ok) {
+                            wishlistItem.remove();
+                            
+                            // Check if wishlist is now empty
+                            if (document.querySelectorAll('.wishlist-item').length === 0) {
+                                window.location.reload();
+                            }
+                            
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Removed',
+                                text: 'Item removed from wishlist',
+                                showConfirmButton: false,
+                                timer: 1500
+                            });
+                        } else {
+                            throw new Error(data.error || 'Failed to remove item');
+                        }
+                    } catch (error) {
+                        console.error('Error:', error);
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: error.message || 'Failed to remove item from wishlist'
+                        });
+                    }
+                });
+            });
+            
+            // Add to cart from wishlist
+            document.querySelectorAll('.add-to-cart-btn').forEach(button => {
+                button.addEventListener('click', async function() {
+                    try {
+                        const productId = this.dataset.productId;
+                        console.log('Adding to cart from wishlist, product ID:', productId);
+                        
+                        const wishlistItem = this.closest('.wishlist-item');
+                        console.log('Wishlist item element:', wishlistItem);
+                        
+                        const variantSelect = wishlistItem.querySelector('.variant-select');
+                        console.log('Variant select element:', variantSelect);
+                        
+                        if (!variantSelect) {
+                            console.error('Variant select element not found in wishlist item');
+                            throw new Error("Variant selection not available");
+                        }
+                        
+                        if (!variantSelect.value) {
+                            console.error('No variant selected in dropdown');
+                            throw new Error("Please select a variant");
+                        }
+                        
+                        const variantId = variantSelect.value;
+                        console.log('Selected variant ID:', variantId);
+                        
+                        const response = await fetch('/cart/add', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                productId,
+                                variantId,
+                                quantity: 1
+                            })
+                        });
+                        
+                        const data = await response.json();
+                        console.log('Response from server:', data);
+                        
+                        if (response.ok) {
+                            // Update cart count in navbar
+                            const cartCountElement = document.getElementById('cartCount');
+                            if (cartCountElement) {
+                                cartCountElement.textContent = data.cartCount;
+                                cartCountElement.classList.remove('hidden');
+                            }
+                            
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Added to Cart',
+                                text: 'Product has been added to your cart',
+                                showCancelButton: true,
+                                confirmButtonText: 'View Cart',
+                                cancelButtonText: 'Continue Shopping'
+                            }).then((result) => {
+                                if (result.isConfirmed) {
+                                    window.location.href = '/cart';
+                                }
+                            });
+                        } else {
+                            throw new Error(data.error || 'Failed to add to cart');
+                        }
+                    } catch (error) {
+                        console.error('Error:', error);
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: error.message || 'Failed to add product to cart'
+                        });
+                    }
+                });
+            });
+            
+            // Clear wishlist
+            const clearWishlistBtn = document.getElementById('clearWishlistBtn');
+            if (clearWishlistBtn) {
+                clearWishlistBtn.addEventListener('click', async function() {
+                    Swal.fire({
+                        title: 'Clear Wishlist',
+                        text: 'Are you sure you want to remove all items from your wishlist?',
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#3085d6',
+                        cancelButtonColor: '#d33',
+                        confirmButtonText: 'Yes, clear it!'
+                    }).then(async (result) => {
+                        if (result.isConfirmed) {
+                            try {
+                                const response = await fetch('/wishlist/clear', {
+                                    method: 'DELETE'
+                                });
+                                
+                                const data = await response.json();
+                                
+                                if (response.ok) {
+                                    window.location.reload();
+                                } else {
+                                    throw new Error(data.error || 'Failed to clear wishlist');
+                                }
+                            } catch (error) {
+                                console.error('Error:', error);
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Error',
+                                    text: error.message || 'Failed to clear wishlist'
+                                });
+                            }
+                        }
+                    });
+                });
+            }
+        });
+    </script>
+    
+    <%- include("../partials/user/footer") %>
+</body>
+</html> 

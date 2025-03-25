@@ -16,10 +16,10 @@ const wishlistSchema = new Schema({
       },
       addedOn: {
         type: Date,
-        default: Date.nowe,
+        default: Date.now,
       },
     },
   ],
 });
-const Wishlist = mongoose.model('Whishlist', wishlistSchema);
+const Wishlist = mongoose.model('Wishlist', wishlistSchema);
 module.exports = Wishlist;

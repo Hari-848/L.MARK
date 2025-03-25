@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shopping Cart</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+</head>
+<body class="bg-gray-50">
+  <%- include("../partials/user/navbar") %>
+  <div class="mt-16"></div>
+
+  <div class="container mx-auto px-4 py-8">
+    <h1 class="text-2xl font-bold mb-8 text-center">Your Shopping Cart</h1>
+
+    <% if (cart && cart.items && cart.items.length > 0) { %>
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Cart Items -->
+        <div class="lg:col-span-2">
+          <div class="bg-white rounded-lg shadow-md p-6">
+            <div class="flex justify-between items-center mb-6">
+              <h2 class="text-lg font-semibold">Cart Items (<%= cart.items.length %>)</h2>
+              <button id="clearCartBtn" class="text-red-600 hover:text-red-800 text-sm">
+                Clear Cart
+              </button>
+            </div>
+
+            <div class="space-y-4">
+              <% cart.items.forEach(item => { %>
+                <div class="flex flex-col sm:flex-row border-b pb-4 cart-item" data-id="<%= item._id %>">
+                  <div class="sm:w-24 h-24 mb-4 sm:mb-0">
+                    <img 
+                      src="<%= item.product.imageUrl && item.product.imageUrl.length > 0 ? item.product.imageUrl[0] : '/images/placeholder.jpg' %>" 
+                      alt="<%= item.product.productName %>" 
+                      class="w-full h-full object-cover rounded"
+                    >
+                  </div>
+                  <div class="flex-1 sm:ml-4">
+                    <div class="flex flex-col sm:flex-row sm:justify-between">
+                      <div>
+                        <h3 class="font-medium"><%= item.product.productName %></h3>
+                        <p class="text-sm text-gray-600">
+                          <% if (item.variant.variantType) { %>Variant: <%= item.variant.variantType %><% } %>
+                        </p>
+                        <p class="text-sm text-gray-600">
+                          <% if (item.variant.discountPrice && item.variant.discountPrice > 0) { %>
+                            Price: ₹<%= item.variant.discountPrice.toFixed(2) %>
+                            <span class="text-gray-500 line-through">₹<%= item.price.toFixed(2) %></span>
+                          <% } else { %>
+                            Price: ₹<%= item.price.toFixed(2) %>
+                          <% } %>
+                        </p>
+                        <% if (item.variant.stock <= 5) { %>
+                          <p class="text-xs text-orange-600 mt-1">
+                            Only <%= item.variant.stock %> left in stock
+                          </p>
+                        <% } %>
+                      </div>
+                      <div class="mt-4 sm:mt-0">
+                        <p class="font-medium text-right">
+                          ₹<span class="item-total">
+                            <% if (item.variant.discountPrice && item.variant.discountPrice > 0) { %>
+                              <%= (item.variant.discountPrice * item.quantity).toFixed(2) %>
+                            <% } else { %>
+                              <%= (item.price * item.quantity).toFixed(2) %>
+                            <% } %>
+                          </span>
+                        </p>
+                      </div>
+                    </div>
+                    <div class="flex justify-between items-center mt-4">
+                      <div class="flex items-center border rounded-md">
+                        <button 
+                          class="px-3 py-1 decrement-btn <%= item.quantity <= 1 ? 'text-gray-400' : 'text-gray-600 hover:bg-gray-100' %>"
+                          <%= item.quantity <= 1 ? 'disabled' : '' %>
+                        >
+                          <i class="fas fa-minus text-xs"></i>
+                        </button>
+                        <span class="px-3 py-1 quantity"><%= item.quantity %></span>
+                        <button 
+                          class="px-3 py-1 increment-btn <%= item.quantity >= item.variant.stock ? 'text-gray-400' : 'text-gray-600 hover:bg-gray-100' %>"
+                          <%= item.quantity >= item.variant.stock ? 'disabled' : '' %>
+                        >
+                          <i class="fas fa-plus text-xs"></i>
+                        </button>
+                      </div>
+                      <button class="text-red-500 hover:text-red-700 remove-btn">
+                        <i class="fas fa-trash"></i>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              <% }); %>
+            </div>
+          </div>
+        </div>
+
+        <!-- Order Summary -->
+        <div class="lg:col-span-1">
+          <div class="bg-white rounded-lg shadow-md p-6 sticky top-4">
+            <h2 class="text-lg font-semibold mb-6">Order Summary</h2>
+            
+            <div class="space-y-4">
+              <div class="flex justify-between">
+                <span class="text-gray-600">Subtotal</span>
+                <span>₹<span id="cart-subtotal"><%= cartTotal.toFixed(2) %></span></span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-600">Shipping</span>
+                <span>Free</span>
+              </div>
+              <% if (cartTotal >= 1000) { %>
+                <div class="flex justify-between text-green-600">
+                  <span>Free Shipping</span>
+                  <span>Applied</span>
+                </div>
+              <% } %>
+              
+              <div class="border-t pt-4 mt-4">
+                <div class="flex justify-between font-semibold">
+                  <span>Total</span>
+                  <span>₹<span id="cart-total"><%= cartTotal.toFixed(2) %></span></span>
+                </div>
+                <p class="text-xs text-gray-500 mt-1">Including all taxes</p>
+              </div>
+              
+              <button id="checkoutBtn" class="w-full bg-blue-600 text-white py-3 rounded-md hover:bg-blue-700 transition mt-6">
+                Proceed to Checkout
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    <% } else { %>
+      <div class="text-center py-16 bg-white rounded-lg shadow-md">
+        <div class="text-5xl text-gray-300 mb-4">
+          <i class="fas fa-shopping-cart"></i>
+        </div>
+        <h2 class="text-2xl font-semibold text-gray-700 mb-4">Your cart is empty</h2>
+        <p class="text-gray-500 mb-8">Looks like you haven't added anything to your cart yet.</p>
+        <a href="/products" class="bg-blue-600 text-white px-6 py-3 rounded-md hover:bg-blue-700 transition">
+          Continue Shopping
+        </a>
+      </div>
+    <% } %>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Handle increment button
+      document.querySelectorAll('.increment-btn').forEach(button => {
+        button.addEventListener('click', function() {
+          if (button.hasAttribute('disabled')) return;
+          
+          const cartItem = this.closest('.cart-item');
+          const itemId = cartItem.dataset.id;
+          updateCartItem(itemId, 'increment', cartItem);
+        });
+      });
+      
+      // Handle decrement button
+      document.querySelectorAll('.decrement-btn').forEach(button => {
+        button.addEventListener('click', function() {
+          if (button.hasAttribute('disabled')) return;
+          
+          const cartItem = this.closest('.cart-item');
+          const itemId = cartItem.dataset.id;
+          updateCartItem(itemId, 'decrement', cartItem);
+        });
+      });
+      
+      // Handle remove button
+      document.querySelectorAll('.remove-btn').forEach(button => {
+        button.addEventListener('click', function() {
+          const cartItem = this.closest('.cart-item');
+          const itemId = cartItem.dataset.id;
+          
+          Swal.fire({
+            title: 'Remove Item',
+            text: 'Are you sure you want to remove this item from your cart?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Yes, remove it!'
+          }).then((result) => {
+            if (result.isConfirmed) {
+              updateCartItem(itemId, 'remove', cartItem);
+            }
+          });
+        });
+      });
+      
+      // Handle clear cart button
+      const clearCartBtn = document.getElementById('clearCartBtn');
+      if (clearCartBtn) {
+        clearCartBtn.addEventListener('click', function() {
+          Swal.fire({
+            title: 'Clear Cart',
+            text: 'Are you sure you want to remove all items from your cart?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Yes, clear it!'
+          }).then((result) => {
+            if (result.isConfirmed) {
+              clearCart();
+            }
+          });
+        });
+      }
+      
+      // Handle checkout button
+      const checkoutBtn = document.getElementById('checkoutBtn');
+      if (checkoutBtn) {
+        checkoutBtn.addEventListener('click', function() {
+          window.location.href = '/checkout';
+        });
+      }
+      
+      // Function to update cart item
+      async function updateCartItem(itemId, action, cartItem) {
+        try {
+          const response = await axios.post('/cart/update', { itemId, action });
+          
+          if (response.data.success) {
+            if (action === 'remove') {
+              // Remove the item from DOM
+              cartItem.remove();
+              
+              // Check if cart is now empty
+              if (document.querySelectorAll('.cart-item').length === 0) {
+                window.location.reload(); // Reload to show empty cart template
+              }
+            } else {
+              // Update quantity display
+              const quantityElement = cartItem.querySelector('.quantity');
+              const itemTotalElement = cartItem.querySelector('.item-total');
+              const incrementBtn = cartItem.querySelector('.increment-btn');
+              const decrementBtn = cartItem.querySelector('.decrement-btn');
+              
+              // Get current quantity
+              const currentQuantity = parseInt(quantityElement.textContent);
+              
+              // Update quantity based on action
+              if (action === 'increment') {
+                quantityElement.textContent = currentQuantity + 1;
+                
+                // Disable increment if at max stock
+                if (currentQuantity + 1 >= parseInt(incrementBtn.closest('.cart-item').querySelector('.text-orange-600')?.textContent.match(/\d+/)?.[0] || Infinity)) {
+                  incrementBtn.classList.add('text-gray-400');
+                  incrementBtn.classList.remove('text-gray-600', 'hover:bg-gray-100');
+                  incrementBtn.setAttribute('disabled', '');
+                }
+                
+                // Enable decrement if > 1
+                decrementBtn.classList.remove('text-gray-400');
+                decrementBtn.classList.add('text-gray-600', 'hover:bg-gray-100');
+                decrementBtn.removeAttribute('disabled');
+              } else if (action === 'decrement') {
+                quantityElement.textContent = currentQuantity - 1;
+                
+                // Disable decrement if at 1
+                if (currentQuantity - 1 <= 1) {
+                  decrementBtn.classList.add('text-gray-400');
+                  decrementBtn.classList.remove('text-gray-600', 'hover:bg-gray-100');
+                  decrementBtn.setAttribute('disabled', '');
+                }
+                
+                // Enable increment
+                incrementBtn.classList.remove('text-gray-400');
+                incrementBtn.classList.add('text-gray-600', 'hover:bg-gray-100');
+                incrementBtn.removeAttribute('disabled');
+              }
+              
+              // Update item total
+              itemTotalElement.textContent = response.data.itemTotal.toFixed(2);
+            }
+            
+            // Update cart total
+            document.getElementById('cart-subtotal').textContent = response.data.cartTotal.toFixed(2);
+            document.getElementById('cart-total').textContent = response.data.cartTotal.toFixed(2);
+            
+            // Update cart count in navbar if it exists
+            const cartCountElement = document.getElementById('cartCount');
+            if (cartCountElement) {
+              cartCountElement.textContent = response.data.cartCount;
+              cartCountElement.classList.toggle('hidden', response.data.cartCount === 0);
+            }
+          }
+        } catch (error) {
+          console.error('Error updating cart:', error);
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: error.response?.data?.error || 'Failed to update cart'
+          });
+        }
+      }
+      
+      // Function to clear cart
+      async function clearCart() {
+        try {
+          const response = await axios.post('/cart/clear');
+          
+          if (response.data.success) {
+            window.location.reload();
+          }
+        } catch (error) {
+          console.error('Error clearing cart:', error);
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: error.response?.data?.error || 'Failed to clear cart'
+          });
+        }
+      }
+    });
+  </script>
+</body>
+</html> 

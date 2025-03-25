@@ -295,6 +295,7 @@ exports.viewProduct = async (req, res) => {
     }
 
     const offers = await Offer.find({ isActive: true });
+    
     // Fetch product with its variants
     const product = await Product.aggregate([
       { $match: { _id: new mongoose.Types.ObjectId(productId) } },
@@ -318,7 +319,7 @@ exports.viewProduct = async (req, res) => {
           'variants.discountPrice': 1,
           'variants.discountPercentage': 1,
           'variants.rating': 1,
-          'variants.variantType': 1, // Changed from color to variantType
+          'variants.variantType': 1,
           'variants.stock': 1,
         },
       },
@@ -326,6 +327,19 @@ exports.viewProduct = async (req, res) => {
 
     if (!product || product.length === 0) {
       return res.status(404).send('Product not found');
+    }
+    
+    // Debug log to check variants
+    console.log('Product variants for view:', product[0].variants.map(v => ({
+      id: v._id,
+      type: v.variantType,
+      price: v.price,
+      discountPrice: v.discountPrice
+    })));
+    
+    // Make sure variants have proper IDs
+    if (product[0].variants.length === 0) {
+      console.error('No variants found for product:', productId);
     }
 
     // Format product data
@@ -336,12 +350,12 @@ exports.viewProduct = async (req, res) => {
       description: product[0].description,
       categoriesId: product[0].categoriesId,
       variants: product[0].variants.map(variant => ({
-        variants_id: variant._id,
+        _id: variant._id, // Make sure this is correctly set
         price: variant.price || 'N/A',
         discountPrice: variant.discountPrice || 'N/A',
         discountPercentage: variant.discountPercentage || 'N/A',
         rating: variant.rating || 'No rating',
-        variantType: variant.variantType || 'Standard', // Changed from color
+        variantType: variant.variantType || 'Standard',
         stock: variant.stock,
       })),
     };
@@ -352,6 +366,7 @@ exports.viewProduct = async (req, res) => {
         offer.applicableCategory?.toString() ===
         formattedProduct.categoriesId?.toString()
     );
+
     const productOffers = offers.filter(
       offer =>
         offer.applicableProduct?.toString() === formattedProduct._id.toString()
@@ -392,6 +407,7 @@ exports.viewProduct = async (req, res) => {
               input: '$variants',
               as: 'variant',
               in: {
+                _id: '$$variant._id', // Make sure to include the variant ID
                 price: '$$variant.price',
                 discountPrice: '$$variant.discountPrice',
               },

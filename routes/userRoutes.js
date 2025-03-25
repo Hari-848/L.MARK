@@ -4,6 +4,7 @@ const isUserAuthenticated = require('../middleware/authMiddleware');
 
 const User = require('../controllers/user/userController');
 const productsController = require('../controllers/user/productsController');
+const wishlistController = require('../controllers/user/wishlistController');
 //const userProfileController = require("../controllers/user/userProfileAddressController");
 
 //--------------------User Signup --------------------
@@ -74,5 +75,36 @@ router.get('/about', isUserAuthenticated, User.getAboutPage);
 
 // Logout route
 router.get('/logout', User.logoutPOST);
+
+router.get('/profile', isUserAuthenticated, User.getProfile);
+router.post('/profile', isUserAuthenticated, User.updateProfile);
+router.post('/change-password', isUserAuthenticated, User.changePassword);
+router.post('/address', isUserAuthenticated, User.addAddress);
+router.put('/address/:addressId', isUserAuthenticated, User.updateAddress);
+router.delete('/address/:addressId', isUserAuthenticated, User.deleteAddress);
+
+// Add this to your userRoutes.js
+router.post('/user/profile/photo', isUserAuthenticated, User.uploadProfilePhoto);
+
+
+// Verify Email Change OTP
+router.post('/verify-email-change', isUserAuthenticated, User.verifyEmailChange);
+
+// Resend Email Change OTP
+router.post('/resend-email-change-otp', isUserAuthenticated, User.resendEmailChangeOTP);
+
+// Set default address
+router.put('/address/:id/default', isUserAuthenticated, User.setDefaultAddress);
+
+
+
+// Wishlist routes
+router.get('/wishlist', isUserAuthenticated, wishlistController.getWishlist);
+router.post('/wishlist/add', isUserAuthenticated, wishlistController.addToWishlist);
+router.delete('/wishlist/item/:itemId', isUserAuthenticated, wishlistController.removeFromWishlist);
+router.delete('/wishlist/clear', isUserAuthenticated, wishlistController.clearWishlist);
+router.get('/wishlist/check', isUserAuthenticated, wishlistController.checkWishlist);
+router.delete('/wishlist/remove/:productId', isUserAuthenticated, wishlistController.removeProduct);
+router.get('/wishlist/all', isUserAuthenticated, wishlistController.getAllWishlistItems);
 
 module.exports = router;
