@@ -673,32 +673,35 @@ exports.resendEmailChangeOTP = async (req, res) => {
 // Set Default Address
 exports.setDefaultAddress = async (req, res) => {
   try {
+    const userId = req.session.user._id;
     const addressId = req.params.id;
+    
     console.log('Setting default address for ID:', addressId);
     
-    const userId = req.session.user._id;
-    
-    // Find the address to make sure it belongs to the user
+    // First, find the address to ensure it exists and belongs to the user
     const address = await Address.findOne({ _id: addressId, userId });
+    
     if (!address) {
       return res.status(404).json({ error: 'Address not found' });
     }
     
-    // Unset any existing default address
+    // Update all addresses to set isDefault to false
     await Address.updateMany(
-      { userId, isDefault: true },
+      { userId },
       { $set: { isDefault: false } }
     );
     
-    // Set this address as default
-    address.isDefault = true;
-    await address.save();
+    // Then update just this address to set isDefault to true
+    // Use findByIdAndUpdate to avoid validation issues
+    await Address.findByIdAndUpdate(
+      addressId,
+      { $set: { isDefault: true } },
+      { runValidators: false }
+    );
     
-    console.log('Address set as default:', address);
-    
-    res.json({ success: true, message: 'Default address updated successfully' });
+    res.json({ success: true });
   } catch (error) {
     console.error('Set default address error:', error);
-    res.status(500).json({ error: 'Failed to update default address' });
+    res.status(500).json({ error: 'Failed to set default address' });
   }
 };

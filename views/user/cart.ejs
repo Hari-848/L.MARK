@@ -223,63 +223,54 @@
       }
       
       // Function to update cart item
-      async function updateCartItem(itemId, action, cartItem) {
+      async function updateCartItem(itemId, action, element) {
         try {
-          const response = await axios.post('/cart/update', { itemId, action });
+          const response = await axios.post('/cart/update', {
+            itemId,
+            action
+          });
           
           if (response.data.success) {
-            if (action === 'remove') {
-              // Remove the item from DOM
-              cartItem.remove();
+            const cartItem = element.closest('.cart-item');
+            const quantityElement = cartItem.querySelector('.quantity');
+            const itemTotalElement = cartItem.querySelector('.item-total');
+            const incrementBtn = cartItem.querySelector('.increment-btn');
+            const decrementBtn = cartItem.querySelector('.decrement-btn');
+            
+            const currentQuantity = parseInt(quantityElement.textContent);
+            
+            if (action === 'increment') {
+              quantityElement.textContent = currentQuantity + 1;
               
-              // Check if cart is now empty
-              if (document.querySelectorAll('.cart-item').length === 0) {
-                window.location.reload(); // Reload to show empty cart template
-              }
-            } else {
-              // Update quantity display
-              const quantityElement = cartItem.querySelector('.quantity');
-              const itemTotalElement = cartItem.querySelector('.item-total');
-              const incrementBtn = cartItem.querySelector('.increment-btn');
-              const decrementBtn = cartItem.querySelector('.decrement-btn');
-              
-              // Get current quantity
-              const currentQuantity = parseInt(quantityElement.textContent);
-              
-              // Update quantity based on action
-              if (action === 'increment') {
-                quantityElement.textContent = currentQuantity + 1;
-                
-                // Disable increment if at max stock
-                if (currentQuantity + 1 >= parseInt(incrementBtn.closest('.cart-item').querySelector('.text-orange-600')?.textContent.match(/\d+/)?.[0] || Infinity)) {
-                  incrementBtn.classList.add('text-gray-400');
-                  incrementBtn.classList.remove('text-gray-600', 'hover:bg-gray-100');
-                  incrementBtn.setAttribute('disabled', '');
-                }
-                
-                // Enable decrement if > 1
-                decrementBtn.classList.remove('text-gray-400');
-                decrementBtn.classList.add('text-gray-600', 'hover:bg-gray-100');
-                decrementBtn.removeAttribute('disabled');
-              } else if (action === 'decrement') {
-                quantityElement.textContent = currentQuantity - 1;
-                
-                // Disable decrement if at 1
-                if (currentQuantity - 1 <= 1) {
-                  decrementBtn.classList.add('text-gray-400');
-                  decrementBtn.classList.remove('text-gray-600', 'hover:bg-gray-100');
-                  decrementBtn.setAttribute('disabled', '');
-                }
-                
-                // Enable increment
-                incrementBtn.classList.remove('text-gray-400');
-                incrementBtn.classList.add('text-gray-600', 'hover:bg-gray-100');
-                incrementBtn.removeAttribute('disabled');
+              // Disable increment if at max stock
+              if (currentQuantity + 1 >= parseInt(cartItem.querySelector('.text-orange-600')?.textContent.match(/\d+/)?.[0] || Infinity)) {
+                incrementBtn.classList.add('text-gray-400');
+                incrementBtn.classList.remove('text-gray-600', 'hover:bg-gray-100');
+                incrementBtn.setAttribute('disabled', '');
               }
               
-              // Update item total
-              itemTotalElement.textContent = response.data.itemTotal.toFixed(2);
+              // Enable decrement if > 1
+              decrementBtn.classList.remove('text-gray-400');
+              decrementBtn.classList.add('text-gray-600', 'hover:bg-gray-100');
+              decrementBtn.removeAttribute('disabled');
+            } else if (action === 'decrement') {
+              quantityElement.textContent = currentQuantity - 1;
+              
+              // Disable decrement if at 1
+              if (currentQuantity - 1 <= 1) {
+                decrementBtn.classList.add('text-gray-400');
+                decrementBtn.classList.remove('text-gray-600', 'hover:bg-gray-100');
+                decrementBtn.setAttribute('disabled', '');
+              }
+              
+              // Enable increment
+              incrementBtn.classList.remove('text-gray-400');
+              incrementBtn.classList.add('text-gray-600', 'hover:bg-gray-100');
+              incrementBtn.removeAttribute('disabled');
             }
+            
+            // Update item total with the value from the server
+            itemTotalElement.textContent = response.data.itemTotal.toFixed(2);
             
             // Update cart total
             document.getElementById('cart-subtotal').textContent = response.data.cartTotal.toFixed(2);
@@ -289,16 +280,15 @@
             const cartCountElement = document.getElementById('cartCount');
             if (cartCountElement) {
               cartCountElement.textContent = response.data.cartCount;
-              cartCountElement.classList.toggle('hidden', response.data.cartCount === 0);
             }
           }
         } catch (error) {
           console.error('Error updating cart:', error);
-          Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: error.response?.data?.error || 'Failed to update cart'
-          });
+          if (error.response && error.response.data && error.response.data.error) {
+            alert(error.response.data.error);
+          } else {
+            alert('Failed to update cart');
+          }
         }
       }
       

@@ -204,8 +204,27 @@ exports.updateCartItem = async (req, res) => {
     
     await cart.save();
     
+    // Fetch the updated cart with populated variant information
+    const updatedCart = await Cart.findOne({ userId })
+      .populate({
+        path: 'items.variant',
+        select: 'variantType price discountPrice stock'
+      });
+    
+    // Find the updated item
+    const updatedItem = updatedCart.items.id(itemId);
+    
+    // Calculate item total with proper discount
+    let itemTotal = 0;
+    if (updatedItem) {
+      const itemPrice = (updatedItem.variant.discountPrice && updatedItem.variant.discountPrice > 0) 
+        ? updatedItem.variant.discountPrice 
+        : updatedItem.price;
+      itemTotal = itemPrice * updatedItem.quantity;
+    }
+    
     // Calculate new cart total
-    const cartTotal = cart.items.reduce((total, item) => {
+    const cartTotal = updatedCart.items.reduce((total, item) => {
       const itemPrice = (item.variant.discountPrice && item.variant.discountPrice > 0) 
         ? item.variant.discountPrice 
         : item.price;
@@ -216,12 +235,8 @@ exports.updateCartItem = async (req, res) => {
       success: true, 
       message: 'Cart updated successfully',
       cartTotal,
-      itemTotal: cartItem ? 
-        ((cartItem.variant.discountPrice && cartItem.variant.discountPrice > 0) 
-          ? cartItem.variant.discountPrice * cartItem.quantity 
-          : cartItem.price * cartItem.quantity) 
-        : 0,
-      cartCount: cart.items.length
+      itemTotal,
+      cartCount: updatedCart.items.length
     });
   } catch (error) {
     console.error('Update cart error:', error);

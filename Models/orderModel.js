@@ -1,71 +1,92 @@
 const mongoose = require('mongoose');
 
+const orderItemSchema = new mongoose.Schema({
+  product: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Product',
+    required: true
+  },
+  variant: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Variant',
+    required: true
+  },
+  quantity: {
+    type: Number,
+    required: true,
+    min: 1
+  },
+  price: {
+    type: Number,
+    required: true
+  },
+  discountPrice: {
+    type: Number,
+    default: 0
+  }
+});
+
 const orderSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
   },
-  products: [{
-    productId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Product',
-      required: true
-    },
-    variantId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Variant',
-      required: true
-    },
-    quantity: {
-      type: Number,
-      required: true,
-      min: 1
-    },
-    price: {
-      type: Number,
-      required: true
-    }
-  }],
-  totalAmount: {
-    type: Number,
-    required: true
-  },
-  shippingAddress: {
+  items: [orderItemSchema],
+  address: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Address',
     required: true
   },
   paymentMethod: {
     type: String,
-    enum: ['COD', 'ONLINE', 'WALLET'],
+    enum: ['cod', 'online'],
     required: true
   },
   paymentStatus: {
     type: String,
-    enum: ['PENDING', 'PAID', 'FAILED', 'REFUNDED'],
-    default: 'PENDING'
+    enum: ['pending', 'paid', 'failed'],
+    default: 'pending'
   },
-  status: {
+  orderStatus: {
     type: String,
-    enum: ['PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'RETURNED'],
-    default: 'PENDING'
+    enum: ['pending', 'processing', 'shipped', 'delivered', 'cancelled', 'returned'],
+    default: 'pending'
   },
-  couponApplied: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Coupon'
+  subtotal: {
+    type: Number,
+    required: true
   },
-  discountAmount: {
+  shipping: {
     type: Number,
     default: 0
   },
-  trackingInfo: {
-    carrier: String,
-    trackingNumber: String,
-    estimatedDelivery: Date
+  discount: {
+    type: Number,
+    default: 0
   },
-  cancelReason: String,
-  returnReason: String
-}, { timestamps: true });
+  tax: {
+    type: Number,
+    default: 0
+  },
+  total: {
+    type: Number,
+    required: true
+  },
+  trackingNumber: {
+    type: String
+  },
+  deliveredAt: {
+    type: Date
+  },
+  cancelledAt: {
+    type: Date
+  },
+  returnedAt: {
+    type: Date
+  }
+}, {
+  timestamps: true
+});
 
 module.exports = mongoose.model('Order', orderSchema);

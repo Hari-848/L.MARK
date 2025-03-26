@@ -7,6 +7,8 @@ const productsController = require('../controllers/user/productsController');
 const wishlistController = require('../controllers/user/wishlistController');
 //const userProfileController = require("../controllers/user/userProfileAddressController");
 
+const addressController = require('../controllers/user/addressController');
+
 //--------------------User Signup --------------------
 router.get('/user/signup', User.signupGET); // This route will show the signup page
 router.post('/user/signup', User.signupPOST);
@@ -106,5 +108,20 @@ router.delete('/wishlist/clear', isUserAuthenticated, wishlistController.clearWi
 router.get('/wishlist/check', isUserAuthenticated, wishlistController.checkWishlist);
 router.delete('/wishlist/remove/:productId', isUserAuthenticated, wishlistController.removeProduct);
 router.get('/wishlist/all', isUserAuthenticated, wishlistController.getAllWishlistItems);
+
+const checkoutController = require('../controllers/user/checkoutController');
+
+// Checkout routes
+router.get('/checkout', isUserAuthenticated, checkoutController.getCheckout);
+router.post('/order/place', isUserAuthenticated, checkoutController.placeOrder);
+router.get('/order/success/:orderId', isUserAuthenticated, checkoutController.getOrderSuccess);
+
+// Address routes
+router.get('/address', isUserAuthenticated, addressController.getAddresses);
+router.get('/address/:id', isUserAuthenticated, addressController.getAddress);
+router.post('/address', isUserAuthenticated, addressController.createAddress);
+router.put('/address/:id', isUserAuthenticated, addressController.updateAddress);
+router.delete('/address/:id', isUserAuthenticated, addressController.deleteAddress);
+router.put('/address/:id/default', isUserAuthenticated, addressController.setDefaultAddress);
 
 module.exports = router;
