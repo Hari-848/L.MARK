@@ -84,6 +84,33 @@ const orderSchema = new mongoose.Schema({
   },
   returnedAt: {
     type: Date
+  },
+  cancelReason: {
+    type: String
+  },
+  returnReason: {
+    type: String
+  },
+  refundStatus: {
+    type: String,
+    enum: ['pending', 'completed', 'rejected'],
+  },
+  refundAmount: {
+    type: Number
+  },
+  refundedAt: {
+    type: Date
+  },
+  isReturnEligible: {
+    type: Boolean,
+    default: false
+  },
+  returnRequested: { type: Boolean, default: false },
+  returnRequestedAt: Date,
+  returnStatus: { 
+    type: String, 
+    enum: ['pending', 'approved', 'rejected'], 
+    default: 'pending' 
   }
 }, {
   timestamps: true

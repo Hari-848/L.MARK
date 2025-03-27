@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Orders</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css"
+      integrity="sha512-Kc323vGBEqzTmouAECnVceyQqyqdsSiqLQISBL29aUW4U/M7pSPA/gEUZQqv1cwx4OnYxTxve5UMg5GT6L4JJg=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    />
+    <link
+      href="https://fonts.googleapis.com/icon?family=Material+Icons"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  </head>
+
+<body class="bg-black text-white min-h-screen">
+  <%- include("../partials/admin/sidebar") %>
+  
+  <main class="ml-64 p-8">
+    <header class="flex items-center justify-between mb-8">
+      <h1 class="text-2xl font-semibold text-gray-200">Order Management</h1>
+    </header>
+    
+    <!-- Order Statistics -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
+      <div class="bg-zinc-800 p-4 rounded-lg shadow">
+        <p class="text-sm text-gray-400">Total Orders</p>
+        <p class="text-2xl font-bold text-white"><%= stats.total %></p>
+      </div>
+      <div class="bg-zinc-800 p-4 rounded-lg shadow">
+        <p class="text-sm text-gray-400">Pending</p>
+        <p class="text-2xl font-bold text-yellow-500"><%= stats.pending %></p>
+      </div>
+      <div class="bg-zinc-800 p-4 rounded-lg shadow">
+        <p class="text-sm text-gray-400">Processing</p>
+        <p class="text-2xl font-bold text-blue-500"><%= stats.processing %></p>
+      </div>
+      <div class="bg-zinc-800 p-4 rounded-lg shadow">
+        <p class="text-sm text-gray-400">Shipped</p>
+        <p class="text-2xl font-bold text-indigo-500"><%= stats.shipped %></p>
+      </div>
+      <div class="bg-zinc-800 p-4 rounded-lg shadow">
+        <p class="text-sm text-gray-400">Delivered</p>
+        <p class="text-2xl font-bold text-green-500"><%= stats.delivered %></p>
+      </div>
+      <div class="bg-zinc-800 p-4 rounded-lg shadow">
+        <p class="text-sm text-gray-400">Revenue</p>
+        <p class="text-2xl font-bold text-green-500">₹<%= stats.totalRevenue.toFixed(2) %></p>
+      </div>
+    </div>
+    
+    <!-- Filters and Search -->
+    <div class="bg-zinc-800 p-6 rounded-lg shadow mb-6">
+      <form action="/admin/orders" method="GET" class="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div>
+          <label for="search" class="block text-sm font-medium text-gray-300 mb-1">Search</label>
+          <input 
+            type="text" 
+            id="search" 
+            name="search" 
+            placeholder="Order ID, Email, etc." 
+            value="<%= searchQuery %>"
+            class="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-white focus:outline-none focus:border-violet-500"
+          >
+        </div>
+        
+        <div>
+          <label for="status" class="block text-sm font-medium text-gray-300 mb-1">Status</label>
+          <select id="status" name="status" class="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-white focus:outline-none focus:border-violet-500">
+            <option value="">All Statuses</option>
+            <option value="pending" <%= status === 'pending' ? 'selected' : '' %>>Pending</option>
+            <option value="processing" <%= status === 'processing' ? 'selected' : '' %>>Processing</option>
+            <option value="shipped" <%= status === 'shipped' ? 'selected' : '' %>>Shipped</option>
+            <option value="delivered" <%= status === 'delivered' ? 'selected' : '' %>>Delivered</option>
+            <option value="cancelled" <%= status === 'cancelled' ? 'selected' : '' %>>Cancelled</option>
+            <option value="returned" <%= status === 'returned' ? 'selected' : '' %>>Returned</option>
+          </select>
+        </div>
+        
+        <div>
+          <label for="paymentMethod" class="block text-sm font-medium text-gray-300 mb-1">Payment Method</label>
+          <select id="paymentMethod" name="paymentMethod" class="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-white focus:outline-none focus:border-violet-500">
+            <option value="">All Methods</option>
+            <option value="cod" <%= paymentMethod === 'cod' ? 'selected' : '' %>>Cash on Delivery</option>
+            <option value="online" <%= paymentMethod === 'online' ? 'selected' : '' %>>Online Payment</option>
+          </select>
+        </div>
+        
+        <div>
+          <label for="sortBy" class="block text-sm font-medium text-gray-300 mb-1">Sort By</label>
+          <select id="sortBy" name="sortBy" class="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-white focus:outline-none focus:border-violet-500">
+            <option value="createdAt" <%= sortBy === 'createdAt' ? 'selected' : '' %>>Date</option>
+            <option value="total" <%= sortBy === 'total' ? 'selected' : '' %>>Amount</option>
+          </select>
+        </div>
+        
+        <div>
+          <label for="sortOrder" class="block text-sm font-medium text-gray-300 mb-1">Sort Order</label>
+          <select id="sortOrder" name="sortOrder" class="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-white focus:outline-none focus:border-violet-500">
+            <option value="desc" <%= sortOrder === 'desc' ? 'selected' : '' %>>Descending</option>
+            <option value="asc" <%= sortOrder === 'asc' ? 'selected' : '' %>>Ascending</option>
+          </select>
+        </div>
+        
+        <div>
+          <label for="returnStatus" class="block text-sm font-medium text-gray-300 mb-1">Return Status</label>
+          <select id="returnStatus" name="returnStatus" class="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-white focus:outline-none focus:border-violet-500">
+            <option value="">All</option>
+            <option value="pending" <%= returnStatus === 'pending' ? 'selected' : '' %>>Return Pending</option>
+            <option value="approved" <%= returnStatus === 'approved' ? 'selected' : '' %>>Return Approved</option>
+            <option value="rejected" <%= returnStatus === 'rejected' ? 'selected' : '' %>>Return Rejected</option>
+          </select>
+        </div>
+        
+        <div class="md:col-span-5 flex justify-end">
+          <button type="submit" class="px-4 py-2 bg-violet-600 text-white rounded-md hover:bg-violet-700 transform transition-transform duration-300 ease-in-out hover:scale-105 active:scale-95">
+            Apply Filters
+          </button>
+        </div>
+      </form>
+    </div>
+    
+    <!-- Orders Table -->
+    <div class="bg-zinc-800 rounded-lg p-6">
+      <table class="min-w-full text-left text-gray-400">
+        <thead>
+          <tr class="border-b border-gray-700">
+            <th class="py-3 px-4">Order ID</th>
+            <th class="py-3 px-4">Date</th>
+            <th class="py-3 px-4">Customer</th>
+            <th class="py-3 px-4">Amount</th>
+            <th class="py-3 px-4">Payment</th>
+            <th class="py-3 px-4">Status</th>
+            <th class="py-3 px-4">Return</th>
+            <th class="py-3 px-4">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (orders.length === 0) { %>
+            <tr class="border-b border-gray-700">
+              <td colspan="7" class="py-4 text-center text-gray-500">No orders found</td>
+            </tr>
+          <% } else { %>
+            <% orders.forEach(order => { %>
+              <tr class="border-b border-gray-700">
+                <td class="py-3 px-4 text-white">
+                  <%= order._id.toString().substring(0, 10) %>...
+                </td>
+                <td class="py-3 px-4 text-white">
+                  <%= new Date(order.createdAt).toLocaleDateString() %>
+                </td>
+                <td class="py-3 px-4 text-white">
+                  <%= order.userId ? order.userId.email : 'Unknown' %>
+                </td>
+                <td class="py-3 px-4 text-white">
+                  ₹<%= order.total.toFixed(2) %>
+                </td>
+                <td class="py-3 px-4">
+                  <%= order.paymentMethod === 'cod' ? 'COD' : 'Online' %>
+                  <span class="ml-1 px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                    <%= order.paymentStatus === 'paid' ? 'bg-green-900 text-green-300' : 
+                       order.paymentStatus === 'failed' ? 'bg-red-900 text-red-300' : 
+                       'bg-yellow-900 text-yellow-300' %>">
+                    <%= order.paymentStatus.charAt(0).toUpperCase() + order.paymentStatus.slice(1) %>
+                  </span>
+                </td>
+                <td class="py-3 px-4">
+                  <% let statusColor = ''; %>
+                  <% if (order.orderStatus === 'pending') { statusColor = 'bg-yellow-900 text-yellow-300'; } %>
+                  <% if (order.orderStatus === 'processing') { statusColor = 'bg-blue-900 text-blue-300'; } %>
+                  <% if (order.orderStatus === 'shipped') { statusColor = 'bg-indigo-900 text-indigo-300'; } %>
+                  <% if (order.orderStatus === 'delivered') { statusColor = 'bg-green-900 text-green-300'; } %>
+                  <% if (order.orderStatus === 'cancelled') { statusColor = 'bg-red-900 text-red-300'; } %>
+                  <% if (order.orderStatus === 'returned') { statusColor = 'bg-gray-900 text-gray-300'; } %>
+                  
+                  <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full <%= statusColor %>">
+                    <%= order.orderStatus.charAt(0).toUpperCase() + order.orderStatus.slice(1) %>
+                  </span>
+                </td>
+                <td class="py-3 px-4">
+                  <% if (order.returnRequested) { %>
+                    <% if (order.returnStatus === 'pending') { %>
+                      <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-900 text-yellow-300">
+                        Return Pending
+                      </span>
+                    <% } else if (order.returnStatus === 'approved') { %>
+                      <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-900 text-green-300">
+                        Return Approved
+                      </span>
+                    <% } else if (order.returnStatus === 'rejected') { %>
+                      <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-900 text-red-300">
+                        Return Rejected
+                      </span>
+                    <% } %>
+                  <% } else { %>
+                    <span class="text-gray-500">-</span>
+                  <% } %>
+                </td>
+                <td class="py-3 px-4 whitespace-nowrap text-sm font-medium">
+                  <a href="/admin/order/<%= order._id %>" class="text-violet-400 hover:text-violet-300 mr-3">View</a>
+                  <button 
+                    onclick="openUpdateStatusModal('<%= order._id %>', '<%= order.orderStatus %>')" 
+                    class="text-blue-400 hover:text-blue-300 mr-3"
+                  >
+                    Update Status
+                  </button>
+                  
+                  <% if (order.returnRequested && order.returnStatus === 'pending') { %>
+                    <button 
+                      onclick="openProcessReturnModal('<%= order._id %>')" 
+                      class="text-orange-400 hover:text-orange-300"
+                    >
+                      Process Return
+                    </button>
+                  <% } %>
+                </td>
+              </tr>
+            <% }); %>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+    
+    <!-- Pagination -->
+    <% if (totalPages > 1) { %>
+      <div class="flex justify-center mt-6">
+        <div class="flex justify-center space-x-2">
+          <% if (currentPage > 1) { %>
+            <a href="/admin/orders?page=<%= currentPage - 1 %>&search=<%= searchQuery %>&status=<%= status %>&paymentMethod=<%= paymentMethod %>&sortBy=<%= sortBy %>&sortOrder=<%= sortOrder %>&returnStatus=<%= returnStatus %>" 
+              class="bg-zinc-700 text-white px-3 py-1 rounded hover:bg-zinc-600">
+              Previous
+            </a>
+          <% } %>
+          
+          <% for(let i = 1; i <= totalPages; i++) { %>
+            <a href="/admin/orders?page=<%= i %>&search=<%= searchQuery %>&status=<%= status %>&paymentMethod=<%= paymentMethod %>&sortBy=<%= sortBy %>&sortOrder=<%= sortOrder %>&returnStatus=<%= returnStatus %>" 
+              class="<%= currentPage === i ? 'bg-violet-700' : 'bg-zinc-700' %> text-white px-3 py-1 rounded hover:bg-zinc-600">
+              <%= i %>
+            </a>
+          <% } %>
+          
+          <% if (currentPage < totalPages) { %>
+            <a href="/admin/orders?page=<%= currentPage + 1 %>&search=<%= searchQuery %>&status=<%= status %>&paymentMethod=<%= paymentMethod %>&sortBy=<%= sortBy %>&sortOrder=<%= sortOrder %>&returnStatus=<%= returnStatus %>" 
+              class="bg-zinc-700 text-white px-3 py-1 rounded hover:bg-zinc-600">
+              Next
+            </a>
+          <% } %>
+        </div>
+      </div>
+    <% } %>
+  </main>
+  
+  <!-- Update Status Modal -->
+  <div id="updateStatusModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 hidden">
+    <div class="bg-zinc-800 rounded-lg p-6 w-full max-w-md">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-medium text-white">Update Order Status</h3>
+        <button id="closeStatusModal" class="text-gray-400 hover:text-gray-200">
+          <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+      
+      <form id="updateStatusForm">
+        <input type="hidden" id="orderIdInput">
+        
+        <div class="mb-4">
+          <label for="statusSelect" class="block text-sm font-medium text-gray-300 mb-1">New Status</label>
+          <select id="statusSelect" name="status" class="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-white focus:outline-none focus:border-violet-500">
+            <!-- Options will be added dynamically -->
+          </select>
+        </div>
+        
+        <div id="trackingNumberField" class="mb-4 hidden">
+          <label for="trackingNumber" class="block text-sm font-medium text-gray-300 mb-1">Tracking Number</label>
+          <input 
+            type="text" 
+            id="trackingNumber" 
+            name="trackingNumber" 
+            placeholder="Enter tracking number" 
+            class="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-white focus:outline-none focus:border-violet-500"
+          >
+        </div>
+        
+        <div class="flex justify-end space-x-3">
+          <button type="button" id="cancelStatusUpdate" class="px-4 py-2 bg-zinc-700 text-white rounded-md hover:bg-zinc-600">
+            Cancel
+          </button>
+          <button type="submit" class="px-4 py-2 bg-violet-600 text-white rounded-md hover:bg-violet-700 transform transition-transform duration-300 ease-in-out hover:scale-105 active:scale-95">
+            Update Status
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  
+  <!-- Process Return Modal -->
+  <div id="processReturnModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 hidden">
+    <div class="bg-zinc-800 rounded-lg p-6 w-full max-w-md">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-medium text-white">Process Return Request</h3>
+        <button id="closeReturnModal" class="text-gray-400 hover:text-gray-200">
+          <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+      
+      <form id="processReturnForm">
+        <input type="hidden" id="returnOrderIdInput">
+        
+        <div class="mb-4">
+          <label for="refundStatus" class="block text-sm font-medium text-gray-300 mb-1">Return Decision</label>
+          <select id="refundStatus" name="refundStatus" class="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-white focus:outline-none focus:border-violet-500">
+            <option value="completed">Approve Return & Process Full Refund</option>
+            <option value="rejected">Reject Return Request</option>
+          </select>
+        </div>
+        
+        <div class="flex justify-end space-x-3">
+          <button type="button" id="cancelReturnProcess" class="px-4 py-2 bg-zinc-700 text-white rounded-md hover:bg-zinc-600">
+            Cancel
+          </button>
+          <button type="submit" class="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 transform transition-transform duration-300 ease-in-out hover:scale-105 active:scale-95">
+            Process Return
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  
+  <script>
+    // Update Status Modal
+    function openUpdateStatusModal(orderId, currentStatus) {
+      document.getElementById('orderIdInput').value = orderId;
+      const statusSelect = document.getElementById('statusSelect');
+      
+      // Clear existing options
+      statusSelect.innerHTML = '';
+      
+      // Define possible next statuses based on current status
+      let nextStatuses = [];
+      
+      switch(currentStatus) {
+        case 'pending':
+          nextStatuses = ['processing', 'cancelled'];
+          break;
+        case 'processing':
+          nextStatuses = ['shipped', 'cancelled'];
+          break;
+        case 'shipped':
+          nextStatuses = ['delivered', 'cancelled'];
+          break;
+        case 'delivered':
+          nextStatuses = ['returned']; // Add returned as an option for delivered orders
+          break;
+        case 'cancelled':
+          nextStatuses = ['pending']; // Allow reactivating cancelled orders
+          break;
+        case 'returned':
+          nextStatuses = ['delivered']; // Allow reverting returned orders
+          break;
+      }
+      
+      // Add options to select
+      nextStatuses.forEach(status => {
+        const option = document.createElement('option');
+        option.value = status;
+        option.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+        statusSelect.appendChild(option);
+      });
+      
+      // Show/hide tracking number field
+      const trackingNumberField = document.getElementById('trackingNumberField');
+      trackingNumberField.classList.toggle('hidden', !nextStatuses.includes('shipped'));
+      
+      // Show modal
+      document.getElementById('updateStatusModal').classList.remove('hidden');
+    }
+    
+    // Close modal buttons
+    document.getElementById('closeStatusModal').addEventListener('click', function() {
+      document.getElementById('updateStatusModal').classList.add('hidden');
+    });
+    
+    document.getElementById('cancelStatusUpdate').addEventListener('click', function() {
+      document.getElementById('updateStatusModal').classList.add('hidden');
+    });
+    
+    // Update status form submission
+    document.getElementById('updateStatusForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const orderId = document.getElementById('orderIdInput').value;
+      const status = document.getElementById('statusSelect').value;
+      const trackingNumber = document.getElementById('trackingNumber').value;
+      
+      try {
+        const response = await fetch(`/admin/order/${orderId}/status`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ 
+            status,
+            trackingNumber: status === 'shipped' ? trackingNumber : undefined
+          })
+        });
+        
+        if (response.ok) {
+          Swal.fire({
+            title: 'Success!',
+            text: 'Order status updated successfully',
+            icon: 'success',
+            background: '#1a1a1a',
+            color: '#fff',
+            customClass: {
+              popup: 'bg-zinc-800 text-white'
+            }
+          }).then(() => {
+            window.location.reload();
+          });
+        } else {
+          const error = await response.json();
+          throw new Error(error.error || 'Failed to update order status');
+        }
+      } catch (error) {
+        Swal.fire({
+          title: 'Error!',
+          text: error.message,
+          icon: 'error',
+          background: '#1a1a1a',
+          color: '#fff',
+          customClass: {
+            popup: 'bg-zinc-800 text-white'
+          }
+        });
+      }
+    });
+
+    // Process Return Modal
+    function openProcessReturnModal(orderId) {
+      document.getElementById('returnOrderIdInput').value = orderId;
+      document.getElementById('processReturnModal').classList.remove('hidden');
+      
+      // Reset form
+      document.getElementById('refundStatus').value = 'completed';
+    }
+
+    // Close modal buttons
+    document.getElementById('closeReturnModal').addEventListener('click', function() {
+      document.getElementById('processReturnModal').classList.add('hidden');
+    });
+
+    document.getElementById('cancelReturnProcess').addEventListener('click', function() {
+      document.getElementById('processReturnModal').classList.add('hidden');
+    });
+
+    // Process return form submission
+    document.getElementById('processReturnForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const orderId = document.getElementById('returnOrderIdInput').value;
+      const refundStatus = document.getElementById('refundStatus').value;
+      
+      try {
+        const response = await fetch(`/admin/order/${orderId}/process-return`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ 
+            refundStatus
+          })
+        });
+        
+        if (response.ok) {
+          Swal.fire({
+            title: 'Success!',
+            text: refundStatus === 'completed' ? 
+              'Return request approved and full refund processed' : 
+              'Return request rejected',
+            icon: 'success',
+            background: '#1a1a1a',
+            color: '#fff',
+            confirmButtonText: 'OK'
+          }).then(() => {
+            window.location.reload();
+          });
+        } else {
+          const errorData = await response.json();
+          Swal.fire({
+            title: 'Error!',
+            text: errorData.error || 'Failed to process return request',
+            icon: 'error',
+            background: '#1a1a1a',
+            color: '#fff',
+            confirmButtonText: 'OK'
+          });
+        }
+      } catch (error) {
+        console.error('Process return error:', error);
+        Swal.fire({
+          title: 'Error!',
+          text: 'An unexpected error occurred',
+          icon: 'error',
+          background: '#1a1a1a',
+          color: '#fff',
+          confirmButtonText: 'OK'
+        });
+      }
+    });
+  </script>
+</body>
+</html> 

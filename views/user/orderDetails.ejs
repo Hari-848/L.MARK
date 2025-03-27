@@ -1,0 +1,555 @@
+<%- include("../partials/user/head", {title: "Order Details"}) %>
+
+<style>
+    /* Basic styles to ensure modal displays correctly */
+    .hidden {
+      display: none !important;
+    }
+    
+    /* Custom button styles to ensure visibility */
+    .return-submit-btn {
+      background-color: #ea580c; /* orange-600 */
+      color: #ffffff;
+      padding: 0.5rem 1rem;
+      border-radius: 0.375rem;
+      font-weight: 500;
+    }
+    
+    .return-submit-btn:hover {
+      background-color: #c2410c; /* orange-700 */
+    }
+    
+    /* Add any other necessary styles here */
+  </style>
+  
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="/images/favicon.png">
+
+<body>
+  <%- include("../partials/user/navbar") %>
+  
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="mb-6 flex justify-between items-center">
+      <h1 class="text-2xl font-bold">Order Details</h1>
+      <div class="flex space-x-3">
+        <a href="/orders" class="text-indigo-600 hover:text-indigo-800">
+          <i class="fas fa-arrow-left mr-1"></i> Back to Orders
+        </a>
+        <a href="/order/<%= order._id %>/invoice" target="_blank" class="text-indigo-600 hover:text-indigo-800">
+          <i class="fas fa-file-pdf mr-1"></i> Download Invoice
+        </a>
+      </div>
+    </div>
+    
+    <!-- Order Summary -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+        <div>
+          <p class="text-sm text-gray-500">Order ID</p>
+          <p class="font-medium"><%= order._id %></p>
+        </div>
+        <div>
+          <p class="text-sm text-gray-500">Order Date</p>
+          <p class="font-medium"><%= new Date(order.createdAt).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' }) %></p>
+        </div>
+        <div>
+          <p class="text-sm text-gray-500">Payment Method</p>
+          <p class="font-medium"><%= order.paymentMethod === 'cod' ? 'Cash on Delivery' : 'Online Payment' %></p>
+        </div>
+        <div>
+          <p class="text-sm text-gray-500">Payment Status</p>
+          <p class="font-medium capitalize"><%= order.paymentStatus %></p>
+        </div>
+      </div>
+      
+      <div class="mt-4">
+        <p class="text-sm text-gray-500">Order Status</p>
+        <div class="mt-2">
+          <% let statusColor = ''; %>
+          <% if (order.orderStatus === 'pending') { statusColor = 'bg-yellow-100 text-yellow-800'; } %>
+          <% if (order.orderStatus === 'processing') { statusColor = 'bg-blue-100 text-blue-800'; } %>
+          <% if (order.orderStatus === 'shipped') { statusColor = 'bg-indigo-100 text-indigo-800'; } %>
+          <% if (order.orderStatus === 'delivered') { statusColor = 'bg-green-100 text-green-800'; } %>
+          <% if (order.orderStatus === 'cancelled') { statusColor = 'bg-red-100 text-red-800'; } %>
+          <% if (order.orderStatus === 'returned') { statusColor = 'bg-gray-100 text-gray-800'; } %>
+          
+          <span class="px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full <%= statusColor %>">
+            <%= order.orderStatus.charAt(0).toUpperCase() + order.orderStatus.slice(1) %>
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Return Request Status (if applicable) -->
+    <% if (order.returnRequested) { %>
+      <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h2 class="text-lg font-semibold mb-4">Return Request Status</h2>
+        
+        <div class="flex flex-col space-y-3">
+          <div class="flex justify-between">
+            <span class="text-gray-600">Return Requested On</span>
+            <span><%= new Date(order.returnRequestedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) %></span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-600">Return Reason</span>
+            <span><%= order.returnReason %></span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-600">Status</span>
+            <% if (order.returnStatus === 'pending') { %>
+              <span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium">Pending Review</span>
+            <% } else if (order.returnStatus === 'approved') { %>
+              <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">Approved</span>
+            <% } else if (order.returnStatus === 'rejected') { %>
+              <span class="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium">Rejected</span>
+            <% } %>
+          </div>
+          
+          <% if (order.refundStatus === 'completed') { %>
+            <div class="flex justify-between">
+              <span class="text-gray-600">Refund Amount</span>
+              <span class="text-green-600">₹<%= order.refundAmount.toFixed(2) %></span>
+            </div>
+            <% if (order.refundedAt) { %>
+              <div class="flex justify-between">
+                <span class="text-gray-600">Refunded On</span>
+                <span><%= new Date(order.refundedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) %></span>
+              </div>
+            <% } %>
+          <% } %>
+        </div>
+      </div>
+    <% } %>
+    
+    <!-- Shipping Address -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+      <h2 class="text-lg font-semibold mb-4">Shipping Address</h2>
+      <div class="text-gray-700">
+        <p class="font-medium"><%= order.address.fullName %></p>
+        <p><%= order.address.address %></p>
+        <p><%= order.address.city %>, <%= order.address.state %> - <%= order.address.pincode %></p>
+        <p>Phone: <%= order.address.mobile %></p>
+      </div>
+    </div>
+    
+    <!-- Order Items -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+      <h2 class="text-lg font-semibold mb-4">Order Items</h2>
+      
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200">
+            <% order.items.forEach(item => { %>
+              <tr>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="flex items-center">
+                    <div class="flex-shrink-0 h-10 w-10">
+                      <% if (item.product && item.product.imageUrl) { %>
+                        <img class="h-10 w-10 rounded-full object-cover" src="<%= item.product.imageUrl[0] || '/images/placeholder.jpg' %>" alt="<%= item.product.productName %>">
+                      <% } else { %>
+                        <div class="h-10 w-10 rounded-full bg-gray-200"></div>
+                      <% } %>
+                    </div>
+                    <div class="ml-4">
+                      <div class="text-sm font-medium text-gray-900">
+                        <%= item.product ? item.product.productName : 'Product Unavailable' %>
+                      </div>
+                      <div class="text-sm text-gray-500">
+                        <%= item.variant ? item.variant.variantType : '' %>
+                      </div>
+                    </div>
+                  </div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <% if (item.discountPrice && item.discountPrice > 0) { %>
+                    <div class="text-sm text-gray-900">₹<%= item.discountPrice.toFixed(2) %></div>
+                    <div class="text-sm text-gray-500 line-through">₹<%= item.price.toFixed(2) %></div>
+                  <% } else { %>
+                    <div class="text-sm text-gray-900">₹<%= item.price.toFixed(2) %></div>
+                  <% } %>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <%= item.quantity %>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <% const itemTotal = (item.discountPrice && item.discountPrice > 0) ? 
+                    (item.discountPrice * item.quantity) : 
+                    (item.price * item.quantity); %>
+                  ₹<%= itemTotal.toFixed(2) %>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    
+    <!-- Order Summary -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+      <h2 class="text-lg font-semibold mb-4">Order Summary</h2>
+      
+      <div class="flex flex-col space-y-3">
+        <div class="flex justify-between">
+          <span class="text-gray-600">Subtotal</span>
+          <span>₹<%= order.subtotal.toFixed(2) %></span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-gray-600">Shipping</span>
+          <span>₹<%= order.shipping.toFixed(2) %></span>
+        </div>
+        <% if (order.discount > 0) { %>
+          <div class="flex justify-between text-green-600">
+            <span>Discount</span>
+            <span>-₹<%= order.discount.toFixed(2) %></span>
+          </div>
+        <% } %>
+        <% if (order.tax > 0) { %>
+          <div class="flex justify-between">
+            <span class="text-gray-600">Tax</span>
+            <span>₹<%= order.tax.toFixed(2) %></span>
+          </div>
+        <% } %>
+        <div class="flex justify-between font-bold pt-3 border-t">
+          <span>Total</span>
+          <span>₹<%= order.total.toFixed(2) %></span>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Action Buttons -->
+    <div class="flex justify-end space-x-4">
+      <% if (order.orderStatus === 'pending' || order.orderStatus === 'processing') { %>
+        <button 
+          onclick="cancelOrder('<%= order._id %>')" 
+          class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+        >
+          Cancel Order
+        </button>
+      <% } %>
+      
+      <% if (order.orderStatus === 'delivered' && !order.returnRequested) { %>
+        <% if (order.isReturnEligible) { %>
+          <button 
+            onclick="returnOrder('<%= order._id %>')" 
+            class="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500"
+          >
+            Request Return
+          </button>
+        <% } else { %>
+          <div class="text-gray-500 italic px-4 py-2 bg-gray-100 rounded-md">
+            Return period expired (7-day limit)
+          </div>
+        <% } %>
+      <% } else if (order.returnRequested && order.returnStatus === 'pending') { %>
+        <div class="text-yellow-600 italic px-4 py-2 bg-yellow-50 rounded-md">
+          Return request pending
+        </div>
+      <% } %>
+    </div>
+  </div>
+  
+  <!-- Cancel Order Modal -->
+  <div id="cancelOrderModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-lg p-6 w-full max-w-md">
+      <h3 class="text-lg font-bold mb-4">Cancel Order</h3>
+      <p class="mb-4">Are you sure you want to cancel this order?</p>
+      
+      <form id="cancelOrderForm">
+        <input type="hidden" id="cancelOrderId" name="orderId">
+        
+        <div class="mb-4">
+          <label for="cancelReason" class="block text-sm font-medium text-gray-700 mb-1">Reason for cancellation (optional)</label>
+          <select id="cancelReason" name="reason" class="w-full p-2 border border-gray-300 rounded-md">
+            <option value="">Select a reason</option>
+            <option value="Changed my mind">Changed my mind</option>
+            <option value="Found a better price elsewhere">Found a better price elsewhere</option>
+            <option value="Ordered by mistake">Ordered by mistake</option>
+            <option value="Shipping time is too long">Shipping time is too long</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        
+        <div id="otherCancelReasonContainer" class="mb-4 hidden">
+          <label for="otherCancelReason" class="block text-sm font-medium text-gray-700 mb-1">Please specify</label>
+          <input type="text" id="otherCancelReason" name="otherReason" class="w-full p-2 border border-gray-300 rounded-md">
+        </div>
+        
+        <div class="flex justify-end space-x-3">
+          <button type="button" id="cancelOrderClose" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md">Close</button>
+          <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">Confirm Cancellation</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  
+  <!-- Return Order Modal -->
+  <div id="returnOrderModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-lg p-6 w-full max-w-md">
+      <h3 class="text-lg font-bold mb-4">Return Order</h3>
+      <p class="mb-4">Please provide a reason for returning this order.</p>
+      
+      <form id="returnOrderForm">
+        <input type="hidden" id="returnOrderId" name="orderId">
+        
+        <div class="mb-4">
+          <label for="returnReason" class="block text-sm font-medium text-gray-700 mb-1">Reason for return <span class="text-red-500">*</span></label>
+          <select id="returnReason" name="reason" class="w-full p-2 border border-gray-300 rounded-md" required>
+            <option value="">Select a reason</option>
+            <option value="Damaged product">Damaged product</option>
+            <option value="Wrong product received">Wrong product received</option>
+            <option value="Product doesn't match description">Product doesn't match description</option>
+            <option value="Quality issues">Quality issues</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        
+        <div id="otherReturnReasonContainer" class="mb-4 hidden">
+          <label for="otherReturnReason" class="block text-sm font-medium text-gray-700 mb-1">Please specify <span class="text-red-500">*</span></label>
+          <textarea id="otherReturnReason" name="otherReason" rows="2" class="w-full p-2 border border-gray-300 rounded-md"></textarea>
+        </div>
+        
+        <div class="flex justify-end space-x-3">
+          <button type="button" id="returnOrderClose" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">
+            Close
+          </button>
+          <button type="submit" id="submitReturnBtn" class="return-submit-btn">
+            Submit Return Request
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  
+  <%- include("../partials/user/footer") %>
+  
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script>
+    // Cancel Order
+    function cancelOrder(orderId) {
+      document.getElementById('cancelOrderId').value = orderId;
+      document.getElementById('cancelOrderModal').classList.remove('hidden');
+    }
+    
+    document.getElementById('cancelOrderClose').addEventListener('click', function() {
+      document.getElementById('cancelOrderModal').classList.add('hidden');
+    });
+    
+    document.getElementById('cancelReason').addEventListener('change', function() {
+      const otherContainer = document.getElementById('otherCancelReasonContainer');
+      if (this.value === 'Other') {
+        otherContainer.classList.remove('hidden');
+      } else {
+        otherContainer.classList.add('hidden');
+      }
+    });
+    
+    document.getElementById('cancelOrderForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const orderId = document.getElementById('cancelOrderId').value;
+      let reason = document.getElementById('cancelReason').value;
+      
+      if (reason === 'Other') {
+        reason = document.getElementById('otherCancelReason').value;
+      }
+      
+      try {
+        const response = await fetch(`/order/${orderId}/cancel`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ reason })
+        });
+        
+        if (response.ok) {
+          Swal.fire({
+            title: 'Success',
+            text: 'Order cancelled successfully',
+            icon: 'success',
+            confirmButtonText: 'OK'
+          }).then(() => {
+            window.location.reload();
+          });
+        } else {
+          const error = await response.json();
+          Swal.fire({
+            title: 'Error',
+            text: error.error || 'Failed to cancel order',
+            icon: 'error',
+            confirmButtonText: 'OK'
+          });
+        }
+      } catch (error) {
+        console.error('Error cancelling order:', error);
+        Swal.fire({
+          title: 'Error',
+          text: 'An error occurred while cancelling your order',
+          icon: 'error',
+          confirmButtonText: 'OK'
+        });
+      } finally {
+        document.getElementById('cancelOrderModal').classList.add('hidden');
+      }
+    });
+    
+    // Return Order
+    function returnOrder(orderId) {
+      console.log('Opening return modal for order:', orderId);
+      document.getElementById('returnOrderId').value = orderId;
+      document.getElementById('returnOrderModal').classList.remove('hidden');
+      document.getElementById('returnOrderForm').reset();
+      document.getElementById('otherReturnReasonContainer').classList.add('hidden');
+      
+      // Debug the submit button
+      const submitBtn = document.getElementById('submitReturnBtn');
+      console.log('Submit button found:', !!submitBtn);
+      // Ensure button is visible with proper styling
+      if (submitBtn) {
+        submitBtn.classList.add('return-submit-btn');
+      }
+    }
+    
+    document.getElementById('returnOrderClose').addEventListener('click', function() {
+      document.getElementById('returnOrderModal').classList.add('hidden');
+    });
+    
+    document.getElementById('returnReason').addEventListener('change', function() {
+      const otherContainer = document.getElementById('otherReturnReasonContainer');
+      if (this.value === 'Other') {
+        otherContainer.classList.remove('hidden');
+      } else {
+        otherContainer.classList.add('hidden');
+      }
+    });
+    
+    document.getElementById('returnOrderForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      console.log('Return form submitted');
+      
+      const orderId = document.getElementById('returnOrderId').value;
+      let reason = document.getElementById('returnReason').value;
+      
+      if (reason === 'Other') {
+        const otherReason = document.getElementById('otherReturnReason').value;
+        if (!otherReason.trim()) {
+          Swal.fire({
+            title: 'Error',
+            text: 'Please specify a return reason',
+            icon: 'error',
+            confirmButtonText: 'OK'
+          });
+          return;
+        }
+        reason = otherReason;
+      }
+      
+      if (!reason) {
+        Swal.fire({
+          title: 'Error',
+          text: 'Return reason is required',
+          icon: 'error',
+          confirmButtonText: 'OK'
+        });
+        return;
+      }
+      
+      try {
+        // Show loading state
+        const submitBtn = document.getElementById('submitReturnBtn');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+        submitBtn.disabled = true;
+        
+        const response = await fetch(`/order/${orderId}/return`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ reason })
+        });
+        
+        if (response.ok) {
+          Swal.fire({
+            title: 'Return Request Submitted',
+            text: 'Your return request has been submitted and is pending approval from our team.',
+            icon: 'success',
+            confirmButtonText: 'OK'
+          }).then(() => {
+            window.location.reload();
+          });
+        } else {
+          const error = await response.json();
+          Swal.fire({
+            title: 'Error',
+            text: error.error || 'Failed to submit return request',
+            icon: 'error',
+            confirmButtonText: 'OK'
+          });
+        }
+      } catch (error) {
+        console.error('Error returning order:', error);
+        Swal.fire({
+          title: 'Error',
+          text: 'An error occurred while submitting your return request',
+          icon: 'error',
+          confirmButtonText: 'OK'
+        });
+      } finally {
+        document.getElementById('returnOrderModal').classList.add('hidden');
+        // Reset button state
+        if (document.getElementById('submitReturnBtn')) {
+          document.getElementById('submitReturnBtn').innerHTML = 'Submit Return Request';
+          document.getElementById('submitReturnBtn').disabled = false;
+        }
+      }
+    });
+    
+    // Debug function to check modal elements
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('DOM loaded, checking modal elements...');
+      
+      // Check if elements exist
+      const returnModal = document.getElementById('returnOrderModal');
+      const returnForm = document.getElementById('returnOrderForm');
+      const submitBtn = document.getElementById('submitReturnBtn');
+      const returnReason = document.getElementById('returnReason');
+      
+      console.log('Return modal exists:', !!returnModal);
+      console.log('Return form exists:', !!returnForm);
+      console.log('Return reason exists:', !!returnReason);
+      console.log('Submit button exists:', !!submitBtn);
+      
+      // Check if event listeners are attached
+      if (returnForm) {
+        console.log('Return form has submit listener:', returnForm.onsubmit !== null);
+      }
+      
+      // Test the modal manually (uncomment to test)
+      // returnOrder('test-id');
+    });
+
+    console.log('Form elements:');
+    console.log('Return form:', document.getElementById('returnOrderForm'));
+    console.log('Return reason select:', document.getElementById('returnReason'));
+    console.log('Submit button:', document.getElementById('submitReturnBtn'));
+
+    // Add a direct event listener to the form
+    const returnForm = document.getElementById('returnOrderForm');
+    if (returnForm) {
+      console.log('Adding submit listener to return form');
+      returnForm.addEventListener('submit', function(e) {
+        console.log('Form submit event triggered');
+      });
+    }
+  </script>
+</body>
+</html> 

@@ -3,6 +3,7 @@ const router = express.Router();
 const adminController = require('../controllers/user/adminController.js');
 const adminAuthenticated = require('../middleware/adminauthMiddleware');
 const uploadMiddleware = require('../middleware/uploadMiddleware');
+const adminOrderController = require('../controllers/admin/adminOrderController');
 
 router.use((req, res, next) => {
     req.session.admin = true;
@@ -77,5 +78,15 @@ router.get('/category', adminAuthenticated, adminController.getCategories);
 router.post('/category/add', adminController.addCategory);
 router.post('/category/update/:id', adminController.updateCategory);
 router.post('/category/delete/:id', adminController.deleteCategory);
+
+// Order management routes
+router.get('/orders', adminAuthenticated, adminOrderController.getAllOrders);
+router.get('/order/:orderId', adminAuthenticated, adminOrderController.getOrderDetails);
+router.post('/order/:orderId/status', adminAuthenticated, adminOrderController.updateOrderStatus);
+router.post('/order/:orderId/return', adminAuthenticated, adminOrderController.processReturnRequest);
+router.get('/order-stats', adminAuthenticated, adminOrderController.getOrderStats);
+
+// Add this route for processing returns
+router.post('/order/:orderId/process-return', adminAuthenticated, adminOrderController.processReturnRequest);
 
 module.exports = router;

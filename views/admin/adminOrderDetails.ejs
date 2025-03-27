@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Orders</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css"
+      integrity="sha512-Kc323vGBEqzTmouAECnVceyQqyqdsSiqLQISBL29aUW4U/M7pSPA/gEUZQqv1cwx4OnYxTxve5UMg5GT6L4JJg=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    />
+    <link
+      href="https://fonts.googleapis.com/icon?family=Material+Icons"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  </head>
+
+<body class="bg-black text-white min-h-screen">
+  <%- include("../partials/admin/sidebar") %>
+  
+  <main class="ml-64 p-8">
+    <header class="flex justify-between items-center mb-6">
+      <h1 class="text-2xl font-semibold text-gray-200">Order Details</h1>
+      <div class="flex space-x-3">
+        <a href="/admin/orders" class="text-indigo-400 hover:text-indigo-300 transition-colors">
+          <i class="fas fa-arrow-left mr-1"></i> Back to Orders
+        </a>
+      </div>
+    </header>
+    
+    <!-- Order Summary -->
+    <div class="bg-zinc-800 rounded-lg shadow-md p-6 mb-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+        <div>
+          <p class="text-sm text-gray-400">Order ID</p>
+          <p class="font-medium text-white"><%= order._id %></p>
+        </div>
+        <div>
+          <p class="text-sm text-gray-400">Order Date</p>
+          <p class="font-medium text-white"><%= new Date(order.createdAt).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' }) %></p>
+        </div>
+        <div>
+          <p class="text-sm text-gray-400">Customer</p>
+          <p class="font-medium text-white"><%= order.userId.name %></p>
+          <p class="text-sm text-gray-400"><%= order.userId.email %></p>
+        </div>
+        <div>
+          <p class="text-sm text-gray-400">Payment Method</p>
+          <p class="font-medium text-white"><%= order.paymentMethod === 'cod' ? 'Cash on Delivery' : 'Online Payment' %></p>
+          <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+            <%= order.paymentStatus === 'paid' ? 'bg-green-900 text-green-300' : 
+               order.paymentStatus === 'failed' ? 'bg-red-900 text-red-300' : 
+               'bg-yellow-900 text-yellow-300' %>">
+            <%= order.paymentStatus.charAt(0).toUpperCase() + order.paymentStatus.slice(1) %>
+          </span>
+        </div>
+      </div>
+      
+      <div class="mt-4">
+        <p class="text-sm text-gray-400">Order Status</p>
+        <div class="mt-2 flex items-center">
+          <% let statusColor = ''; %>
+          <% if (order.orderStatus === 'pending') { statusColor = 'bg-yellow-900 text-yellow-300'; } %>
+          <% if (order.orderStatus === 'processing') { statusColor = 'bg-blue-900 text-blue-300'; } %>
+          <% if (order.orderStatus === 'shipped') { statusColor = 'bg-indigo-900 text-indigo-300'; } %>
+          <% if (order.orderStatus === 'delivered') { statusColor = 'bg-green-900 text-green-300'; } %>
+          <% if (order.orderStatus === 'cancelled') { statusColor = 'bg-red-900 text-red-300'; } %>
+          <% if (order.orderStatus === 'returned') { statusColor = 'bg-gray-700 text-gray-300'; } %>
+          
+          <span class="px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full <%= statusColor %>">
+            <%= order.orderStatus.charAt(0).toUpperCase() + order.orderStatus.slice(1) %>
+          </span>
+          
+          <% if (order.orderStatus !== 'cancelled' && order.orderStatus !== 'returned' && order.orderStatus !== 'delivered') { %>
+            <button 
+              onclick="openUpdateStatusModal('<%= order._id %>', '<%= order.orderStatus %>')" 
+              class="ml-3 text-indigo-400 hover:text-indigo-300 transition-colors"
+            >
+              Update Status
+            </button>
+          <% } %>
+          
+          <% if (order.orderStatus === 'returned' && !order.refundStatus) { %>
+            <button 
+              onclick="openProcessReturnModal('<%= order._id %>', '<%= order.total %>')" 
+              class="ml-3 text-orange-400 hover:text-orange-300 transition-colors"
+            >
+              Process Return
+            </button>
+          <% } %>
+        </div>
+        
+        <% if (order.trackingNumber) { %>
+          <div class="mt-2">
+            <p class="text-sm text-gray-400">Tracking Number</p>
+            <p class="font-medium text-white"><%= order.trackingNumber %></p>
+          </div>
+        <% } %>
+        
+        <% if (order.deliveredAt) { %>
+          <div class="mt-2">
+            <p class="text-sm text-gray-400">Delivered On</p>
+            <p class="font-medium text-white"><%= new Date(order.deliveredAt).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' }) %></p>
+          </div>
+        <% } %>
+        
+        <% if (order.cancelledAt) { %>
+          <div class="mt-2">
+            <p class="text-sm text-gray-400">Cancelled On</p>
+            <p class="font-medium text-white"><%= new Date(order.cancelledAt).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' }) %></p>
+          </div>
+          <% if (order.cancelReason) { %>
+            <div class="mt-2">
+              <p class="text-sm text-gray-400">Cancellation Reason</p>
+              <p class="font-medium text-white"><%= order.cancelReason %></p>
+            </div>
+          <% } %>
+        <% } %>
+        
+        <% if (order.returnedAt) { %>
+          <div class="mt-2">
+            <p class="text-sm text-gray-400">Returned On</p>
+            <p class="font-medium text-white"><%= new Date(order.returnedAt).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' }) %></p>
+          </div>
+          <% if (order.returnReason) { %>
+            <div class="mt-2">
+              <p class="text-sm text-gray-400">Return Reason</p>
+              <p class="font-medium text-white"><%= order.returnReason %></p>
+            </div>
+          <% } %>
+          <% if (order.refundStatus) { %>
+            <div class="mt-2">
+              <p class="text-sm text-gray-400">Refund Status</p>
+              <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                <%= order.refundStatus === 'completed' ? 'bg-green-900 text-green-300' : 
+                   order.refundStatus === 'rejected' ? 'bg-red-900 text-red-300' : 
+                   'bg-yellow-900 text-yellow-300' %>">
+                <%= order.refundStatus.charAt(0).toUpperCase() + order.refundStatus.slice(1) %>
+              </span>
+            </div>
+            <% if (order.refundAmount) { %>
+              <div class="mt-2">
+                <p class="text-sm text-gray-400">Refund Amount</p>
+                <p class="font-medium text-white">₹<%= order.refundAmount.toFixed(2) %></p>
+              </div>
+            <% } %>
+          <% } %>
+        <% } %>
+      </div>
+    </div>
+    
+    <!-- Shipping Address -->
+    <div class="bg-zinc-800 rounded-lg shadow-md p-6 mb-6">
+      <h2 class="text-lg font-semibold mb-4 text-gray-200">Shipping Address</h2>
+      <div class="text-gray-300">
+        <p class="font-medium text-white"><%= order.address.fullName %></p>
+        <p><%= order.address.address %></p>
+        <p><%= order.address.city %>, <%= order.address.state %> - <%= order.address.pincode %></p>
+        <p>Phone: <%= order.address.mobile %></p>
+      </div>
+    </div>
+    
+    <!-- Order Items -->
+    <div class="bg-zinc-800 rounded-lg shadow-md p-6 mb-6">
+      <h2 class="text-lg font-semibold mb-4 text-gray-200">Order Items</h2>
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-700">
+          <thead class="bg-zinc-900">
+            <tr>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                Product
+              </th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                Price
+              </th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                Quantity
+              </th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                Total
+              </th>
+            </tr>
+          </thead>
+          <tbody class="bg-zinc-800 divide-y divide-gray-700">
+            <% order.items.forEach(item => { %>
+              <tr>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="flex items-center">
+                    <div class="h-10 w-10 flex-shrink-0">
+                      <% if (item.product && item.product.imageUrl) { %>
+                        <img class="h-10 w-10 rounded-md object-cover" 
+                             src="<%= Array.isArray(item.product.imageUrl) ? item.product.imageUrl[0] : item.product.imageUrl %>" 
+                             alt="<%= item.product.productName %>">
+                      <% } else { %>
+                        <div class="h-10 w-10 rounded-md bg-zinc-700"></div>
+                    <% } %>
+                    </div>
+                    <div class="ml-4">
+                      <div class="text-sm font-medium text-white">
+                        <%= item.product.productName %>
+                      </div>
+                    </div>
+                  </div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                  <% const displayPrice = (item.discountPrice && item.discountPrice > 0) ? item.discountPrice : item.price; %>
+                  ₹<%= displayPrice.toFixed(2) %>
+                  <% if (item.discountPrice && item.discountPrice > 0) { %>
+                    <span class="text-xs line-through text-gray-500">₹<%= item.price.toFixed(2) %></span>
+                  <% } %>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                  <%= item.quantity %>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                  ₹<%= (displayPrice * item.quantity).toFixed(2) %>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+          <tfoot class="bg-zinc-900">
+            <tr>
+              <td colspan="3" class="px-6 py-3 text-right text-sm font-medium text-gray-300">
+                Subtotal
+              </td>
+              <td class="px-6 py-3 text-sm text-gray-300">
+                ₹<%= order.subtotal.toFixed(2) %>
+              </td>
+            </tr>
+            <tr>
+              <td colspan="3" class="px-6 py-3 text-right text-sm font-medium text-gray-300">
+                Shipping
+              </td>
+              <td class="px-6 py-3 text-sm text-gray-300">
+                ₹<%= (order.shippingCost||0).toFixed(2) %>
+              </td>
+            </tr>
+            <% if (order.discount > 0) { %>
+              <tr>
+                <td colspan="3" class="px-6 py-3 text-right text-sm font-medium text-gray-300">
+                  Discount
+                </td>
+                <td class="px-6 py-3 text-sm text-green-400">
+                  -₹<%= (order.discount || 0).toFixed(2) %>
+                </td>
+              </tr>
+            <% } %>
+            <tr>
+              <td colspan="3" class="px-6 py-3 text-right text-sm font-bold text-white">
+                Total
+              </td>
+              <td class="px-6 py-3 text-sm font-bold text-white">
+                ₹<%= order.total.toFixed(2) %>
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  </main>
+  
+  <!-- Update Status Modal -->
+  <div id="updateStatusModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 hidden">
+    <div class="bg-zinc-800 rounded-lg p-6 w-full max-w-md border border-zinc-700">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-medium text-white">Update Order Status</h3>
+        <button id="closeStatusModal" class="text-gray-400 hover:text-gray-200 transition-colors">
+          <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+      
+      <form id="updateStatusForm">
+        <input type="hidden" id="orderIdInput">
+        
+        <div class="mb-4">
+          <label for="statusSelect" class="block text-sm font-medium text-gray-300 mb-1">New Status</label>
+          <select id="statusSelect" name="status" class="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-white focus:outline-none focus:border-violet-500">
+            <!-- Options will be added dynamically -->
+          </select>
+        </div>
+        
+        <div id="trackingNumberField" class="mb-4 hidden">
+          <label for="trackingNumber" class="block text-sm font-medium text-gray-300 mb-1">Tracking Number</label>
+          <input 
+            type="text" 
+            id="trackingNumber" 
+            name="trackingNumber" 
+            class="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-white focus:outline-none focus:border-violet-500"
+            placeholder="Enter tracking number"
+          >
+        </div>
+        
+        <div class="flex justify-end space-x-3">
+          <button type="button" id="cancelStatusUpdate" class="px-4 py-2 bg-zinc-700 text-white rounded-md hover:bg-zinc-600 transition-colors">
+            Cancel
+          </button>
+          <button type="submit" class="px-4 py-2 bg-violet-600 text-white rounded-md hover:bg-violet-700 transition-colors">
+            Update Status
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  
+  <!-- Process Return Modal -->
+  <div id="processReturnModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 hidden">
+    <div class="bg-zinc-800 rounded-lg p-6 w-full max-w-md border border-zinc-700">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-medium text-white">Process Return</h3>
+        <button id="closeReturnModal" class="text-gray-400 hover:text-gray-200 transition-colors">
+          <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+      
+      <form id="processReturnForm">
+        <input type="hidden" id="returnOrderIdInput" name="orderId">
+        <input type="hidden" id="returnOrderTotalInput" name="orderTotal">
+        
+        <div class="mb-4">
+          <label for="refundStatus" class="block text-sm font-medium text-gray-300 mb-1">Refund Status</label>
+          <select id="refundStatus" name="refundStatus" class="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-white focus:outline-none focus:border-orange-500">
+            <option value="completed">Approve & Complete Refund</option>
+            <option value="rejected">Reject Return Request</option>
+          </select>
+        </div>
+        
+        <div id="refundAmountField" class="mb-4">
+          <label for="refundAmount" class="block text-sm font-medium text-gray-300 mb-1">Refund Amount</label>
+          <input 
+            type="number" 
+            id="refundAmount" 
+            name="refundAmount" 
+            step="0.01"
+            class="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-white focus:outline-none focus:border-orange-500"
+            placeholder="Enter refund amount"
+          >
+        </div>
+        
+        <div class="flex justify-end space-x-3">
+          <button type="button" id="cancelReturnProcess" class="px-4 py-2 bg-zinc-700 text-white rounded-md hover:bg-zinc-600 transition-colors">
+            Cancel
+          </button>
+          <button type="submit" id="submitReturnProcessBtn" class="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 transition-colors">
+            Process Return
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  
+  <script>
+    // Update Status Modal
+    function openUpdateStatusModal(orderId, currentStatus) {
+      document.getElementById('orderIdInput').value = orderId;
+      
+      const statusSelect = document.getElementById('statusSelect');
+      const trackingNumberField = document.getElementById('trackingNumberField');
+      
+      // Clear existing options
+      statusSelect.innerHTML = '';
+      
+      // Add appropriate status options based on current status
+      const validTransitions = {
+        pending: ['processing', 'cancelled'],
+        processing: ['shipped', 'cancelled'],
+        shipped: ['delivered'],
+        delivered: [],
+        cancelled: [],
+        returned: []
+      };
+      
+      validTransitions[currentStatus].forEach(status => {
+        const option = document.createElement('option');
+        option.value = status;
+        option.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+        statusSelect.appendChild(option);
+      });
+      
+      // Show tracking number field if shipping
+      if (statusSelect.value === 'shipped') {
+        trackingNumberField.classList.remove('hidden');
+      } else {
+        trackingNumberField.classList.add('hidden');
+      }
+      
+      // Add event listener for status change
+      statusSelect.addEventListener('change', function() {
+        if (this.value === 'shipped') {
+          trackingNumberField.classList.remove('hidden');
+        } else {
+          trackingNumberField.classList.add('hidden');
+        }
+      });
+      
+      // Show modal
+      document.getElementById('updateStatusModal').classList.remove('hidden');
+    }
+    
+    // Process Return
+    function openProcessReturnModal(orderId, orderTotal) {
+      console.log('Opening process return modal for order:', orderId);
+      document.getElementById('returnOrderIdInput').value = orderId;
+      document.getElementById('returnOrderTotalInput').value = orderTotal;
+      document.getElementById('refundAmount').value = orderTotal;
+      document.getElementById('processReturnModal').classList.remove('hidden');
+    }
+    
+    // Close modals
+    document.getElementById('closeStatusModal').addEventListener('click', function() {
+      document.getElementById('updateStatusModal').classList.add('hidden');
+    });
+    
+    document.getElementById('cancelStatusUpdate').addEventListener('click', function() {
+      document.getElementById('updateStatusModal').classList.add('hidden');
+    });
+    
+    document.getElementById('closeReturnModal').addEventListener('click', function() {
+      document.getElementById('processReturnModal').classList.add('hidden');
+    });
+    
+    document.getElementById('cancelReturnProcess').addEventListener('click', function() {
+      document.getElementById('processReturnModal').classList.add('hidden');
+    });
+    
+    document.getElementById('refundStatus').addEventListener('change', function() {
+      const refundAmountField = document.getElementById('refundAmountField');
+      if (this.value === 'rejected') {
+        refundAmountField.classList.add('hidden');
+      } else {
+        refundAmountField.classList.remove('hidden');
+      }
+    });
+    
+    // Update Status Form Submission
+    document.getElementById('updateStatusForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const orderId = document.getElementById('orderIdInput').value;
+      const status = document.getElementById('statusSelect').value;
+      const trackingNumber = document.getElementById('trackingNumber').value;
+      
+      try {
+        const response = await fetch(`/admin/order/${orderId}/status`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ 
+            status,
+            trackingNumber: status === 'shipped' ? trackingNumber : undefined
+          })
+        });
+        
+        if (response.ok) {
+          // Success message using SweetAlert
+          Swal.fire({
+            title: 'Success!',
+            text: 'Order status updated successfully',
+            icon: 'success',
+            background: '#1a1a1a',
+            color: '#fff',
+            customClass: {
+              popup: 'bg-zinc-800 text-white'
+            }
+          }).then(() => {
+            window.location.reload();
+          });
+        } else {
+          const error = await response.json();
+          throw new Error(error.error || 'Failed to update order status');
+        }
+      } catch (error) {
+        // Error message using SweetAlert
+        Swal.fire({
+          title: 'Error!',
+          text: error.message,
+          icon: 'error',
+          background: '#1a1a1a',
+          color: '#fff',
+          customClass: {
+            popup: 'bg-zinc-800 text-white'
+          }
+        });
+      }
+    });
+    
+    // Process Return Form Submission
+    document.getElementById('processReturnForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const orderId = document.getElementById('returnOrderIdInput').value;
+      const refundStatus = document.getElementById('refundStatus').value;
+      const refundAmount = document.getElementById('refundAmount').value;
+      
+      // Show loading state
+      const submitBtn = document.getElementById('submitReturnProcessBtn');
+      submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+      submitBtn.disabled = true;
+      
+      try {
+        console.log('Submitting return process:', { orderId, refundStatus, refundAmount });
+        
+        const response = await fetch(`/admin/order/${orderId}/process-return`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ 
+            refundStatus,
+            refundAmount: refundStatus === 'completed' ? refundAmount : 0
+          })
+        });
+        
+        console.log('Response status:', response.status);
+        
+        if (response.ok) {
+          // Success message using SweetAlert
+          Swal.fire({
+            title: 'Success!',
+            text: 'Return processed successfully',
+            icon: 'success',
+            background: '#1a1a1a',
+            color: '#fff',
+            customClass: {
+              popup: 'bg-zinc-800 text-white'
+            }
+          }).then(() => {
+            window.location.reload();
+          });
+        } else {
+          // Try to get error message
+          let errorMessage = 'Failed to process return';
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorMessage;
+          } catch (jsonError) {
+            console.error('Error parsing JSON response:', jsonError);
+            // If we can't parse JSON, get the text response
+            const textResponse = await response.text();
+            console.error('Raw response:', textResponse);
+            errorMessage = 'Server error: Invalid response format';
+          }
+          
+          throw new Error(errorMessage);
+        }
+      } catch (error) {
+        console.error('Error processing return:', error);
+        
+        // Error message using SweetAlert
+        Swal.fire({
+          title: 'Error!',
+          text: error.message || 'An error occurred while processing the return',
+          icon: 'error',
+          background: '#1a1a1a',
+          color: '#fff',
+          customClass: {
+            popup: 'bg-zinc-800 text-white'
+          }
+        });
+      } finally {
+        // Reset button state and close modal
+        document.getElementById('processReturnModal').classList.add('hidden');
+        submitBtn.innerHTML = 'Process Return';
+        submitBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html> 

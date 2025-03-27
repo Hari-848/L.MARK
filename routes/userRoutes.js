@@ -8,6 +8,7 @@ const wishlistController = require('../controllers/user/wishlistController');
 //const userProfileController = require("../controllers/user/userProfileAddressController");
 
 const addressController = require('../controllers/user/addressController');
+const orderController = require('../controllers/user/orderController');
 
 //--------------------User Signup --------------------
 router.get('/user/signup', User.signupGET); // This route will show the signup page
@@ -123,5 +124,12 @@ router.post('/address', isUserAuthenticated, addressController.createAddress);
 router.put('/address/:id', isUserAuthenticated, addressController.updateAddress);
 router.delete('/address/:id', isUserAuthenticated, addressController.deleteAddress);
 router.put('/address/:id/default', isUserAuthenticated, addressController.setDefaultAddress);
+
+// Order routes
+router.get('/orders', isUserAuthenticated, orderController.getUserOrders);
+router.get('/order/:orderId', isUserAuthenticated, orderController.getOrderDetails);
+router.get('/order/:orderId/invoice', isUserAuthenticated, orderController.generateInvoice);
+router.post('/order/:orderId/cancel', isUserAuthenticated, orderController.cancelOrder);
+router.post('/order/:orderId/return', isUserAuthenticated, orderController.returnOrder);
 
 module.exports = router;
