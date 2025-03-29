@@ -1,6 +1,7 @@
 const Wishlist = require('../../Models/wishlistSchema');
 const Product = require('../../Models/productSchema');
 const Variant = require('../../Models/variantSchema');
+const Category = require('../../Models/categoryModel');
 
 // Add to wishlist
 exports.addToWishlist = async (req, res) => {
@@ -73,19 +74,30 @@ exports.getWishlist = async (req, res) => {
   try {
     const userId = req.session.user._id;
     
+    // Get active category IDs
+    const activeCategoryIds = await Category.find({ isDeleted: { $ne: true } }).distinct('_id');
+    
     const wishlist = await Wishlist.findOne({ userId })
       .populate({
         path: 'products.productId',
+        match: { 
+          'isDeleted': { $ne: true },
+          'categoriesId': { $in: activeCategoryIds }
+        },
         select: 'productName imageUrl variants'
       });
-    
+
     if (!wishlist) {
       return res.render('user/wishlist', { 
         wishlistItems: [],
         title: 'My Wishlist'
       });
     }
-    
+
+    // Filter out products that are null (due to deleted categories)
+    wishlist.products = wishlist.products.filter(item => item.productId != null);
+    await wishlist.save();
+
     // Get variant details for each product
     const wishlistItems = await Promise.all(
       wishlist.products.map(async (item) => {

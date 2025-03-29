@@ -18,14 +18,18 @@ exports.products = async (req, res) => {
       'Expires': '0'
     });
     
-    // Fetch categories
-    const categories = await Category.find({}, '_id name').lean();
+    // Fetch only non-deleted categories
+    const categories = await Category.find({ isDeleted: { $ne: true } }, '_id name').lean();
+
+    // Get array of active category IDs
+    const activeCategoryIds = categories.map(cat => cat._id);
 
     // Fetch products with variants using aggregation
     const products = await Product.aggregate([
       {
         $match: {
-          isDeleted: { $ne: true }  // Add this to filter out deleted products
+          isDeleted: { $ne: true },
+          categoriesId: { $in: activeCategoryIds }  // Only include products from active categories
         }
       },
       {
@@ -122,8 +126,15 @@ exports.searchAndFilterProducts = async (req, res) => {
     let { query, type, minPrice, maxPrice, category, stockStatus, sort } =
       req.query;
 
-    // Initialize match criteria
-    const matchCriteria = { isDeleted: { $ne: true } };
+    // Get active categories
+    const activeCategories = await Category.find({ isDeleted: { $ne: true } }, '_id');
+    const activeCategoryIds = activeCategories.map(cat => cat._id);
+
+    // Initialize match criteria with active categories
+    const matchCriteria = { 
+      isDeleted: { $ne: true },
+      categoriesId: { $in: activeCategoryIds }
+    };
 
     // Text-based search
     if (query && query.trim()) {
@@ -146,27 +157,31 @@ exports.searchAndFilterProducts = async (req, res) => {
       }
     }
 
-    // Category filter - Modified to handle both ID and name
+    // Category filter - Modified to handle both ID and name, considering deleted categories
     if (category && category !== 'all') {
       try {
         let categoryDoc;
         if (mongoose.Types.ObjectId.isValid(category)) {
-          // First try to find category by ID
-          categoryDoc = await Category.findById(category);
+          // First try to find non-deleted category by ID
+          categoryDoc = await Category.findOne({
+            _id: category,
+            isDeleted: { $ne: true }
+          });
         }
 
         if (!categoryDoc) {
-          // If not found by ID, try to find by name
+          // If not found by ID, try to find non-deleted category by name
           categoryDoc = await Category.findOne({
             name: { $regex: new RegExp(`^${category}$`, 'i') },
+            isDeleted: { $ne: true }
           });
         }
 
         if (categoryDoc) {
           matchCriteria.categoriesId = categoryDoc._id;
         } else {
-          // Fallback to direct category name match
-          matchCriteria.category = { $regex: new RegExp(`^${category}$`, 'i') };
+          // If category not found or is deleted, return no results
+          matchCriteria.categoriesId = null; // This will ensure no products are returned
         }
       } catch (error) {
         console.error('Error processing category:', error);

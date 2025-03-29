@@ -3,22 +3,36 @@ const Address = require('../../Models/addressModel');
 const Order = require('../../Models/orderModel');
 const Product = require('../../Models/productSchema');
 const Variant = require('../../Models/variantSchema');
+const Category = require('../../Models/categoryModel');
 
 // Get checkout page
 exports.getCheckout = async (req, res) => {
   try {
     const userId = req.session.user._id;
     
+    // Get active category IDs
+    const activeCategoryIds = await Category.find({ isDeleted: { $ne: true } }).distinct('_id');
+    
     // Get cart with populated product and variant details
     const cart = await Cart.findOne({ userId })
       .populate({
         path: 'items.product',
+        match: { 
+          'isDeleted': { $ne: true },
+          'categoriesId': { $in: activeCategoryIds }
+        },
         select: 'productName imageUrl status'
       })
       .populate({
         path: 'items.variant',
         select: 'variantType price discountPrice stock'
       });
+
+    // Filter out items where product is null (due to deleted categories)
+    if (cart) {
+      cart.items = cart.items.filter(item => item.product != null);
+      await cart.save();
+    }
     
     if (!cart || cart.items.length === 0) {
       return res.redirect('/cart');

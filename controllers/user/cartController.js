@@ -2,6 +2,7 @@ const Cart = require('../../Models/cartModel');
 const Product = require('../../Models/productSchema');
 const Variant = require('../../Models/variantSchema');
 const Wishlist = require('../../Models/wishlistSchema');
+const Category = require('../../Models/categoryModel');
 
 // Add to cart
 exports.addToCart = async (req, res) => {
@@ -113,10 +114,16 @@ exports.getCart = async (req, res) => {
     const userId = req.session.user._id;
     console.log("Getting cart for user:", userId);
     
-    // Find cart and populate product and variant details
+    // Find cart and populate product and variant details, excluding deleted categories
     const cart = await Cart.findOne({ userId })
       .populate({
         path: 'items.product',
+        match: { 
+          'isDeleted': { $ne: true },
+          'categoriesId': { 
+            $in: await Category.find({ isDeleted: { $ne: true } }).distinct('_id') 
+          }
+        },
         select: 'productName imageUrl status'
       })
       .populate({
@@ -129,6 +136,12 @@ exports.getCart = async (req, res) => {
       console.log("Cart items:", cart.items.length);
     }
     
+    // Filter out items where product is null (due to deleted categories)
+    if (cart) {
+      cart.items = cart.items.filter(item => item.product != null);
+      await cart.save();
+    }
+
     if (!cart) {
       return res.render('user/cart', { cart: { items: [] }, cartTotal: 0 });
     }
