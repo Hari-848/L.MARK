@@ -17,6 +17,7 @@
             color: #e53e3e !important;
         }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 
 <body class="bg-gray-50">
@@ -187,6 +188,9 @@
                             </div>
                         <% } %>
                     </div>
+
+                    <!-- Pagination Controls -->
+                    <div id="paginationControls" class="flex justify-center mt-8 space-x-2"></div>
                 </div>
             </div>
         </div>
@@ -206,11 +210,99 @@
                 minPrice: document.getElementById("minPrice"),
                 maxPrice: document.getElementById("maxPrice"),
                 searchInput: document.getElementById("searchInput"),
-                productGrid: document.getElementById("productGrid")
+                productGrid: document.getElementById("productGrid"),
+                currentPage: 1,
+                totalPages: 1,
+                productPerPage: 9
             };
 
-            async function updateProducts() {
+            function updatePaginationControls() {
+                console.log("Updating pagination controls", {
+                    currentPage: elements.currentPage,
+                    totalPages: elements.totalPages
+                });
+                
+                const paginationElement = document.getElementById('paginationControls');
+                
+                if (!paginationElement) return;
+                
+                if (elements.totalPages <= 1) {
+                    paginationElement.innerHTML = '';
+                    return;
+                }
+                
+                let paginationHTML = '';
+                
+                // Previous button
+                paginationHTML += `
+                    <button 
+                        ${elements.currentPage === 1 ? 'disabled' : ''}
+                        onclick="changePage(${elements.currentPage - 1})"
+                        class="${elements.currentPage === 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-200'} px-3 py-1 bg-white rounded border border-gray-300">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                `;
+                
+                // Page numbers
+                let startPage = Math.max(1, elements.currentPage - 2);
+                let endPage = Math.min(elements.totalPages, startPage + 4);
+                
+                if (endPage - startPage < 4) {
+                    startPage = Math.max(1, endPage - 4);
+                }
+                
+                // Show ellipsis for many pages
+                if (startPage > 1) {
+                    paginationHTML += `<span class="px-3 py-1 bg-white rounded border border-gray-300">...</span>`;
+                }
+                
+                // Page numbers
+                for (let i = startPage; i <= endPage; i++) {
+                    paginationHTML += `
+                        <button 
+                            onclick="changePage(${i})"
+                            class="${elements.currentPage === i ? 'bg-gray-900 text-white' : 'bg-white hover:bg-gray-200'} px-3 py-1 rounded border border-gray-300">
+                            ${i}
+                        </button>
+                    `;
+                }
+                
+                // Show ellipsis for many pages at the end
+                if (endPage < elements.totalPages) {
+                    paginationHTML += `<span class="px-3 py-1 bg-white rounded border border-gray-300">...</span>`;
+                }
+                
+                // Next button
+                paginationHTML += `
+                    <button 
+                        ${elements.currentPage === elements.totalPages ? 'disabled' : ''}
+                        onclick="changePage(${elements.currentPage + 1})"
+                        class="${elements.currentPage === elements.totalPages ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-200'} px-3 py-1 bg-white rounded border border-gray-300">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                `;
+                
+                paginationElement.innerHTML = paginationHTML;
+            }
+
+            function changePage(page) {
+                console.log("Changing to page:", page);
+                if (page < 1 || page > elements.totalPages) return;
+                
+                // Scroll to top
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                
+                // Update products with the new page
+                updateProducts(page);
+            }
+
+            // Make changePage globally accessible
+            window.changePage = changePage;
+
+            async function updateProducts(page = 1) {
                 try {
+                    elements.currentPage = page;
+                    
                     const filters = {
                         category: elements.category.value,
                         type: elements.type.value,
@@ -218,6 +310,8 @@
                         maxPrice: elements.maxPrice.value,
                         stockStatus: elements.stockFilter.value,
                         sort: elements.sortFilter.value,
+                        page: elements.currentPage,
+                        limit: elements.productPerPage
                     };
 
                     // Add search query if it exists
@@ -236,9 +330,19 @@
 
                     if (!data.products || data.products.length === 0) {
                         elements.productGrid.innerHTML = '<div class="col-span-full text-center text-gray-500">No products found</div>';
+                        elements.totalPages = 0;
+                        updatePaginationControls();
                         return;
                     }
 
+                    elements.totalPages = data.totalPages || 1;
+                    
+                    console.log("Pagination data:", {
+                        currentPage: elements.currentPage,
+                        totalPages: data.totalPages,
+                        productsCount: data.products.length
+                    });
+                    
                     elements.productGrid.innerHTML = data.products.map(product => `
                         <div class="bg-white rounded-lg shadow-md p-4 flex flex-col transition-transform transform hover:scale-105">
                             <a href="/product/${product._id}">
@@ -283,6 +387,9 @@
                             `}
                         </div>
                     `).join('');
+                    
+                    // Update pagination controls
+                    updatePaginationControls();
                 } catch (error) {
                     console.error("Error updating products:", error);
                     elements.productGrid.innerHTML = '<div class="col-span-full text-center text-red-500">Error loading products</div>';
@@ -292,7 +399,10 @@
             // Add event listeners for all filters
             Object.values(elements).forEach(element => {
                 if (element.tagName === "SELECT" || element.tagName === "INPUT") {
-                    element.addEventListener("change", updateProducts);
+                    element.addEventListener("change", () => {
+                        elements.currentPage = 1;
+                        updateProducts();
+                    });
                 }
             });
 
@@ -300,7 +410,10 @@
             elements.searchInput.addEventListener("input", debounce(updateProducts, 300));
 
             // Add search button click handler
-            document.getElementById("searchButton").addEventListener("click", updateProducts);
+            document.getElementById("searchButton").addEventListener("click", () => {
+                elements.currentPage = 1;
+                updateProducts();
+            });
 
             // Reset button handler
             document.getElementById("resetButton").addEventListener("click", () => {
@@ -311,7 +424,8 @@
                 elements.minPrice.value = "";
                 elements.maxPrice.value = "";
                 elements.searchInput.value = "";
-                updateProducts();
+                elements.currentPage = 1;
+                updateProducts(1);
             });
 
             // Check wishlist status for all products
@@ -342,6 +456,9 @@
             } catch (error) {
                 console.error('Error checking wishlist status:', error);
             }
+
+            // Add this line to trigger initial products load with pagination
+            updateProducts(1);
         });
 
         // Debounce function
@@ -397,47 +514,57 @@
                 const response = await fetch('/cart/add', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
                         productId,
                         variantId,
                         quantity: 1
-                    })
+                    }),
                 });
-                
+
                 const data = await response.json();
-                
-                if (response.ok) {
-                    // Update cart count in navbar
-                    const cartCountElement = document.getElementById('cartCount');
-                    if (cartCountElement) {
-                        cartCountElement.textContent = data.cartCount;
-                        cartCountElement.classList.remove('hidden');
+
+                if (data.success) {
+                    // Try to use Swal if available, otherwise use regular alert
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Added to Cart',
+                            text: 'Product has been added to your cart',
+                            showConfirmButton: false,
+                            timer: 1500
+                        });
+                    } else {
+                        alert('Product added to cart successfully!');
                     }
                     
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Added to Cart',
-                        text: 'Product has been added to your cart',
-                        showCancelButton: true,
-                        confirmButtonText: 'View Cart',
-                        cancelButtonText: 'Continue Shopping'
-                    }).then((result) => {
-                        if (result.isConfirmed) {
-                            window.location.href = '/cart';
-                        }
-                    });
+                    // Update cart count if you have a cart counter element
+                    if (document.getElementById('cartCount')) {
+                        document.getElementById('cartCount').textContent = data.cartCount || '0';
+                    }
                 } else {
-                    throw new Error(data.error || 'Failed to add to cart');
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: data.message || 'Failed to add product to cart'
+                        });
+                    } else {
+                        alert(data.message || 'Failed to add product to cart');
+                    }
                 }
             } catch (error) {
                 console.error('Error adding to cart:', error);
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: error.message || 'Failed to add product to cart'
-                });
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'An unexpected error occurred'
+                    });
+                } else {
+                    alert('An unexpected error occurred while adding to cart');
+                }
             }
         }
 

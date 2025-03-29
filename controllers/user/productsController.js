@@ -101,6 +101,11 @@ exports.getFilterOptions = async (req, res) => {
 
 exports.searchAndFilterProducts = async (req, res) => {
   try {
+    // Get pagination parameters
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 9; // 9 products per page
+    const skip = (page - 1) * limit;
+    
     // Authentication check
     if (!req.session.user) {
       return res.status(401).json({ message: 'Authentication required' });
@@ -243,7 +248,51 @@ exports.searchAndFilterProducts = async (req, res) => {
       },
     ];
 
-    const products = await Product.aggregate(pipeline);
+    const countPipeline = [
+      {
+        $lookup: {
+          from: 'variants',
+          localField: '_id',
+          foreignField: 'productId',
+          as: 'variants',
+        },
+      },
+      {
+        $unwind: {
+          path: '$variants',
+          preserveNullAndEmptyArrays: false,
+        },
+      },
+      {
+        $match: matchCriteria,
+      },
+      {
+        $group: {
+          _id: '$_id',
+        },
+      },
+      {
+        $count: 'total'
+      }
+    ];
+
+    const totalProductsResult = await Product.aggregate(countPipeline);
+    const totalProducts = totalProductsResult.length > 0 ? totalProductsResult[0].total : 0;
+    const totalPages = Math.ceil(totalProducts / limit);
+    
+    // Debug your pagination
+    console.log("Pagination parameters:", {
+        page,
+        limit,
+        skip,
+        totalProducts,
+        totalPages
+    });
+
+    const products = await Product.aggregate(pipeline)
+      .skip(skip)
+      .limit(limit);
+
     console.log(`Found ${products.length} products matching criteria`);
     if (products.length > 0) {
       console.log('Sample matched product:', {
@@ -268,7 +317,8 @@ exports.searchAndFilterProducts = async (req, res) => {
 
     res.status(200).json({
       products: formattedProducts,
-      count: formattedProducts.length,
+      totalPages: totalPages,
+      currentPage: page
     });
   } catch (error) {
     console.error('Error searching products:', error);
