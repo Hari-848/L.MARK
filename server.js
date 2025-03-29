@@ -79,25 +79,20 @@ app.use(async (req, res, next) => {
 app.get('/auth/google/callback', (req, res, next) => {
   passport.authenticate('google', async (err, user, info) => {
     try {
-      if (err || !user) {
-        return res.redirect('/signin?error=' + (err ? 'auth_error' : 'no_user'));
+      if (err) {
+        console.error('Authentication error:', err);
+        return res.redirect('/signin?error=auth_error');
       }
 
-      // Clear any existing sessions for this user
-      const sessionStore = req.sessionStore;
-      await new Promise((resolve, reject) => {
-        sessionStore.all((err, sessions) => {
-          if (err) reject(err);
-          const promises = Object.entries(sessions || {}).map(([sid, session]) => {
-            if (session?.user?._id === user._id) {
-              return new Promise((r) => sessionStore.destroy(sid, r));
-            }
-          }).filter(Boolean);
-          Promise.all(promises).then(resolve).catch(reject);
-        });
-      });
+      // Check for blocked status from info message
+      if (info && info.message === 'Your account has been blocked by the Admin.') {
+        return res.redirect('/signin?error=account_blocked');
+      }
 
-      // Create new session
+      if (!user) {
+        return res.redirect('/signin?error=no_user');
+      }
+
       await new Promise((resolve, reject) => {
         req.logIn(user, (err) => {
           if (err) reject(err);
@@ -237,43 +232,6 @@ app.get('/signin', (req, res) => {
   }
   
   res.render('user/signin', { error: errorMessage });
-});
-
-app.get('/auth/google/callback', (req, res, next) => {
-  passport.authenticate('google', async (err, user, info) => {
-    try {
-      if (err) {
-        console.error('Authentication error:', err);
-        return res.redirect('/signin?error=auth_error');
-      }
-
-      if (!user) {
-        return res.redirect('/signin?error=no_user');
-      }
-
-      await new Promise((resolve, reject) => {
-        req.logIn(user, (err) => {
-          if (err) reject(err);
-          else resolve();
-        });
-      });
-
-      req.session.user = user;
-      req.session.authenticated = true;
-
-      await new Promise((resolve, reject) => {
-        req.session.save(err => {
-          if (err) reject(err);
-          else resolve();
-        });
-      });
-
-      return res.redirect('/');
-    } catch (error) {
-      console.error('Callback error:', error);
-      return res.redirect('/signin?error=server_error');
-    }
-  })(req, res, next);
 });
 
 app.use('/', userRoutes);

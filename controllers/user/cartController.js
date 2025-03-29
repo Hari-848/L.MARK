@@ -119,7 +119,7 @@ exports.getCart = async (req, res) => {
       .populate({
         path: 'items.product',
         match: { 
-          'isDeleted': { $ne: true },
+          'isDeleted': { $ne: true }, 
           'categoriesId': { 
             $in: await Category.find({ isDeleted: { $ne: true } }).distinct('_id') 
           }
@@ -175,7 +175,7 @@ exports.getCart = async (req, res) => {
 };
 
 // Update cart item quantity
-exports.updateCartItem = async (req, res) => {
+exports.  updateCartItem = async (req, res) => {
   try {
     const { itemId, action } = req.body;
     const userId = req.session.user._id;

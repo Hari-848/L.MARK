@@ -26,36 +26,16 @@ router.get('/products/add', adminProduct.getAddProduct);
 router.post('/products/add', uploadMiddleware, adminProduct.postAddProduct);
 
 // Comment out unused variant routes
-router.get(
-  '/products/add/variant',
-  adminAuthenticated,
-  adminProduct.getAddvariant
-);
+router.get('/products/add/variant',adminAuthenticated,adminProduct.getAddvariant);
 router.post('/products/add/variant', adminProduct.postAddvariant);
 
 // Admin edit products
-router.get(
-  '/products/:id/details',
-  adminAuthenticated,
-  adminProduct.getProductDetails
-);
-router.post(
-  '/products/update/:id',
-  adminAuthenticated,
-  adminProduct.updateProduct
-);
+router.get('/products/:id/details',adminAuthenticated,adminProduct.getProductDetails);
+router.post('/products/update/:id',adminAuthenticated,adminProduct.updateProduct);
 
 // Admin edit Photo
-router.get(
-  '/products/:id/image',
-  adminAuthenticated,
-  adminProduct.getEditProductImage
-);
-router.post(
-  '/products/:id/image',
-  uploadMiddleware,
-  adminProduct.postEditProductImage
-);
+router.get('/products/:id/image',adminAuthenticated,adminProduct.getEditProductImage);
+router.post('/products/:id/image', uploadMiddleware,adminProduct.postEditProductImage);
 
 // Add these routes if they don't exist
 router.get('/products/:id/edit-images', adminProduct.getEditImages);
@@ -96,7 +76,7 @@ router.post('/order/:orderId/status', adminAuthenticated, adminOrderController.u
 router.post('/order/:orderId/return', adminAuthenticated, adminOrderController.processReturnRequest);
 router.get('/order-stats', adminAuthenticated, adminOrderController.getOrderStats);
 
-// Add this route for processing returns
+//  route for processing returns
 router.post('/order/:orderId/process-return', adminAuthenticated, adminOrderController.processReturnRequest);
 
 module.exports = router;
