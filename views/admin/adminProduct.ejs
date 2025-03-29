@@ -112,17 +112,22 @@
                 <%= product.category ? product.category.charAt(0).toUpperCase() + product.category.slice(1) : 'Uncategorized' %>
               </td>
               <td class="py-3 px-4 text-white">
-                <% if (product.variants && product.variants.length > 0) { %>
-                    <% if (product.variants[0].discountPrice > 0) { %>
-                        ₹<%= product.variants[0].discountPrice.toLocaleString() %>
-                        <span class="text-gray-500 line-through">
-                            ₹<%= product.variants[0].price.toLocaleString() %>
-                        </span>
-                    <% } else { %>
-                        ₹<%= product.variants[0].price.toLocaleString() %>
-                    <% } %>
+                <% if (product.variants && product.variants.length > 0 && product.variants[0].price) { %>
+                  <% if (product.variants[0].discountPrice > 0) { %>
+                    ₹<%= product.variants[0].discountPrice.toLocaleString() %>
+                    <span class="text-gray-500 line-through">
+                      ₹<%= product.variants[0].price.toLocaleString() %>
+                    </span>
+                  <% } else { %>
+                    ₹<%= product.variants[0].price.toLocaleString() %>
+                  <% } %>
                 <% } else { %>
-                    Price Not Available
+                  ₹<%= product.salePrice ? product.salePrice.toLocaleString() : 'N/A' %>
+                  <% if (product.regularPrice && product.regularPrice > product.salePrice) { %>
+                    <span class="text-gray-500 line-through">
+                      ₹<%= product.regularPrice.toLocaleString() %>
+                    </span>
+                  <% } %>
                 <% } %>
               </td>
               <td class="py-3 px-4 text-white">
@@ -141,7 +146,7 @@
                 </button>
                 <button
                   class="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600"
-                  onclick="showDeleteConfirmation('<%= product._id %>')">Delete</button>
+                  onclick="showHideConfirmation('<%= product._id %>')">Hide</button>
                 <!-- <button
                   class="bg-slate-500 text-white border-gray-400 px-3 py-1 rounded-lg hover:bg-slate-700"
                   onclick="addVariant('<%= product._id %>')">Add
@@ -276,7 +281,7 @@
         const searchTerm = searchInput.value.trim();
         if (searchTerm) {
             const currentUrl = new URL(window.location.href);
-            currentUrl.searchParams.set('search', searchTerm);
+            currentUrl.searchParams.set('search', encodeURIComponent(searchTerm));
             currentUrl.searchParams.set('page', '1');
             window.location.href = currentUrl.toString();
         }
@@ -321,9 +326,10 @@
 
     // Initialize search input with existing search term
     document.addEventListener('DOMContentLoaded', () => {
-        const searchTerm = new URLSearchParams(window.location.search).get('search');
-        if (searchTerm) {
-            searchInput.value = searchTerm;
+        const searchParam = new URLSearchParams(window.location.search).get('search');
+        if (searchParam) {
+            // Decode the search term from URL
+            searchInput.value = decodeURIComponent(searchParam);
         }
     });
 
@@ -627,17 +633,17 @@
 
 
 
-    function showDeleteConfirmation(productId) {
+    function showHideConfirmation(productId) {
       Swal.fire({
-        title: 'Are you sure?',
-        text: "You won't be able to revert this!",
+        title: 'Hide Product?',
+        text: "You can restore this product later from the archived products section",
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#d33',
         cancelButtonColor: '#3085d6',
-        confirmButtonText: 'Yes, delete it!',
-        background: '#1a1a1a', // Dark background
-        color: '#fff', // White text
+        confirmButtonText: 'Yes, hide it!',
+        background: '#1a1a1a',
+        color: '#fff',
         customClass: {
           popup: 'bg-zinc-800 text-white',
           confirmButton: 'bg-red-500 hover:bg-red-600',
@@ -645,8 +651,8 @@
         }
       }).then((result) => {
         if (result.isConfirmed) {
-          // Send delete request
-          fetch(`/admin/products/delete/${productId}`, {
+          // Send soft delete request
+          fetch(`/admin/products/soft-delete/${productId}`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'
@@ -654,12 +660,12 @@
           })
           .then(response => {
             if (!response.ok) {
-              throw new Error('Failed to delete product');
+              throw new Error('Failed to hide product');
             }
             // Show success message
             Swal.fire({
-              title: 'Deleted!',
-              text: 'Product has been deleted.',
+              title: 'Hidden!',
+              text: 'Product has been hidden.',
               icon: 'success',
               background: '#1a1a1a',
               color: '#fff',

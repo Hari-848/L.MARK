@@ -486,7 +486,7 @@
       const currentUrl = new URL(window.location.href);
       
       if (searchTerm) {
-        currentUrl.searchParams.set('search', searchTerm);
+        currentUrl.searchParams.set('search', encodeURIComponent(searchTerm));
         currentUrl.searchParams.set('page', '1');
       } else {
         currentUrl.searchParams.delete('search');

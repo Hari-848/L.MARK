@@ -67,6 +67,11 @@ router.post('/products/delete/:id', adminProduct.deleteProduct);
 // Add this new route
 router.post('/products/:id/delete-image', adminProduct.deleteProductImage);
 
+// Product soft delete routes
+router.post('/products/soft-delete/:id', adminAuthenticated, adminProduct.softDeleteProduct);
+router.get('/products/archived', adminAuthenticated, adminProduct.getArchivedProducts);
+router.post('/products/restore/:id', adminAuthenticated, adminProduct.restoreProduct);
+
 // Admin  Customers
 router.get('/customers', adminAuthenticated, adminController.getCustomers);
 router.post('/customers/unblock/:id', adminController.unblockCustomer);
@@ -78,6 +83,11 @@ router.get('/category', adminAuthenticated, adminController.getCategories);
 router.post('/category/add', adminController.addCategory);
 router.post('/category/update/:id', adminController.updateCategory);
 router.post('/category/delete/:id', adminController.deleteCategory);
+
+// Category soft delete routes
+router.post('/category/soft-delete/:id', adminAuthenticated, adminController.softDeleteCategory);
+router.get('/category/archived', adminAuthenticated, adminController.getArchivedCategories);
+router.post('/category/restore/:id', adminAuthenticated, adminController.restoreCategory);
 
 // Order management routes
 router.get('/orders', adminAuthenticated, adminOrderController.getAllOrders);

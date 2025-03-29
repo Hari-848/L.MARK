@@ -322,6 +322,7 @@
         const otp = document.getElementById("otp").value;
         const fullName = document.getElementById("fullName").value;
         const password = document.getElementById("password").value;
+        const phone = document.getElementById("phone").value;
       
         try {
           const response = await fetch("/user/verify-otp", {
@@ -329,14 +330,14 @@
             headers: {
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({ email, otp, fullName, password }),
+            body: JSON.stringify({ email, otp, fullName, password, phone }),
           });
       
           const data = await response.json();
           if (response.status === 201) {
-            swal("", data.message, "success");
-      
-            window.location.href = "/home";
+            swal("", data.message, "success").then(() => {
+              window.location.href = "/";
+            });
           } else {
             document.getElementById("otp-error").textContent = data.message;
           }

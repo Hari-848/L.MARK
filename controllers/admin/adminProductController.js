@@ -33,71 +33,56 @@ const addImagesUpload = multer({
   },
 }).array('imageFiles', 4);
 
-exports.getProducts = [
-  adminAuthenticated,
-  async (req, res) => {
-    try {
-      const page = parseInt(req.query.page) || 1;
-      const limit = 10;
-      const skip = (page - 1) * limit;
-      const searchTerm = req.query.search;
-
-      // Build search query
-      let query = {};
-      if (searchTerm) {
-        query = {
-          $or: [
-            { productName: { $regex: searchTerm, $options: 'i' } },
-            { description: { $regex: searchTerm, $options: 'i' } },
-          ],
-        };
-      }
-
-      const products = await Product.find(query)
-        .populate('variants')
-        .populate({
-          path: 'categoriesId',
-          select: 'categoriesName',
-        })
-        .skip(skip)
-        .limit(limit)
-        .lean();
-
-      // Calculate total stock for each product from variants
-      const productsWithStock = products.map(product => {
-        const totalStock =
-          product.variants?.reduce(
-            (sum, variant) => sum + (variant.stock || 0),
-            0
-          ) || 0;
-
-        return {
-          ...product,
-          totalStock,
-          categoryName: product.categoriesId?.categoriesName || 'Uncategorized',
-          displayPrice: product.variants?.[0]?.price
-            ? `₹${product.variants[0].price}`
-            : 'N/A',
-        };
+exports.getProducts = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = 10;
+    const skip = (page - 1) * limit;
+    
+    console.log('Fetching non-deleted products...');
+    
+    // Only show non-deleted products
+    const products = await Product.find({ isDeleted: { $ne: true } })
+      .populate('category')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+    
+    console.log(`Found ${products.length} non-deleted products`);
+    
+    if (products.length > 0) {
+      console.log('Sample product:', {
+        id: products[0]._id,
+        name: products[0].productName,
+        isDeleted: products[0].isDeleted
       });
-
-      // Count total products for pagination
-      const totalProducts = await Product.countDocuments(query);
-      const totalPages = Math.ceil(totalProducts / limit);
-
-      res.render('admin/adminProduct', {
-        message: req.query.message || undefined,
-        products: productsWithStock,
-        currentPage: page,
-        totalPages,
-        searchTerm, // Pass search term to view
-      });
-    } catch (err) {
-      console.error('Error in getProducts:', err);
-      res.status(500).send('Error fetching products: ' + err.message);
     }
-  },
-];
+    
+    // Process products to include stock information and variant data
+    const productsWithStock = await Promise.all(products.map(async (product) => {
+      const variants = await Variant.find({ productId: product._id });
+      const totalStock = variants.reduce((sum, variant) => sum + (variant.stock || 0), 0);
+      
+      return {
+        ...product._doc,
+        totalStock,
+        variants: variants // Include the actual variants
+      };
+    }));
+    
+    const totalProducts = await Product.countDocuments({ isDeleted: { $ne: true } });
+    const totalPages = Math.ceil(totalProducts / limit);
+    
+    res.render('admin/adminProduct', {
+      products: productsWithStock,
+      currentPage: page,
+      totalPages
+    });
+  } catch (error) {
+    console.error('Get products error:', error);
+    res.status(500).render('error', { error: 'Failed to load products' });
+  }
+};
 
 exports.getAddProduct = [
   adminAuthenticated,
@@ -698,3 +683,121 @@ exports.deleteProductImage = [
         }
     }
 ];
+
+// Soft delete a product
+exports.softDeleteProduct = async (req, res) => {
+  try {
+    const productId = req.params.id;
+    
+    console.log(`Attempting to soft delete product with ID: ${productId}`);
+    
+    // Use findByIdAndUpdate instead of find + save to avoid validation
+    const result = await Product.findByIdAndUpdate(
+      productId,
+      { isDeleted: true },
+      { new: true }
+    );
+    
+    if (!result) {
+      console.error(`Product not found with ID: ${productId}`);
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    
+    console.log(`Product hidden successfully. New isDeleted value: ${result.isDeleted}`);
+    
+    res.status(200).json({ success: true, message: 'Product hidden successfully' });
+  } catch (error) {
+    console.error('Soft delete product error:', error);
+    res.status(500).json({ error: 'Failed to hide product' });
+  }
+};
+
+// Get archived products
+exports.getArchivedProducts = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = 10;
+    const skip = (page - 1) * limit;
+    
+    console.log('Fetching archived products...');
+    
+    // Only show deleted products
+    const products = await Product.find({ isDeleted: true })
+      .populate('category')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+    
+    console.log(`Found ${products.length} archived products`);
+    
+    // Process products to include stock information and variant data
+    const productsWithStock = await Promise.all(products.map(async (product) => {
+      // Fetch the actual variant documents
+      const variants = await Variant.find({ productId: product._id });
+      const totalStock = variants.reduce((sum, variant) => sum + (variant.stock || 0), 0);
+      
+      // Calculate display price
+      let displayPrice = 'N/A';
+      if (variants.length > 0 && variants[0].discountPrice > 0) {
+        displayPrice = `₹${variants[0].discountPrice.toLocaleString()}`;
+        if (variants[0].price) {
+          displayPrice += ` <span class="text-gray-500 line-through">₹${variants[0].price.toLocaleString()}</span>`;
+        }
+      } else if (variants.length > 0 && variants[0].price) {
+        displayPrice = `₹${variants[0].price.toLocaleString()}`;
+      } else if (product.salePrice) {
+        displayPrice = `₹${product.salePrice.toLocaleString()}`;
+        if (product.regularPrice && product.regularPrice > product.salePrice) {
+          displayPrice += ` <span class="text-gray-500 line-through">₹${product.regularPrice.toLocaleString()}</span>`;
+        }
+      }
+      
+      return {
+        ...product._doc,
+        totalStock,
+        displayPrice,
+        variants // Include the actual variant data
+      };
+    }));
+    
+    const totalProducts = await Product.countDocuments({ isDeleted: true });
+    const totalPages = Math.ceil(totalProducts / limit);
+    
+    res.render('admin/archievedProducts', {
+      products: productsWithStock,
+      currentPage: page,
+      totalPages
+    });
+  } catch (error) {
+    console.error('Get archived products error:', error);
+    res.status(500).render('error', { error: 'Failed to load archived products' });
+  }
+};
+
+// Restore a product
+exports.restoreProduct = async (req, res) => {
+  try {
+    const productId = req.params.id;
+    
+    console.log(`Attempting to restore product with ID: ${productId}`);
+    
+    // Use findByIdAndUpdate instead of find + save to avoid validation
+    const result = await Product.findByIdAndUpdate(
+      productId,
+      { isDeleted: false },
+      { new: true }
+    );
+    
+    if (!result) {
+      console.error(`Product not found with ID: ${productId}`);
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    
+    console.log(`Product restored successfully. New isDeleted value: ${result.isDeleted}`);
+    
+    res.status(200).json({ success: true, message: 'Product restored successfully' });
+  } catch (error) {
+    console.error('Restore product error:', error);
+    res.status(500).json({ error: 'Failed to restore product' });
+  }
+};

@@ -7,6 +7,7 @@ const Order = require('../../Models/orderModel');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const cloudinary = require('cloudinary').v2;
 
 // -------------User Home Page--------------------
 exports.home = (req, res) => {
@@ -167,20 +168,36 @@ exports.signupPOST = async (req, res) => {
 // Verify OTP and save user data to database
 exports.verifyOTP = async (req, res) => {
   try {
-    const { email, otp, fullName, password } = req.body;
+    const { email, otp, fullName, password, phone } = req.body;
     const otpRecord = await OTP.findOne({ email, otp });
 
     if (!otpRecord) {
       return res.status(400).json({ message: 'Invalid OTP' });
     }
 
-    const newUser = new User({ fullName, email, password });
+    // Create user with mobile number
+    const newUser = new User({ 
+      fullName, 
+      email, 
+      password,
+      mobile: phone  // Add mobile number here
+    });
     await newUser.save();
 
     const user = await User.findOne({ email });
     req.session.user = user;
+    req.session.authenticated = true;
+    
+    // Save session explicitly
+    await new Promise((resolve, reject) => {
+      req.session.save(err => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+    
     await OTP.deleteOne({ email, otp });
-
+    
     res.status(201).json({ message: 'User registered successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
@@ -269,7 +286,8 @@ exports.getProfile = async (req, res) => {
       user,
       orders,
       addresses,
-      session: req.session
+      session: req.session,
+      isEditing: false  // Default to not editing
     });
   } catch (error) {
     console.error('Profile error:', error);
@@ -518,21 +536,7 @@ exports.deleteAddress = async (req, res) => {
 };
 
 // Configure multer for profile photo uploads
-const storage = multer.diskStorage({
-  destination: function(req, file, cb) {
-    const uploadDir = 'public/uploads/profiles';
-    // Create directory if it doesn't exist
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    cb(null, uploadDir);
-  },
-  filename: function(req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const ext = path.extname(file.originalname);
-    cb(null, 'profile-' + uniqueSuffix + ext);
-  }
-});
+const storage = multer.memoryStorage();
 
 const upload = multer({
   storage: storage,
@@ -564,12 +568,28 @@ exports.uploadProfilePhoto = [
       }
 
       const userId = req.session.user._id;
-      const photoUrl = `/uploads/profiles/${req.file.filename}`;
+      
+      // Upload to Cloudinary
+      const result = await new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          { 
+            folder: 'user_profiles',
+            transformation: [
+              { width: 400, height: 400, crop: "fill", gravity: "face" }
+            ] 
+          },
+          (error, result) => {
+            if (error) reject(error);
+            else resolve(result);
+          }
+        );
+        stream.end(req.file.buffer);
+      });
 
-      // Update user in database
+      // Update user in database with Cloudinary URL
       const updatedUser = await User.findByIdAndUpdate(
         userId,
-        { profilePhoto: photoUrl },
+        { profilePhoto: result.secure_url },
         { new: true }
       );
 
@@ -579,7 +599,7 @@ exports.uploadProfilePhoto = [
       res.json({ 
         success: true, 
         message: 'Profile photo updated successfully',
-        photoUrl: photoUrl
+        photoUrl: result.secure_url
       });
     } catch (error) {
       console.error('Profile photo upload error:', error);
@@ -703,5 +723,19 @@ exports.setDefaultAddress = async (req, res) => {
   } catch (error) {
     console.error('Set default address error:', error);
     res.status(500).json({ error: 'Failed to set default address' });
+  }
+};
+
+exports.getEditProfile = (req, res) => {
+  try {
+    const user = req.session.user;
+    
+    res.render('user/profile', {
+      user: user,
+      isEditing: true  // Allow editing
+    });
+  } catch (error) {
+    console.error('Edit profile error:', error);
+    res.redirect('/profile');
   }
 };

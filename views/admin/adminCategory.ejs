@@ -60,7 +60,7 @@
                   <button class="bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600"
                     onclick="openEditModal('<%= category._id %>', '<%= category.name %>')">Edit</button>
                   <button class="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600"
-                    onclick="deleteCategory('<%= category._id %>')">Delete</button>
+                    onclick="hideCategory('<%= category._id %>')">Hide</button>
                 </td>
 
                 <!-- Edit Category Modal -->
@@ -175,30 +175,50 @@
             document.getElementById('editCategoryModal').classList.add('hidden');
           }
 
-          function deleteCategory(id) {
-            // Show a SweetAlert confirmation dialog
+          function hideCategory(categoryId) {
             Swal.fire({
-              title: 'Are you sure?',
-              text: "You won't be able to revert this!",
+              title: 'Hide Category?',
+              text: "You can restore this category later from the archived categories section",
               icon: 'warning',
               showCancelButton: true,
-              confirmButtonText: 'Yes, delete it!',
-              cancelButtonText: 'Cancel'
+              confirmButtonColor: '#d33',
+              cancelButtonColor: '#3085d6',
+              confirmButtonText: 'Yes, hide it!',
+              background: '#1a1a1a',
+              color: '#fff'
             }).then((result) => {
               if (result.isConfirmed) {
-                // Proceed with the delete request if confirmed
-                fetch('/admin/category/delete/' + id, {
-                  method: 'POST'
-                }).then(() => {
-                  // Reload the page after successful deletion
-                  window.location.reload();
-                }).catch(err => {
-                  // Show error if deletion fails
+                // Send soft delete request
+                fetch(`/admin/category/soft-delete/${categoryId}`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json'
+                  }
+                })
+                .then(response => response.json())
+                .then(data => {
+                  if (data.error) {
+                    throw new Error(data.error);
+                  }
+                  Swal.fire({
+                    icon: 'success',
+                    title: 'Success',
+                    text: 'Category has been hidden',
+                    confirmButtonText: 'OK',
+                    background: '#1a1a1a',
+                    color: '#fff'
+                  }).then(() => {
+                    window.location.reload();
+                  });
+                })
+                .catch(error => {
                   Swal.fire({
                     icon: 'error',
-                    title: 'Oops...',
-                    text: "Error deleting category",
-                    confirmButtonText: 'OK'
+                    title: 'Error',
+                    text: error.message || 'Failed to hide category',
+                    confirmButtonText: 'OK',
+                    background: '#1a1a1a',
+                    color: '#fff'
                   });
                 });
               }

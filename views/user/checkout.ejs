@@ -168,7 +168,7 @@
           <input 
             type="text" 
             id="name" 
-            name="name" 
+            name="fullName"
             class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             required
           >
@@ -313,7 +313,7 @@
               
               // Fill form with address data
               document.getElementById('addressId').value = address._id;
-              document.getElementById('name').value = address.name;
+              document.getElementById('name').value = address.fullName;
               document.getElementById('mobile').value = address.mobile;
               document.getElementById('address').value = address.address;
               document.getElementById('city').value = address.city;
@@ -375,7 +375,7 @@
         
         const formData = new FormData(addressForm);
         const addressData = {
-          name: formData.get('name'),
+          name: formData.get('fullName'),
           mobile: formData.get('mobile'),
           address: formData.get('address'),
           city: formData.get('city'),

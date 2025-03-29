@@ -118,7 +118,10 @@
           </select>
         </div>
         
-        <div class="md:col-span-5 flex justify-end">
+        <div class="md:col-span-5 flex justify-end space-x-3">
+          <button type="button" id="resetFiltersBtn" class="px-4 py-2 bg-zinc-700 text-white rounded-md hover:bg-zinc-600 transform transition-transform duration-300 ease-in-out hover:scale-105 active:scale-95">
+            Reset Filters
+          </button>
           <button type="submit" class="px-4 py-2 bg-violet-600 text-white rounded-md hover:bg-violet-700 transform transition-transform duration-300 ease-in-out hover:scale-105 active:scale-95">
             Apply Filters
           </button>
@@ -144,7 +147,7 @@
         <tbody>
           <% if (orders.length === 0) { %>
             <tr class="border-b border-gray-700">
-              <td colspan="7" class="py-4 text-center text-gray-500">No orders found</td>
+              <td colspan="8" class="py-4 text-center text-gray-500">No orders found</td>
             </tr>
           <% } else { %>
             <% orders.forEach(order => { %>
@@ -229,110 +232,149 @@
     
     <!-- Pagination -->
     <% if (totalPages > 1) { %>
-      <div class="flex justify-center mt-6">
+      <div class="flex flex-col items-center mt-6">
+        <span class="text-sm text-gray-400 mb-2">
+          Page <%= currentPage %> of <%= totalPages %>
+        </span>
         <div class="flex justify-center space-x-2">
+          <!-- First page -->
           <% if (currentPage > 1) { %>
-            <a href="/admin/orders?page=<%= currentPage - 1 %>&search=<%= searchQuery %>&status=<%= status %>&paymentMethod=<%= paymentMethod %>&sortBy=<%= sortBy %>&sortOrder=<%= sortOrder %>&returnStatus=<%= returnStatus %>" 
+            <a href="/admin/orders?page=1&search=<%= searchQuery %>&status=<%= status %>&paymentMethod=<%= paymentMethod %>&sortBy=<%= sortBy %>&sortOrder=<%= sortOrder %>&returnStatus=<%= returnStatus %>" 
               class="bg-zinc-700 text-white px-3 py-1 rounded hover:bg-zinc-600">
-              Previous
+              <i class="fas fa-angle-double-left"></i>
             </a>
           <% } %>
           
-          <% for(let i = 1; i <= totalPages; i++) { %>
+          <!-- Previous page -->
+          <% if (currentPage > 1) { %>
+            <a href="/admin/orders?page=<%= currentPage - 1 %>&search=<%= searchQuery %>&status=<%= status %>&paymentMethod=<%= paymentMethod %>&sortBy=<%= sortBy %>&sortOrder=<%= sortOrder %>&returnStatus=<%= returnStatus %>" 
+              class="bg-zinc-700 text-white px-3 py-1 rounded hover:bg-zinc-600">
+              <i class="fas fa-angle-left"></i>
+            </a>
+          <% } %>
+          
+          <!-- Page numbers - show 5 pages at most -->
+          <% 
+            let startPage = Math.max(1, currentPage - 2);
+            let endPage = Math.min(totalPages, startPage + 4);
+            
+            if (endPage - startPage < 4) {
+              startPage = Math.max(1, endPage - 4);
+            }
+          %>
+          
+          <% if (startPage > 1) { %>
+            <span class="bg-zinc-700 text-white px-3 py-1 rounded">...</span>
+          <% } %>
+          
+          <% for(let i = startPage; i <= endPage; i++) { %>
             <a href="/admin/orders?page=<%= i %>&search=<%= searchQuery %>&status=<%= status %>&paymentMethod=<%= paymentMethod %>&sortBy=<%= sortBy %>&sortOrder=<%= sortOrder %>&returnStatus=<%= returnStatus %>" 
               class="<%= currentPage === i ? 'bg-violet-700' : 'bg-zinc-700' %> text-white px-3 py-1 rounded hover:bg-zinc-600">
               <%= i %>
             </a>
           <% } %>
           
+          <% if (endPage < totalPages) { %>
+            <span class="bg-zinc-700 text-white px-3 py-1 rounded">...</span>
+          <% } %>
+          
+          <!-- Next page -->
           <% if (currentPage < totalPages) { %>
             <a href="/admin/orders?page=<%= currentPage + 1 %>&search=<%= searchQuery %>&status=<%= status %>&paymentMethod=<%= paymentMethod %>&sortBy=<%= sortBy %>&sortOrder=<%= sortOrder %>&returnStatus=<%= returnStatus %>" 
               class="bg-zinc-700 text-white px-3 py-1 rounded hover:bg-zinc-600">
-              Next
+              <i class="fas fa-angle-right"></i>
+            </a>
+          <% } %>
+          
+          <!-- Last page -->
+          <% if (currentPage < totalPages) { %>
+            <a href="/admin/orders?page=<%= totalPages %>&search=<%= searchQuery %>&status=<%= status %>&paymentMethod=<%= paymentMethod %>&sortBy=<%= sortBy %>&sortOrder=<%= sortOrder %>&returnStatus=<%= returnStatus %>" 
+              class="bg-zinc-700 text-white px-3 py-1 rounded hover:bg-zinc-600">
+              <i class="fas fa-angle-double-right"></i>
             </a>
           <% } %>
         </div>
       </div>
     <% } %>
-  </main>
-  
-  <!-- Update Status Modal -->
-  <div id="updateStatusModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 hidden">
-    <div class="bg-zinc-800 rounded-lg p-6 w-full max-w-md">
-      <div class="flex justify-between items-center mb-4">
-        <h3 class="text-lg font-medium text-white">Update Order Status</h3>
-        <button id="closeStatusModal" class="text-gray-400 hover:text-gray-200">
-          <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-          </svg>
-        </button>
+    
+    <!-- Update Status Modal -->
+    <div id="updateStatusModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 hidden">
+      <div class="bg-zinc-800 rounded-lg p-6 w-full max-w-md">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-lg font-medium text-white">Update Order Status</h3>
+          <button id="closeStatusModal" class="text-gray-400 hover:text-gray-200">
+            <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+        
+        <form id="updateStatusForm">
+          <input type="hidden" id="orderIdInput">
+          
+          <div class="mb-4">
+            <label for="statusSelect" class="block text-sm font-medium text-gray-300 mb-1">New Status</label>
+            <select id="statusSelect" name="status" class="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-white focus:outline-none focus:border-violet-500">
+              <!-- Options will be added dynamically by JavaScript -->
+            </select>
+          </div>
+          
+          <div id="trackingNumberField" class="mb-4 hidden">
+            <label for="trackingNumber" class="block text-sm font-medium text-gray-300 mb-1">Tracking Number</label>
+            <input 
+              type="text" 
+              id="trackingNumber" 
+              name="trackingNumber" 
+              placeholder="Enter tracking number" 
+              class="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-white focus:outline-none focus:border-violet-500"
+            >
+          </div>
+          
+          <div class="flex justify-end space-x-3">
+            <button type="button" id="cancelStatusUpdate" class="px-4 py-2 bg-zinc-700 text-white rounded-md hover:bg-zinc-600">
+              Cancel
+            </button>
+            <button type="submit" class="px-4 py-2 bg-violet-600 text-white rounded-md hover:bg-violet-700 transform transition-transform duration-300 ease-in-out hover:scale-105 active:scale-95">
+              Update Status
+            </button>
+          </div>
+        </form>
       </div>
-      
-      <form id="updateStatusForm">
-        <input type="hidden" id="orderIdInput">
-        
-        <div class="mb-4">
-          <label for="statusSelect" class="block text-sm font-medium text-gray-300 mb-1">New Status</label>
-          <select id="statusSelect" name="status" class="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-white focus:outline-none focus:border-violet-500">
-            <!-- Options will be added dynamically -->
-          </select>
-        </div>
-        
-        <div id="trackingNumberField" class="mb-4 hidden">
-          <label for="trackingNumber" class="block text-sm font-medium text-gray-300 mb-1">Tracking Number</label>
-          <input 
-            type="text" 
-            id="trackingNumber" 
-            name="trackingNumber" 
-            placeholder="Enter tracking number" 
-            class="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-white focus:outline-none focus:border-violet-500"
-          >
-        </div>
-        
-        <div class="flex justify-end space-x-3">
-          <button type="button" id="cancelStatusUpdate" class="px-4 py-2 bg-zinc-700 text-white rounded-md hover:bg-zinc-600">
-            Cancel
-          </button>
-          <button type="submit" class="px-4 py-2 bg-violet-600 text-white rounded-md hover:bg-violet-700 transform transition-transform duration-300 ease-in-out hover:scale-105 active:scale-95">
-            Update Status
-          </button>
-        </div>
-      </form>
     </div>
-  </div>
-  
-  <!-- Process Return Modal -->
-  <div id="processReturnModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 hidden">
-    <div class="bg-zinc-800 rounded-lg p-6 w-full max-w-md">
-      <div class="flex justify-between items-center mb-4">
-        <h3 class="text-lg font-medium text-white">Process Return Request</h3>
-        <button id="closeReturnModal" class="text-gray-400 hover:text-gray-200">
-          <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-          </svg>
-        </button>
+    
+    <!-- Process Return Modal -->
+    <div id="processReturnModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 hidden">
+      <div class="bg-zinc-800 rounded-lg p-6 w-full max-w-md">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-lg font-medium text-white">Process Return Request</h3>
+          <button id="closeReturnModal" class="text-gray-400 hover:text-gray-200">
+            <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+        
+        <form id="processReturnForm">
+          <input type="hidden" id="returnOrderIdInput">
+          
+          <div class="mb-4">
+            <label for="refundStatus" class="block text-sm font-medium text-gray-300 mb-1">Return Decision</label>
+            <select id="refundStatus" name="refundStatus" class="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-white focus:outline-none focus:border-violet-500">
+              <option value="completed">Approve Return & Process Full Refund</option>
+              <option value="rejected">Reject Return Request</option>
+            </select>
+          </div>
+          
+          <div class="flex justify-end space-x-3">
+            <button type="button" id="cancelReturnProcess" class="px-4 py-2 bg-zinc-700 text-white rounded-md hover:bg-zinc-600">
+              Cancel
+            </button>
+            <button type="submit" class="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 transform transition-transform duration-300 ease-in-out hover:scale-105 active:scale-95">
+              Process Return
+            </button>
+          </div>
+        </form>
       </div>
-      
-      <form id="processReturnForm">
-        <input type="hidden" id="returnOrderIdInput">
-        
-        <div class="mb-4">
-          <label for="refundStatus" class="block text-sm font-medium text-gray-300 mb-1">Return Decision</label>
-          <select id="refundStatus" name="refundStatus" class="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-white focus:outline-none focus:border-violet-500">
-            <option value="completed">Approve Return & Process Full Refund</option>
-            <option value="rejected">Reject Return Request</option>
-          </select>
-        </div>
-        
-        <div class="flex justify-end space-x-3">
-          <button type="button" id="cancelReturnProcess" class="px-4 py-2 bg-zinc-700 text-white rounded-md hover:bg-zinc-600">
-            Cancel
-          </button>
-          <button type="submit" class="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 transform transition-transform duration-300 ease-in-out hover:scale-105 active:scale-95">
-            Process Return
-          </button>
-        </div>
-      </form>
     </div>
   </div>
   
@@ -516,6 +558,20 @@
           confirmButtonText: 'OK'
         });
       }
+    });
+
+    // Reset filters functionality
+    document.getElementById('resetFiltersBtn').addEventListener('click', function() {
+      // Clear all form inputs
+      document.getElementById('search').value = '';
+      document.getElementById('status').value = '';
+      document.getElementById('paymentMethod').value = '';
+      document.getElementById('sortBy').value = 'createdAt';
+      document.getElementById('sortOrder').value = 'desc';
+      document.getElementById('returnStatus').value = '';
+      
+      // Submit the form to apply the reset
+      document.querySelector('form[action="/admin/orders"]').submit();
     });
   </script>
 </body>

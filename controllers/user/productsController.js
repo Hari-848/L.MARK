@@ -24,6 +24,11 @@ exports.products = async (req, res) => {
     // Fetch products with variants using aggregation
     const products = await Product.aggregate([
       {
+        $match: {
+          isDeleted: { $ne: true }  // Add this to filter out deleted products
+        }
+      },
+      {
         $lookup: {
           from: 'variants',
           localField: '_id',
@@ -113,7 +118,7 @@ exports.searchAndFilterProducts = async (req, res) => {
       req.query;
 
     // Initialize match criteria
-    const matchCriteria = {};
+    const matchCriteria = { isDeleted: { $ne: true } };
 
     // Text-based search
     if (query && query.trim()) {
@@ -153,13 +158,10 @@ exports.searchAndFilterProducts = async (req, res) => {
         }
 
         if (categoryDoc) {
-          // Add both ID and name to match criteria
-          matchCriteria.$or = [
-            { categoriesId: categoryDoc._id },
-            { category: categoryDoc.name.toLowerCase() },
-          ];
-          console.log('Category found:', categoryDoc);
-          console.log('Using match criteria:', matchCriteria);
+          matchCriteria.categoriesId = categoryDoc._id;
+        } else {
+          // Fallback to direct category name match
+          matchCriteria.category = { $regex: new RegExp(`^${category}$`, 'i') };
         }
       } catch (error) {
         console.error('Error processing category:', error);
@@ -296,9 +298,13 @@ exports.viewProduct = async (req, res) => {
 
     const offers = await Offer.find({ isActive: true });
     
-    // Fetch product with its variants
+    // Fetch product with its variants - add isDeleted check
     const product = await Product.aggregate([
-      { $match: { _id: new mongoose.Types.ObjectId(productId) } },
+      { $match: { 
+          _id: new mongoose.Types.ObjectId(productId),
+          isDeleted: { $ne: true }  // Add this line to filter out deleted products
+        } 
+      },
       {
         $lookup: {
           from: 'variants',
@@ -395,6 +401,7 @@ exports.viewProduct = async (req, res) => {
         $match: {
           categoriesId: formattedProduct.categoriesId,
           _id: { $ne: new mongoose.Types.ObjectId(productId) },
+          isDeleted: { $ne: true }  // Add this line to filter out deleted products
         },
       },
       {
@@ -407,7 +414,7 @@ exports.viewProduct = async (req, res) => {
               input: '$variants',
               as: 'variant',
               in: {
-                _id: '$$variant._id', // Make sure to include the variant ID
+                _id: '$$variant._id',
                 price: '$$variant.price',
                 discountPrice: '$$variant.discountPrice',
               },

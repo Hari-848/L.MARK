@@ -199,12 +199,19 @@
       const searchButton = document.getElementById('searchButton');
       let debounceTimer;
 
+      // Function to validate search input
+      function validateSearchInput(input) {
+        // Always return true to skip validation alerts
+        // Backend will handle searches with special characters (likely returning no results)
+        return true;
+      }
+
       // Function to perform search
       function performSearch() {
         const searchTerm = searchInput.value.trim();
         if (searchTerm) {
           const currentUrl = new URL(window.location.href);
-          currentUrl.searchParams.set('search', searchTerm);
+          currentUrl.searchParams.set('search', encodeURIComponent(searchTerm));
           currentUrl.searchParams.set('page', '1');
           window.location.href = currentUrl.toString();
         }
@@ -249,9 +256,9 @@
 
       // Initialize search input with existing search term
       document.addEventListener('DOMContentLoaded', () => {
-        const searchTerm = new URLSearchParams(window.location.search).get('search');
-        if (searchTerm) {
-          searchInput.value = searchTerm;
+        const searchParam = new URLSearchParams(window.location.search).get('search');
+        if (searchParam) {
+          searchInput.value = decodeURIComponent(searchParam);
         }
       });
     </script>

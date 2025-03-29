@@ -49,6 +49,10 @@ const productSchema = new Schema(
       type: Boolean,
       default: false,
     },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
     status: {
       type: String,
       enum: ['Available', 'Out of Stock', 'Discontinued'],
@@ -56,7 +60,7 @@ const productSchema = new Schema(
       default: 'Available',
     },
     categoriesId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: Schema.Types.ObjectId,
       ref: 'Category',
     },
   },
