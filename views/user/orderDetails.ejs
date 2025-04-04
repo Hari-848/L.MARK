@@ -82,40 +82,21 @@
     
     <!-- Return Request Status (if applicable) -->
     <% if (order.returnRequested) { %>
-      <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-        <h2 class="text-lg font-semibold mb-4">Return Request Status</h2>
-        
-        <div class="flex flex-col space-y-3">
-          <div class="flex justify-between">
-            <span class="text-gray-600">Return Requested On</span>
-            <span><%= new Date(order.returnRequestedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) %></span>
-          </div>
-          <div class="flex justify-between">
-            <span class="text-gray-600">Return Reason</span>
-            <span><%= order.returnReason %></span>
-          </div>
-          <div class="flex justify-between">
-            <span class="text-gray-600">Status</span>
-            <% if (order.returnStatus === 'pending') { %>
-              <span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium">Pending Review</span>
-            <% } else if (order.returnStatus === 'approved') { %>
-              <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">Approved</span>
-            <% } else if (order.returnStatus === 'rejected') { %>
-              <span class="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium">Rejected</span>
-            <% } %>
-          </div>
+      <div class="mt-4 p-4 border rounded-md bg-gray-50">
+        <h3 class="font-medium text-gray-900">Return Status</h3>
+        <div class="mt-2">
+          <p>Return Requested: <%= new Date(order.returnRequestedAt).toLocaleDateString() %></p>
+          <p>Reason: <%= order.returnReason %></p>
           
-          <% if (order.refundStatus === 'completed') { %>
-            <div class="flex justify-between">
-              <span class="text-gray-600">Refund Amount</span>
-              <span class="text-green-600">₹<%= order.refundAmount.toFixed(2) %></span>
-            </div>
-            <% if (order.refundedAt) { %>
-              <div class="flex justify-between">
-                <span class="text-gray-600">Refunded On</span>
-                <span><%= new Date(order.refundedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) %></span>
-              </div>
+          <% if (order.returnStatus === 'approved') { %>
+            <p class="mt-2 text-green-600">Your return request has been approved.</p>
+            <% if (order.refundStatus === 'completed') { %>
+              <p class="text-green-600">A refund of ₹<%= order.refundAmount.toFixed(2) %> has been credited to your wallet.</p>
             <% } %>
+          <% } else if (order.returnStatus === 'rejected') { %>
+            <p class="mt-2 text-red-600">Your return request has been rejected.</p>
+          <% } else { %>
+            <p class="mt-2 text-yellow-600">Your return request is being reviewed.</p>
           <% } %>
         </div>
       </div>
@@ -328,7 +309,6 @@
     </div>
   </div>
   
-  <%- include("../partials/user/footer") %>
   
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script>
@@ -355,11 +335,7 @@
       e.preventDefault();
       
       const orderId = document.getElementById('cancelOrderId').value;
-      let reason = document.getElementById('cancelReason').value;
-      
-      if (reason === 'Other') {
-        reason = document.getElementById('otherCancelReason').value;
-      }
+      const reason = document.getElementById('cancelReason').value;
       
       try {
         const response = await fetch(`/order/${orderId}/cancel`, {
@@ -370,20 +346,26 @@
           body: JSON.stringify({ reason })
         });
         
+        const result = await response.json();
+        
         if (response.ok) {
+          let message = 'Your order has been cancelled successfully.';
+          if (result.refunded) {
+            message += ' A refund has been issued to your wallet.';
+          }
+          
           Swal.fire({
-            title: 'Success',
-            text: 'Order cancelled successfully',
+            title: 'Order Cancelled',
+            text: message,
             icon: 'success',
             confirmButtonText: 'OK'
           }).then(() => {
             window.location.reload();
           });
         } else {
-          const error = await response.json();
           Swal.fire({
             title: 'Error',
-            text: error.error || 'Failed to cancel order',
+            text: result.error || 'Failed to cancel order',
             icon: 'error',
             confirmButtonText: 'OK'
           });
@@ -433,29 +415,26 @@
     
     document.getElementById('returnOrderForm').addEventListener('submit', async function(e) {
       e.preventDefault();
-      console.log('Return form submitted');
       
       const orderId = document.getElementById('returnOrderId').value;
-      let reason = document.getElementById('returnReason').value;
+      const reason = document.getElementById('returnReason').value;
+      const otherReason = document.getElementById('otherReturnReason').value;
       
-      if (reason === 'Other') {
-        const otherReason = document.getElementById('otherReturnReason').value;
-        if (!otherReason.trim()) {
-          Swal.fire({
-            title: 'Error',
-            text: 'Please specify a return reason',
-            icon: 'error',
-            confirmButtonText: 'OK'
-          });
-          return;
-        }
-        reason = otherReason;
-      }
-      
-      if (!reason) {
+      // Validate form
+      if (reason === '') {
         Swal.fire({
           title: 'Error',
-          text: 'Return reason is required',
+          text: 'Please select a reason for return',
+          icon: 'error',
+          confirmButtonText: 'OK'
+        });
+        return;
+      }
+      
+      if (reason === 'Other' && otherReason.trim() === '') {
+        Swal.fire({
+          title: 'Error',
+          text: 'Please provide details for other reason',
           icon: 'error',
           confirmButtonText: 'OK'
         });
@@ -463,40 +442,38 @@
       }
       
       try {
-        // Show loading state
-        const submitBtn = document.getElementById('submitReturnBtn');
-        const originalText = submitBtn.innerHTML;
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
-        submitBtn.disabled = true;
-        
         const response = await fetch(`/order/${orderId}/return`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ reason })
+          body: JSON.stringify({ 
+            reason,
+            otherReason
+          })
         });
+        
+        const result = await response.json();
         
         if (response.ok) {
           Swal.fire({
-            title: 'Return Request Submitted',
-            text: 'Your return request has been submitted and is pending approval from our team.',
+            title: 'Return Requested',
+            text: result.message,
             icon: 'success',
             confirmButtonText: 'OK'
           }).then(() => {
             window.location.reload();
           });
         } else {
-          const error = await response.json();
           Swal.fire({
             title: 'Error',
-            text: error.error || 'Failed to submit return request',
+            text: result.error || 'Failed to submit return request',
             icon: 'error',
             confirmButtonText: 'OK'
           });
         }
       } catch (error) {
-        console.error('Error returning order:', error);
+        console.error('Error submitting return request:', error);
         Swal.fire({
           title: 'Error',
           text: 'An error occurred while submitting your return request',
@@ -505,11 +482,6 @@
         });
       } finally {
         document.getElementById('returnOrderModal').classList.add('hidden');
-        // Reset button state
-        if (document.getElementById('submitReturnBtn')) {
-          document.getElementById('submitReturnBtn').innerHTML = 'Submit Return Request';
-          document.getElementById('submitReturnBtn').disabled = false;
-        }
       }
     });
     

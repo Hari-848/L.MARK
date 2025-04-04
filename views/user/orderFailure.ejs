@@ -1,4 +1,4 @@
-<%- include("../partials/user/head", {title: "Order Placed Successfully"}) %>
+<%- include("../partials/user/head", {title: "Payment Failed"}) %>
 <link rel="stylesheet" href="/css/style.css">
 <link rel="icon" href="/images/favicon.png">
 
@@ -8,16 +8,16 @@
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
     <div class="text-center">
       <div class="mb-6">
-        <svg class="mx-auto h-24 w-24 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        <svg class="mx-auto h-24 w-24 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
         </svg>
       </div>
       
-      <h1 class="text-3xl font-bold text-gray-900 mb-4">Order Placed Successfully!</h1>
-      <p class="text-lg text-gray-600 mb-8">Thank you for your purchase. Your order has been received and is being processed.</p>
+      <h1 class="text-3xl font-bold text-gray-900 mb-4">Payment Failed</h1>
+      <p class="text-lg text-gray-600 mb-8">We couldn't process your payment. Your order has been saved and you can try again.</p>
       
       <div class="bg-white rounded-lg shadow-md p-6 max-w-2xl mx-auto mb-8">
-        <h2 class="text-xl font-semibold mb-4">Order Summary</h2>
+        <h2 class="text-xl font-semibold mb-4">Order Details</h2>
         
         <div class="grid grid-cols-2 gap-4 mb-4">
           <div>
@@ -30,7 +30,7 @@
           </div>
           <div>
             <p class="text-sm text-gray-500">Payment Method</p>
-            <p class="font-medium"><%= order.paymentMethod === 'cod' ? 'Cash on Delivery' : 'Online Payment' %></p>
+            <p class="font-medium">Online Payment</p>
           </div>
           <div>
             <p class="text-sm text-gray-500">Total Amount</p>
@@ -41,7 +41,7 @@
       
       <div class="flex justify-center space-x-4">
         <a href="/orders" class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
-          View Orders
+          Try Payment Again
         </a>
         <a href="/" class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-indigo-600 bg-white hover:bg-gray-50">
           Continue Shopping

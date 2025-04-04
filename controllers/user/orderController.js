@@ -4,6 +4,7 @@ const Product = require('../../Models/productSchema');
 const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
+const Wallet = require('../../Models/walletModel');
 
 function isWithin7Days(deliveredAt) {
   const delivered = new Date(deliveredAt);
@@ -143,6 +144,7 @@ exports.cancelOrder = async (req, res) => {
     const { reason } = req.body;
     const userId = req.session.user._id;
     
+    // Find the order
     const order = await Order.findOne({ _id: orderId, userId });
     
     if (!order) {
@@ -150,20 +152,45 @@ exports.cancelOrder = async (req, res) => {
     }
     
     // Check if order can be cancelled
-    if (order.orderStatus !== 'pending' && order.orderStatus !== 'processing') {
+    const allowedStatuses = ['pending', 'processing'];
+    if (!allowedStatuses.includes(order.orderStatus)) {
       return res.status(400).json({ 
-        error: 'This order cannot be cancelled as it has been shipped or delivered' 
+        error: 'This order cannot be cancelled as it has already been shipped or delivered' 
       });
     }
     
     // Update order status
     order.orderStatus = 'cancelled';
     order.cancelledAt = new Date();
-    order.cancellationReason = reason || 'No reason provided';
+    order.cancelReason = reason || 'No reason provided';
+    
+    // If payment was made, initiate refund to wallet
+    if (order.paymentStatus === 'paid') {
+      order.refundStatus = 'completed';
+      order.refundAmount = order.total;
+      order.refundedAt = new Date();
+      
+      // Add refund to wallet
+      let wallet = await Wallet.findOne({ userId });
+      
+      if (!wallet) {
+        wallet = new Wallet({ userId, balance: 0 });
+      }
+      
+      wallet.balance += order.total;
+      wallet.transactions.push({
+        amount: order.total,
+        type: 'credit',
+        description: `Refund for cancelled order #${order._id}`,
+        orderId: order._id
+      });
+      
+      await wallet.save();
+    }
     
     await order.save();
     
-    // Restore inventory
+    // Restore stock for all items
     for (const item of order.items) {
       await Variant.findByIdAndUpdate(
         item.variant,
@@ -171,10 +198,14 @@ exports.cancelOrder = async (req, res) => {
       );
     }
     
-    res.json({ success: true, message: 'Order cancelled successfully' });
+    return res.status(200).json({ 
+      success: true, 
+      message: 'Order cancelled successfully',
+      refunded: order.paymentStatus === 'paid'
+    });
   } catch (error) {
     console.error('Cancel order error:', error);
-    res.status(500).json({ error: 'Failed to cancel order' });
+    return res.status(500).json({ error: 'Failed to cancel order' });
   }
 };
 

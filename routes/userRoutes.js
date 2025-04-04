@@ -8,6 +8,7 @@ const wishlistController = require('../controllers/user/wishlistController');
 
 const addressController = require('../controllers/user/addressController');
 const orderController = require('../controllers/user/orderController');
+const walletController = require('../controllers/user/walletController');
 
 //--------------------User Signup --------------------
 router.get('/user/signup', User.signupGET); 
@@ -103,5 +104,20 @@ router.get('/order/:orderId', isUserAuthenticated, orderController.getOrderDetai
 router.get('/order/:orderId/invoice', isUserAuthenticated, orderController.generateInvoice);
 router.post('/order/:orderId/cancel', isUserAuthenticated, orderController.cancelOrder);
 router.post('/order/:orderId/return', isUserAuthenticated, orderController.returnOrder);
+
+// Add these routes
+router.post('/order/verify-payment', isUserAuthenticated, checkoutController.verifyPayment);
+router.post('/order/payment-failure', isUserAuthenticated, checkoutController.paymentFailure);
+router.get('/order/failure/:orderId', isUserAuthenticated, checkoutController.getOrderFailure);
+
+// Add these wallet routes
+router.get('/wallet', isUserAuthenticated, walletController.getWallet);
+router.post('/wallet/use-for-payment', isUserAuthenticated, walletController.useWalletForPayment);
+router.post('/wallet/add-money', isUserAuthenticated, walletController.addMoney);
+router.post('/wallet/verify-payment', isUserAuthenticated, walletController.verifyPayment);
+
+// Add these coupon routes
+router.post('/checkout/apply-coupon', isUserAuthenticated, checkoutController.applyCoupon);
+router.post('/checkout/remove-coupon', isUserAuthenticated, checkoutController.removeCoupon);
 
 module.exports = router;

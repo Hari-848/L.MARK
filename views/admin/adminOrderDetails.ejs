@@ -332,16 +332,17 @@
           </select>
         </div>
         
-        <div id="refundAmountField" class="mb-4">
-          <label for="refundAmount" class="block text-sm font-medium text-gray-300 mb-1">Refund Amount</label>
-          <input 
-            type="number" 
-            id="refundAmount" 
-            name="refundAmount" 
-            step="0.01"
-            class="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-white focus:outline-none focus:border-orange-500"
-            placeholder="Enter refund amount"
-          >
+        <div class="mb-4">
+          <label for="refundAmount" class="block text-sm font-medium text-gray-700">Refund Amount</label>
+          <div class="mt-1 relative rounded-md shadow-sm">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <span class="text-gray-500 sm:text-sm">₹</span>
+            </div>
+            <input type="number" name="refundAmount" id="refundAmount" 
+              class="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-7 pr-12 sm:text-sm border-gray-300 rounded-md"
+              placeholder="0.00" step="0.01" min="0" max="<%= order.total %>" value="<%= order.total %>">
+          </div>
+          <p class="mt-1 text-xs text-gray-500">Maximum refund amount: ₹<%= order.total %></p>
         </div>
         
         <div class="flex justify-end space-x-3">

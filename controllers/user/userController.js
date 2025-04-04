@@ -8,6 +8,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const cloudinary = require('cloudinary').v2;
+const Wallet = require('../../Models/walletModel');
 
 // -------------User Home Page--------------------
 exports.home = (req, res) => {
@@ -279,6 +280,13 @@ exports.getProfile = async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(5);
     const addresses = await Address.find({ userId: user._id });
+    
+    // Get wallet information
+    let wallet = await Wallet.findOne({ userId: user._id });
+    if (!wallet) {
+      wallet = new Wallet({ userId: user._id, balance: 0 });
+      await wallet.save();
+    }
 
     res.render('user/profile', {
       title: 'My Profile',
@@ -286,6 +294,7 @@ exports.getProfile = async (req, res) => {
       user,
       orders,
       addresses,
+      wallet,
       session: req.session,
       isEditing: false  // Default to not editing
     });

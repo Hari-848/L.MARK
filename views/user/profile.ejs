@@ -9,7 +9,7 @@
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
     <!-- Material Icons -->
     <link
       href="https://fonts.googleapis.com/icon?family=Material+Icons"
@@ -96,6 +96,7 @@
         color: #6b7280;
       }
     </style>
+  
   </head>
 
   <body class="bg-gray-50">
@@ -142,6 +143,12 @@
                 <i class="fas fa-lock w-6 text-blue-500"></i>
                 <span class="ml-3">Change Password</span>
               </a>
+              <div class="space-y-4">
+                <a href="/profile#wallet" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-700 transition-colors">
+                  <i class="fas fa-wallet w-5 h-5 text-blue-500"></i>
+                  <span class="ml-3">My Wallet</span>
+                </a>
+              </div>
               <div class="border-t border-gray-200 my-2"></div>
               <a href="#" id="logout-btn" class="flex items-center px-4 py-3 text-red-600 rounded-lg hover:bg-red-50 transition-colors">
                 <i class="fas fa-sign-out-alt w-6"></i>
@@ -315,6 +322,80 @@
               </button>
             </form>
           </div>
+
+          <!-- Wallet Section -->
+          <div id="wallet-section" class="section-container">
+            <h2 class="section-title">My Wallet</h2>
+            
+            <div class="flex justify-between items-center mb-6">
+              <div>
+                <p class="text-gray-600">Available Balance</p>
+                <p class="text-3xl font-bold text-green-600">₹<%= wallet.balance.toFixed(2) %></p>
+              </div>
+              <button onclick="showAddMoneyModal()" class="btn-primary">
+                <i class="fas fa-plus mr-2"></i>Add Money
+              </button>
+            </div>
+
+            <!-- Transaction History -->
+            <div class="mt-8">
+              <h3 class="text-lg font-semibold mb-4">Transaction History</h3>
+              <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody class="bg-white divide-y divide-gray-200">
+                    <% wallet.transactions.reverse().forEach(transaction => { %>
+                      <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm">
+                          <%= new Date(transaction.date).toLocaleDateString() %>
+                        </td>
+                        <td class="px-6 py-4 text-sm"><%= transaction.description %></td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                          <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                            <%= transaction.type === 'credit' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' %>">
+                            <%= transaction.type.toUpperCase() %>
+                          </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm">
+                          <%= transaction.type === 'credit' ? '+' : '-' %>₹<%= transaction.amount.toFixed(2) %>
+                        </td>
+                      </tr>
+                    <% }) %>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Add Money Modal -->
+          <div id="addMoneyModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden">
+            <div class="flex items-center justify-center min-h-screen">
+              <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
+                <h2 class="text-xl font-bold mb-4">Add Money to Wallet</h2>
+                <form id="addMoneyForm" onsubmit="handleAddMoney(event)">
+                  <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700">Amount (₹)</label>
+                    <input type="number" name="amount" min="1" required class="form-input mt-1">
+                  </div>
+                  <div class="flex justify-end space-x-3">
+                    <button type="button" onclick="closeAddMoneyModal()" class="px-4 py-2 border rounded-md">
+                      Cancel
+                    </button>
+                    <button type="submit" class="btn-primary">
+                      Add Money
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -326,12 +407,14 @@
         const ordersLink = document.querySelector('a[href="/profile#orders"]');
         const addressesLink = document.querySelector('a[href="/profile#addresses"]');
         const passwordLink = document.querySelector('a[href="/profile#password"]');
+        const walletLink = document.querySelector('a[href="/profile#wallet"]');
         
         // Get all the content sections
         const profileSection = document.getElementById('profile');
         const ordersSection = document.getElementById('orders');
         const addressesSection = document.getElementById('addresses');
         const passwordSection = document.getElementById('password');
+        const walletSection = document.getElementById('wallet-section');
         
         // Function to hide all sections
         function hideAllSections() {
@@ -339,6 +422,7 @@
           ordersSection.style.display = 'none';
           addressesSection.style.display = 'none';
           passwordSection.style.display = 'none';
+          walletSection.style.display = 'none';
         }
         
         // Function to show a specific section
@@ -371,6 +455,12 @@
           e.preventDefault();
           showSection(passwordSection);
           history.pushState(null, '', '/profile#password');
+        });
+        
+        walletLink.addEventListener('click', function(e) {
+          e.preventDefault();
+          showSection(walletSection);
+          history.pushState(null, '', '/profile#wallet');
         });
         
         // Handle password form submission
@@ -459,6 +549,8 @@
           showSection(addressesSection);
         } else if (hash === '#password') {
           showSection(passwordSection);
+        } else if (hash === '#wallet') {
+          showSection(walletSection);
         } else {
           // Default to profile section
           showSection(profileSection);
@@ -1041,6 +1133,63 @@
           }
         });
       });
+
+      // Add this to your existing script section
+      function showAddMoneyModal() {
+        document.getElementById('addMoneyModal').classList.remove('hidden');
+      }
+
+      function closeAddMoneyModal() {
+        document.getElementById('addMoneyModal').classList.add('hidden');
+      }
+
+      async function handleAddMoney(event) {
+        event.preventDefault();
+        const form = event.target;
+        const amount = form.amount.value;
+
+        try {
+          const response = await axios.post('/wallet/add-money', { amount });
+          
+          if (response.data.success) {
+            closeAddMoneyModal();
+            // Initiate Razorpay payment
+            const options = {
+              key: response.data.key_id,
+              amount: amount * 100,
+              currency: "INR",
+              name: "Wallet Recharge",
+              description: "Add money to wallet",
+              order_id: response.data.order_id,
+              handler: async function (response) {
+                await axios.post('/wallet/verify-payment', {
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature
+                });
+                
+                Swal.fire({
+                  title: 'Success!',
+                  text: 'Money added to wallet successfully',
+                  icon: 'success'
+                }).then(() => {
+                  window.location.reload();
+                });
+              }
+            };
+            
+            const rzp = new Razorpay(options);
+            rzp.open();
+          }
+        } catch (error) {
+          console.error('Add money error:', error);
+          Swal.fire({
+            title: 'Error',
+            text: error.response?.data?.error || 'Failed to add money',
+            icon: 'error'
+          });
+        }
+      }
     </script>
   </body>
 </html>

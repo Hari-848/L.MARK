@@ -1,5 +1,8 @@
 <%- include("../partials/user/head", {title: "Checkout"}) %>
 
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 <body>
   <%- include("../partials/user/navbar") %>
   
@@ -80,6 +83,32 @@
                 <p class="text-sm text-gray-600">Pay when your order is delivered</p>
               </div>
             </label>
+            
+            <label class="flex items-center p-3 border rounded-lg cursor-pointer">
+              <input type="radio" name="paymentMethod" value="online" class="mr-3">
+              <div>
+                <p class="font-medium">Online Payment</p>
+                <p class="text-sm text-gray-600">Pay securely with Razorpay</p>
+                <div class="mt-2 flex space-x-2">
+                  <img src="/images/razorpay-logo.png" alt="Razorpay" class="h-6" onerror="this.src='https://razorpay.com/assets/razorpay-logo.svg'; this.onerror='';">
+                  <img src="/images/visa.png" alt="Visa" class="h-6" onerror="this.src='https://cdn.iconscout.com/icon/free/png-256/visa-3-226460.png'; this.onerror='';">
+                  <img src="/images/mastercard.png" alt="Mastercard" class="h-6" onerror="this.src='https://cdn.iconscout.com/icon/free/png-256/mastercard-3-226462.png'; this.onerror='';">
+                </div>
+              </div>
+            </label>
+            
+            <% if (wallet && wallet.balance > 0) { %>
+              <label class="flex items-center p-3 border rounded-lg cursor-pointer">
+                <input type="radio" name="paymentMethod" value="wallet" class="mr-3" 
+                  <%= (wallet && wallet.balance >= cartTotal) ? '' : 'disabled' %>>
+                <div>
+                  <p class="font-medium">Wallet Balance (₹<%= wallet ? wallet.balance.toFixed(2) : '0.00' %>)</p>
+                  <% if (wallet.balance < cartTotal) { %>
+                    <p class="text-red-500 text-sm mt-1">Insufficient balance</p>
+                  <% } %>
+                </div>
+              </label>
+            <% } %>
           </div>
         </div>
       </div>
@@ -131,6 +160,26 @@
               <div class="flex justify-between text-green-600">
                 <p>Discount</p>
                 <p>-₹<%= discount.toFixed(2) %></p>
+              </div>
+            <% } %>
+          </div>
+          
+          <!-- Add this in your price summary section -->
+          <div class="mt-4">
+            <div class="flex items-center space-x-2">
+              <input type="text" id="couponCode" class="form-input rounded-md" placeholder="Enter coupon code">
+              <button id="applyCoupon" class="px-4 py-2 bg-blue-500 text-white rounded-md">Apply</button>
+            </div>
+            
+            <% if (appliedCoupon) { %>
+              <div class="flex justify-between items-center mt-2">
+                <div class="flex items-center">
+                  <span class="text-green-500 font-medium"><%= appliedCoupon.code %></span>
+                  <button id="removeCoupon" class="ml-2 text-red-500">
+                    <i class="fas fa-times"></i>
+                  </button>
+                </div>
+                <span>-₹<%= couponDiscount.toFixed(2) %></span>
               </div>
             <% } %>
           </div>
@@ -256,6 +305,7 @@
     </div>
   </div>
 
+  <!-- Update your existing script for placing orders -->
   <script>
     document.addEventListener('DOMContentLoaded', function() {
       const addressModal = document.getElementById('addressModal');
@@ -414,7 +464,12 @@
         const selectedAddressRadio = document.querySelector('input[name="selectedAddress"]:checked');
         
         if (!selectedAddressRadio) {
-          alert('Please select a delivery address');
+          Swal.fire({
+            title: 'Error',
+            text: 'Please select a delivery address',
+            icon: 'error',
+            confirmButtonText: 'OK'
+          });
           return;
         }
         
@@ -422,6 +477,10 @@
         const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked').value;
         
         try {
+          // Show loading
+          document.getElementById('placeOrderBtn').disabled = true;
+          document.getElementById('placeOrderBtn').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+          
           const response = await fetch('/order/place', {
             method: 'POST',
             headers: {
@@ -433,18 +492,181 @@
             })
           });
           
+          const result = await response.json();
+          
           if (response.ok) {
-            const result = await response.json();
-            window.location.href = `/order/success/${result.orderId}`;
+            if (result.paymentMethod === 'cod') {
+              window.location.href = `/order/success/${result.orderId}`;
+            } 
+            else if (result.paymentMethod === 'online') {
+              const options = {
+                key: result.key_id,
+                amount: result.amount,
+                currency: result.currency,
+                name: 'Your Store Name',
+                description: 'Order Payment',
+                order_id: result.razorpayOrderId,
+                handler: async function(response) {
+                  try {
+                    const verifyResponse = await fetch('/order/verify-payment', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json'
+                      },
+                      body: JSON.stringify({
+                        orderId: result.orderId,
+                        razorpay_payment_id: response.razorpay_payment_id,
+                        razorpay_order_id: response.razorpay_order_id,
+                        razorpay_signature: response.razorpay_signature
+                      })
+                    });
+                    
+                    if (verifyResponse.ok) {
+                      window.location.href = `/order/success/${result.orderId}`;
+                    } else {
+                      throw new Error('Payment verification failed');
+                    }
+                  } catch (error) {
+                    console.error('Payment verification error:', error);
+                    window.location.href = `/order/failure/${result.orderId}`;
+                  }
+                },
+                prefill: {
+                  name: '<%= user.name %>',
+                  email: '<%= user.email %>',
+                  contact: '<%= user.mobile || "" %>'
+                },
+                theme: {
+                  color: '#3399cc'
+                },
+                modal: {
+                  ondismiss: async function() {
+                    try {
+                      await fetch('/order/payment-failure', {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                          orderId: result.orderId
+                        })
+                      });
+                      
+                      Swal.fire({
+                        title: 'Payment Cancelled',
+                        text: 'Your payment was cancelled. You can try again from your orders page.',
+                        icon: 'warning',
+                        confirmButtonText: 'OK'
+                      }).then(() => {
+                        window.location.href = '/orders';
+                      });
+                    } catch (error) {
+                      console.error('Error handling payment cancellation:', error);
+                    }
+                  }
+                }
+              };
+              
+              const razorpayCheckout = new Razorpay(options);
+              razorpayCheckout.open();
+            } 
+            else if (result.paymentMethod === 'wallet') {
+              try {
+                Swal.fire({
+                  title: 'Processing Payment',
+                  text: 'Please wait while we process your payment...',
+                  allowOutsideClick: false,
+                  didOpen: () => {
+                    Swal.showLoading();
+                  }
+                });
+                
+                // Wait for a moment to ensure the order is processed
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                const response = await fetch(`/order/success/${result.orderId}`);
+                if (response.ok) {
+                  Swal.fire({
+                    title: 'Success!',
+                    text: 'Payment completed successfully',
+                    icon: 'success',
+                    confirmButtonText: 'OK'
+                  }).then(() => {
+                    window.location.href = `/order/success/${result.orderId}`;
+                  });
+                } else {
+                  throw new Error('Failed to process wallet payment');
+                }
+              } catch (error) {
+                console.error('Wallet payment error:', error);
+                Swal.fire({
+                  title: 'Error',
+                  text: 'Failed to process wallet payment. Please try again.',
+                  icon: 'error',
+                  confirmButtonText: 'OK'
+                });
+              }
+            }
           } else {
-            const error = await response.json();
-            alert(error.error || 'Failed to place order');
+            throw new Error(result.error || 'Failed to place order');
           }
         } catch (error) {
           console.error('Error placing order:', error);
-          alert('An error occurred while placing your order');
+          Swal.fire({
+            title: 'Error',
+            text: error.message || 'An error occurred while placing your order',
+            icon: 'error',
+            confirmButtonText: 'OK'
+          });
+        } finally {
+          // Reset button
+          document.getElementById('placeOrderBtn').disabled = false;
+          document.getElementById('placeOrderBtn').innerHTML = 'Place Order';
         }
       });
+    });
+
+    document.getElementById('applyCoupon').addEventListener('click', async () => {
+      const couponCode = document.getElementById('couponCode').value;
+      
+      try {
+        const response = await fetch('/checkout/apply-coupon', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ couponCode })
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+          // Refresh page to show updated prices
+          location.reload();
+        } else {
+          Swal.fire({
+            title: 'Error',
+            text: result.error,
+            icon: 'error'
+          });
+        }
+      } catch (error) {
+        console.error('Error applying coupon:', error);
+      }
+    });
+
+    document.getElementById('removeCoupon')?.addEventListener('click', async () => {
+      try {
+        const response = await fetch('/checkout/remove-coupon', {
+          method: 'POST'
+        });
+        
+        if (response.ok) {
+          location.reload();
+        }
+      } catch (error) {
+        console.error('Error removing coupon:', error);
+      }
     });
   </script>
 

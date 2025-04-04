@@ -2,6 +2,7 @@ const Order = require('../../Models/orderModel');
 const Variant = require('../../Models/variantSchema');
 const User = require('../../Models/userModel');
 const mongoose = require('mongoose');
+const Wallet = require('../../Models/walletModel');
 
 // Get all orders with search, sort, filter, pagination
 exports.getAllOrders = async (req, res) => {
@@ -230,7 +231,7 @@ exports.updateOrderStatus = async (req, res) => {
 exports.processReturnRequest = async (req, res) => {
   try {
     const { orderId } = req.params;
-    const { refundStatus } = req.body;
+    const { refundStatus, refundAmount: requestedRefundAmount } = req.body;
     
     const order = await Order.findById(orderId);
     
@@ -244,12 +245,41 @@ exports.processReturnRequest = async (req, res) => {
     }
     
     if (refundStatus === 'completed') {
-      // Approve return with full refund
+      // Approve return with refund
       order.orderStatus = 'returned';
       order.returnStatus = 'approved';
       order.refundStatus = 'completed';
-      order.refundAmount = order.total; // Always refund full amount
+      
+      // Use the requested refund amount or default to order total
+      const refundAmount = requestedRefundAmount ? parseFloat(requestedRefundAmount) : order.total;
+      order.refundAmount = refundAmount;
       order.refundedAt = new Date();
+      
+      // Add refund to user's wallet
+      const userId = order.userId;
+      let wallet = await Wallet.findOne({ userId });
+      
+      if (!wallet) {
+        wallet = new Wallet({ userId, balance: 0 });
+      }
+      
+      wallet.balance += refundAmount;
+      wallet.transactions.push({
+        amount: refundAmount,
+        type: 'credit',
+        description: `Refund for returned order #${order._id}`,
+        orderId: order._id
+      });
+      
+      await wallet.save();
+      
+      // Restore stock for all items
+      for (const item of order.items) {
+        await Variant.findByIdAndUpdate(
+          item.variant,
+          { $inc: { stock: item.quantity } }
+        );
+      }
     } else if (refundStatus === 'rejected') {
       // Reject return request
       order.returnStatus = 'rejected';
@@ -261,15 +291,16 @@ exports.processReturnRequest = async (req, res) => {
     
     await order.save();
     
-    res.json({ 
+    // Return success response
+    return res.status(200).json({ 
       success: true, 
-      message: refundStatus === 'completed' ? 
-        'Return request approved and full refund processed' : 
-        'Return request rejected'
+      message: 'Return processed successfully' 
     });
   } catch (error) {
     console.error('Process return request error:', error);
-    res.status(500).json({ error: 'Failed to process return request' });
+    return res.status(500).json({ 
+      error: 'An error occurred while processing the return' 
+    });
   }
 };
 

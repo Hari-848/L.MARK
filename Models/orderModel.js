@@ -40,7 +40,7 @@ const orderSchema = new mongoose.Schema({
   },
   paymentMethod: {
     type: String,
-    enum: ['cod', 'online'],
+    enum: ['cod', 'online', 'wallet'],
     required: true
   },
   paymentStatus: {
@@ -111,6 +111,12 @@ const orderSchema = new mongoose.Schema({
     type: String, 
     enum: ['pending', 'approved', 'rejected'], 
     default: 'pending' 
+  },
+  razorpayOrderId: {
+    type: String
+  },
+  razorpayPaymentId: {
+    type: String
   }
 }, {
   timestamps: true
