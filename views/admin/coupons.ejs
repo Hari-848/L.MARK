@@ -1,0 +1,418 @@
+<%- include('../partials/admin/header') %>
+<%- include('../partials/admin/sidebar') %>
+
+<div class="ml-64 p-8">
+  <div class="flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-bold text-white">Coupons</h1>
+    <div class="flex gap-4">
+      <a href="/admin/coupon/archived" class="bg-gray-600 text-white px-4 py-2 rounded-md">
+        View Archived Coupons
+      </a>
+      <button onclick="openAddCouponModal()" class="bg-blue-600 text-white px-4 py-2 rounded-md">
+        Add New Coupon
+      </button>
+    </div>
+  </div>
+
+  <!-- Coupons Table -->
+  <div class="bg-zinc-800 rounded-lg shadow overflow-hidden">
+    <table class="min-w-full divide-y divide-gray-700">
+      <thead class="bg-zinc-900">
+        <tr>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Code</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Discount</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Valid Until</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Status</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-700">
+        <% coupons.forEach(coupon => { %>
+          <tr>
+            <td class="px-6 py-4 whitespace-nowrap text-white"><%= coupon.code %></td>
+            <td class="px-6 py-4 whitespace-nowrap text-white">
+              <%= coupon.discountType === 'percentage' ? `${coupon.discountAmount}%` : `₹${coupon.discountAmount}` %>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-white">
+              <%= new Date(coupon.validUntil).toLocaleDateString() %>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <span class="<%= coupon.isActive ? 'text-green-500' : 'text-red-500' %>">
+                <%= coupon.isActive ? 'Active' : 'Inactive' %>
+              </span>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <button 
+                class="text-blue-500 hover:text-blue-700 mr-3 edit-coupon-btn"
+                data-id="<%= coupon._id %>"
+                data-code="<%= coupon.code %>"
+                data-description="<%= coupon.description %>"
+                data-discount-type="<%= coupon.discountType %>"
+                data-discount-amount="<%= coupon.discountAmount %>"
+                data-min-purchase="<%= coupon.minPurchase %>"
+                data-max-discount="<%= coupon.maxDiscount %>"
+                data-valid-from="<%= coupon.validFrom.toISOString().split('T')[0] %>"
+                data-valid-until="<%= coupon.validUntil.toISOString().split('T')[0] %>"
+                data-usage-limit="<%= coupon.usageLimit %>"
+              >
+                Edit
+              </button>
+              <button onclick="deleteCoupon('<%= coupon._id %>')" class="text-red-500 hover:text-red-700">
+                Delete
+              </button>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Add Coupon Modal -->
+<div id="addCouponModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center overflow-y-auto py-10">
+  <div class="bg-zinc-800 rounded-lg p-8 max-w-md w-full max-h-[90vh]">
+    <h2 class="text-xl font-bold text-white mb-4">Add New Coupon</h2>
+    <form id="addCouponForm" onsubmit="return false" class="overflow-y-auto max-h-[calc(90vh-8rem)]">
+      <div class="space-y-4">
+        <div>
+          <label class="block text-gray-300 mb-1">Coupon Code</label>
+          <input type="text" name="code" required class="w-full rounded-md bg-zinc-700 text-white px-3 py-2">
+        </div>
+
+        <div>
+          <label class="block text-gray-300 mb-1">Description</label>
+          <textarea name="description" class="w-full rounded-md bg-zinc-700 text-white px-3 py-2"></textarea>
+        </div>
+
+        <div>
+          <label class="block text-gray-300 mb-1">Discount Type</label>
+          <select name="discountType" required class="w-full rounded-md bg-zinc-700 text-white px-3 py-2">
+            <option value="percentage">Percentage</option>
+            <option value="fixed">Fixed Amount</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-gray-300 mb-1">Discount Amount</label>
+          <input type="number" name="discountAmount" required class="w-full rounded-md bg-zinc-700 text-white px-3 py-2">
+        </div>
+
+        <div>
+          <label class="block text-gray-300 mb-1">Minimum Purchase</label>
+          <input type="number" name="minPurchase" class="w-full rounded-md bg-zinc-700 text-white px-3 py-2">
+        </div>
+
+        <div>
+          <label class="block text-gray-300 mb-1">Maximum Discount</label>
+          <input type="number" name="maxDiscount" class="w-full rounded-md bg-zinc-700 text-white px-3 py-2">
+        </div>
+
+        <div>
+          <label class="block text-gray-300 mb-1">Valid From</label>
+          <input type="date" name="validFrom" required class="w-full rounded-md bg-zinc-700 text-white px-3 py-2">
+        </div>
+
+        <div>
+          <label class="block text-gray-300 mb-1">Valid Until</label>
+          <input type="date" name="validUntil" required class="w-full rounded-md bg-zinc-700 text-white px-3 py-2">
+        </div>
+
+        <div>
+          <label class="block text-gray-300 mb-1">Usage Limit Per User</label>
+          <input type="number" name="usageLimit" value="1" required class="w-full rounded-md bg-zinc-700 text-white px-3 py-2">
+        </div>
+      </div>
+
+      <div class="flex justify-end mt-6 space-x-3">
+        <button type="button" onclick="closeAddCouponModal()" class="px-4 py-2 text-gray-300 hover:text-white">
+          Cancel
+        </button>
+        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+          Add Coupon
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Edit Coupon Modal -->
+<div id="editCouponModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center overflow-y-auto py-10">
+  <div class="bg-zinc-800 rounded-lg p-8 max-w-md w-full max-h-[90vh]">
+    <h2 class="text-xl font-bold text-white mb-4">Edit Coupon</h2>
+    <form id="editCouponForm" onsubmit="return false" class="overflow-y-auto max-h-[calc(90vh-8rem)]">
+      <input type="hidden" name="couponId" id="editCouponId">
+      <div class="space-y-4">
+        <div>
+          <label class="block text-gray-300 mb-1">Code</label>
+          <input type="text" name="code" id="editCode" required class="w-full rounded-md bg-zinc-700 text-white px-3 py-2">
+        </div>
+
+        <div>
+          <label class="block text-gray-300 mb-1">Description</label>
+          <textarea name="description" id="editDescription" class="w-full rounded-md bg-zinc-700 text-white px-3 py-2"></textarea>
+        </div>
+
+        <div>
+          <label class="block text-gray-300 mb-1">Discount Type</label>
+          <select name="discountType" id="editDiscountType" required class="w-full rounded-md bg-zinc-700 text-white px-3 py-2">
+            <option value="percentage">Percentage</option>
+            <option value="fixed">Fixed Amount</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-gray-300 mb-1">Discount Amount</label>
+          <input type="number" name="discountAmount" id="editDiscountAmount" required class="w-full rounded-md bg-zinc-700 text-white px-3 py-2">
+        </div>
+
+        <div>
+          <label class="block text-gray-300 mb-1">Minimum Purchase</label>
+          <input type="number" name="minPurchase" id="editMinPurchase" class="w-full rounded-md bg-zinc-700 text-white px-3 py-2">
+        </div>
+
+        <div>
+          <label class="block text-gray-300 mb-1">Maximum Discount</label>
+          <input type="number" name="maxDiscount" id="editMaxDiscount" class="w-full rounded-md bg-zinc-700 text-white px-3 py-2">
+        </div>
+
+        <div>
+          <label class="block text-gray-300 mb-1">Valid From</label>
+          <input type="date" name="validFrom" id="editValidFrom" required class="w-full rounded-md bg-zinc-700 text-white px-3 py-2">
+        </div>
+
+        <div>
+          <label class="block text-gray-300 mb-1">Valid Until</label>
+          <input type="date" name="validUntil" id="editValidUntil" required class="w-full rounded-md bg-zinc-700 text-white px-3 py-2">
+        </div>
+
+        <div>
+          <label class="block text-gray-300 mb-1">Usage Limit Per User</label>
+          <input type="number" name="usageLimit" id="editUsageLimit" value="1" required class="w-full rounded-md bg-zinc-700 text-white px-3 py-2">
+        </div>
+      </div>
+
+      <div class="flex justify-end mt-6 space-x-3">
+        <button type="button" onclick="closeEditCouponModal()" class="px-4 py-2 text-gray-300 hover:text-white">
+          Cancel
+        </button>
+        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+          Update Coupon
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function openAddCouponModal() {
+  document.getElementById('addCouponModal').classList.remove('hidden');
+}
+
+function closeAddCouponModal() {
+  document.getElementById('addCouponModal').classList.add('hidden');
+}
+
+function deleteCoupon(couponId) {
+  Swal.fire({
+    title: 'Are you sure?',
+    text: "You won't be able to revert this!",
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#3085d6',
+    cancelButtonColor: '#d33',
+    confirmButtonText: 'Yes, delete it!'
+  }).then((result) => {
+    if (result.isConfirmed) {
+      fetch(`/admin/coupon/${couponId}`, {
+        method: 'DELETE'
+      })
+      .then(response => response.json())
+      .then(result => {
+        if (result.success) {
+          location.reload();
+        }
+      })
+      .catch(error => console.error('Error:', error));
+    }
+  });
+}
+
+// Form submission handling
+document.getElementById('addCouponForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  
+  // Disable submit button
+  const submitButton = e.target.querySelector('button[type="submit"]');
+  submitButton.disabled = true;
+  
+  const formData = new FormData(e.target);
+  const data = Object.fromEntries(formData);
+
+  try {
+    const response = await fetch('/admin/coupon', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data)
+    });
+
+    const result = await response.json();
+
+    if (response.ok) {
+      // Show success message
+      await Swal.fire({
+        icon: 'success',
+        title: 'Success!',
+        text: result.message || 'Coupon added successfully',
+        timer: 2000,
+        showConfirmButton: false,
+        background: '#1a1a1a',
+        color: '#fff',
+        customClass: {
+          popup: 'bg-zinc-800 text-white'
+        }
+      });
+      
+      // Close modal and refresh page
+      document.getElementById('addCouponModal').classList.add('hidden');
+      window.location.reload();
+    } else {
+      // Show error message
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: result.error || 'Failed to add coupon',
+        background: '#1a1a1a',
+        color: '#fff',
+        customClass: {
+          popup: 'bg-zinc-800 text-white'
+        }
+      });
+    }
+  } catch (error) {
+    console.error('Error:', error);
+    Swal.fire({
+      icon: 'error',
+      title: 'Error',
+      text: 'An unexpected error occurred',
+      background: '#1a1a1a',
+      color: '#fff',
+      customClass: {
+        popup: 'bg-zinc-800 text-white'
+      }
+    });
+  } finally {
+    submitButton.disabled = false;
+  }
+});
+
+function editCoupon(id, code, description, discountType, discountAmount, minPurchase, maxDiscount, validFrom, validUntil, usageLimit) {
+  document.getElementById('editCouponId').value = id;
+  document.getElementById('editCode').value = code;
+  document.getElementById('editDescription').value = description;
+  document.getElementById('editDiscountType').value = discountType;
+  document.getElementById('editDiscountAmount').value = discountAmount;
+  document.getElementById('editMinPurchase').value = minPurchase;
+  document.getElementById('editMaxDiscount').value = maxDiscount;
+  document.getElementById('editValidFrom').value = validFrom;
+  document.getElementById('editValidUntil').value = validUntil;
+  document.getElementById('editUsageLimit').value = usageLimit;
+
+  document.getElementById('editCouponModal').classList.remove('hidden');
+}
+
+function closeEditCouponModal() {
+  document.getElementById('editCouponModal').classList.add('hidden');
+}
+
+// Update the edit form submission handler
+document.getElementById('editCouponForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const formData = new FormData(e.target);
+  const data = Object.fromEntries(formData);
+  const couponId = data.couponId;
+
+  // Convert numeric values
+  data.discountAmount = parseFloat(data.discountAmount);
+  data.usageLimit = parseInt(data.usageLimit);
+  if (data.minPurchase) data.minPurchase = parseFloat(data.minPurchase);
+  if (data.maxDiscount) data.maxDiscount = parseFloat(data.maxDiscount);
+
+  try {
+    const response = await fetch(`/admin/coupon/${couponId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data)
+    });
+
+    const result = await response.json();
+
+    if (response.ok) {
+      await Swal.fire({
+        icon: 'success',
+        title: 'Success!',
+        text: result.message || 'Coupon updated successfully',
+        timer: 2000,
+        showConfirmButton: false,
+        background: '#1a1a1a',
+        color: '#fff',
+        customClass: {
+          popup: 'bg-zinc-800 text-white'
+        }
+      });
+      
+      // Close modal and refresh page
+      document.getElementById('editCouponModal').classList.add('hidden');
+      window.location.reload();
+    } else {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: result.error || 'Failed to update coupon',
+        background: '#1a1a1a',
+        color: '#fff',
+        customClass: {
+          popup: 'bg-zinc-800 text-white'
+        }
+      });
+    }
+  } catch (error) {
+    console.error('Error:', error);
+    Swal.fire({
+      icon: 'error',
+      title: 'Error',
+      text: 'An unexpected error occurred',
+      background: '#1a1a1a',
+      color: '#fff',
+      customClass: {
+        popup: 'bg-zinc-800 text-white'
+      }
+    });
+  }
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.edit-coupon-btn').forEach(button => {
+    button.addEventListener('click', function() {
+      const id = this.dataset.id;
+      const code = this.dataset.code;
+      const description = this.dataset.description;
+      const discountType = this.dataset.discountType;
+      const discountAmount = this.dataset.discountAmount;
+      const minPurchase = this.dataset.minPurchase;
+      const maxDiscount = this.dataset.maxDiscount;
+      const validFrom = this.dataset.validFrom;
+      const validUntil = this.dataset.validUntil;
+      const usageLimit = this.dataset.usageLimit;
+      
+      editCoupon(id, code, description, discountType, discountAmount, minPurchase, maxDiscount, validFrom, validUntil, usageLimit);
+    });
+  });
+});
+</script>
+
+<%- include('../partials/admin/footer') %>
+ 

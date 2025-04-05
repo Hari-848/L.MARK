@@ -4,6 +4,8 @@ const adminController = require('../controllers/user/adminController.js');
 const adminAuthenticated = require('../middleware/adminauthMiddleware');
 const uploadMiddleware = require('../middleware/uploadMiddleware');
 const adminOrderController = require('../controllers/admin/adminOrderController');
+const adminCouponController = require('../controllers/admin/adminCouponController');
+const adminOfferController = require('../controllers/admin/adminOfferController');
 
 router.use((req, res, next) => {
     req.session.admin = true;
@@ -78,5 +80,21 @@ router.get('/order-stats', adminAuthenticated, adminOrderController.getOrderStat
 
 //  route for processing returns
 router.post('/order/:orderId/process-return', adminAuthenticated, adminOrderController.processReturnRequest);
+
+// Coupon routes
+router.get('/coupon', adminAuthenticated, adminCouponController.getCoupons);
+router.post('/coupon', adminAuthenticated, adminCouponController.createCoupon);
+router.put('/coupon/:couponId', adminAuthenticated, adminCouponController.updateCoupon);
+router.delete('/coupon/:couponId', adminAuthenticated, adminCouponController.deleteCoupon);
+router.post('/coupon/:couponId/restore', adminAuthenticated, adminCouponController.restoreCoupon);
+router.get('/coupon/archived', adminAuthenticated, adminCouponController.getArchivedCoupons);
+
+// Offer routes
+router.get('/offer', adminAuthenticated, adminOfferController.getOffers);
+router.post('/offer', adminAuthenticated, adminOfferController.createOffer);
+router.put('/offer/:offerId', adminAuthenticated, adminOfferController.updateOffer);
+router.delete('/offer/:offerId', adminAuthenticated, adminOfferController.deleteOffer);
+router.post('/offer/:offerId/restore', adminAuthenticated, adminOfferController.restoreOffer);
+router.get('/offer/archived', adminAuthenticated, adminOfferController.getArchivedOffers);
 
 module.exports = router;
