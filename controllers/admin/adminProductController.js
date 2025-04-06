@@ -107,7 +107,6 @@ exports.postAddProduct = async (req, res) => {
       productName,
       description,
       regularPrice,
-      salePrice,
       category, // This will be the category name
     } = req.body;
 
@@ -118,7 +117,6 @@ exports.postAddProduct = async (req, res) => {
       !productName ||
       !description ||
       !regularPrice ||
-      !salePrice ||
       !category
     ) {
       return res.status(400).json({ error: 'Missing required fields' });
@@ -131,7 +129,6 @@ exports.postAddProduct = async (req, res) => {
     }
 
     regularPrice = Number(regularPrice);
-    salePrice = Number(salePrice);
 
     // Handle image uploads
     let imageUrls = [];
@@ -162,7 +159,6 @@ exports.postAddProduct = async (req, res) => {
       productName,
       description,
       regularPrice,
-      salePrice,
       categoriesId: categoryDoc._id, // Save the category ID
       category: category, // Save the category name as well
       imageUrl: imageUrls,
@@ -214,7 +210,6 @@ exports.getProductDetails = [
           description: product.description,
           type: product.type,
           regularPrice: product.regularPrice,
-          salePrice: product.salePrice,
           photos: product.imageUrl || [],
           category: product.category,
           categoriesId: product.categoriesId?._id,
@@ -370,8 +365,6 @@ exports.updateProduct = async (req, res) => {
             {
               price: Number(variantData.price),
               stock: Number(variantData.stock),
-              discountPrice: Number(variantData.discountPrice),
-              discountPercentage: Number(variantData.discountPercentage),
             },
             { new: true }
           );
@@ -444,8 +437,6 @@ exports.postAddvariant = [
         type,
         stock,
         price,
-        discountPrice,
-        discountPercentage,
         rating,
       } = req.body;
 
@@ -466,10 +457,8 @@ exports.postAddvariant = [
         productId: productId,
         variantType: type.charAt(0).toUpperCase() + type.slice(1), // Capitalize first letter to match enum
         price: parseFloat(price),
-        discountPrice: parseFloat(discountPrice) || 0,
-        discountPercentage: parseFloat(discountPercentage) || 0,
         stock: parseInt(stock),
-        rating: parseFloat(rating) || 0, // Add rating field
+        rating: parseFloat(rating) || 0,
       });
 
       // Save the variant
@@ -488,15 +477,11 @@ exports.postAddvariant = [
 
       // Redirect to products page after successful variant addition
       return res.redirect('/admin/products?message=Variant added successfully');
-    } catch (err) {
-      console.error('Error adding variant:', err);
-      // If there's an error, render the form again with the error message
-      return res.render('admin/adminAddvariant', {
-        pageTitle: 'Add Variant',
-        path: '/admin/products/add/variant',
-        productId: req.body.productId,
-        error: err.message,
-      });
+    } catch (error) {
+      console.error('Error adding variant:', error);
+      return res.redirect(
+        `/admin/products?error=${encodeURIComponent(error.message)}`
+      );
     }
   },
 ];
@@ -738,18 +723,10 @@ exports.getArchivedProducts = async (req, res) => {
       
       // Calculate display price
       let displayPrice = 'N/A';
-      if (variants.length > 0 && variants[0].discountPrice > 0) {
-        displayPrice = `₹${variants[0].discountPrice.toLocaleString()}`;
-        if (variants[0].price) {
-          displayPrice += ` <span class="text-gray-500 line-through">₹${variants[0].price.toLocaleString()}</span>`;
-        }
-      } else if (variants.length > 0 && variants[0].price) {
+      if (variants.length > 0 && variants[0].price) {
         displayPrice = `₹${variants[0].price.toLocaleString()}`;
-      } else if (product.salePrice) {
-        displayPrice = `₹${product.salePrice.toLocaleString()}`;
-        if (product.regularPrice && product.regularPrice > product.salePrice) {
-          displayPrice += ` <span class="text-gray-500 line-through">₹${product.regularPrice.toLocaleString()}</span>`;
-        }
+      } else if (product.regularPrice) {
+        displayPrice = `₹${product.regularPrice.toLocaleString()}`;
       }
       
       return {

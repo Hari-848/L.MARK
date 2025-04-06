@@ -6,6 +6,7 @@ const uploadMiddleware = require('../middleware/uploadMiddleware');
 const adminOrderController = require('../controllers/admin/adminOrderController');
 const adminCouponController = require('../controllers/admin/adminCouponController');
 const adminOfferController = require('../controllers/admin/adminOfferController');
+const adminSalesReportController = require('../controllers/admin/adminSalesReportController');
 
 router.use((req, res, next) => {
     req.session.admin = true;
@@ -96,5 +97,11 @@ router.put('/offer/:offerId', adminAuthenticated, adminOfferController.updateOff
 router.delete('/offer/:offerId', adminAuthenticated, adminOfferController.deleteOffer);
 router.post('/offer/:offerId/restore', adminAuthenticated, adminOfferController.restoreOffer);
 router.get('/offer/archived', adminAuthenticated, adminOfferController.getArchivedOffers);
+
+// Sales Report Routes
+router.get('/sales-report', adminSalesReportController.getSalesReportPage);
+router.get('/api/sales-report', adminSalesReportController.getSalesReport);
+router.get('/sales-report/download-pdf', adminSalesReportController.downloadPDFReport);
+router.get('/sales-report/download-excel', adminSalesReportController.downloadExcelReport);
 
 module.exports = router;

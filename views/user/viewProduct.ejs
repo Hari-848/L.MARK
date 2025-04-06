@@ -100,15 +100,9 @@
                     </div>
 
                     <!-- Price Information -->
-                    <div class="flex items-center space-x-4 my-4">
-                        <p class="text-lg text-gray-800 font-bold variant-price ">
-                            ₹<%= product.variants[0]?.discountPrice.toLocaleString() || 'N/A' %>
-                        </p>
-                        <p class="text-gray-500 line-through variant-original-price font-size-20">
+                    <div class="my-4">
+                        <p class="text-lg text-gray-800 font-bold variant-price">
                             ₹<%= product.variants[0]?.price.toLocaleString() || 'N/A' %>
-                        </p>
-                        <p class="text-green-600 font-semibold variant-discount">
-                            <%= product.variants[0]?.discountPercentage.toLocaleString() || 0 %>% off
                         </p>
                     </div>
 
@@ -180,16 +174,20 @@
                 <div class="bg-white rounded-lg shadow-md p-4 flex flex-col transition-transform transform hover:scale-105">
                     <a href="/product/<%= product._id %>">
                         <img class="w-full h-48 object-cover rounded-lg mb-4" 
-                             src="<%= product.imageUrl %>" 
+                             src="<%= product.imageUrl[0] %>" 
                              alt="<%= product.productName %>" />
                     </a>
                     <h3 class="text-lg font-semibold text-gray-800 mb-2">
                         <%= product.productName %>
                     </h3>
 
-                    <% if (product.variants && product.variants[0]) { %>
+                    <% if (product.variants && product.variants.length > 0 && product.variants[0].price) { %>
                         <div class="text-xl font-bold text-gray-900">
-                            ₹<%= (product.variants[0].discountPrice || product.variants[0].price || 0).toLocaleString() %>
+                            ₹<%= product.variants[0].price.toLocaleString() %>
+                        </div>
+                    <% } else if (product.regularPrice) { %>
+                        <div class="text-xl font-bold text-gray-900">
+                            ₹<%= product.regularPrice.toLocaleString() %>
                         </div>
                     <% } else { %>
                         <div class="text-gray-500">Price Not Available</div>
@@ -329,11 +327,7 @@
             
             // Update price information
             document.querySelector('.variant-price').textContent = 
-                `₹${selectedVariant.discountPrice.toLocaleString() || 'N/A'}`;
-            document.querySelector('.variant-original-price').textContent = 
-                `₹${selectedVariant.price.toLocaleString() || 'N/A'}`;
-            document.querySelector('.variant-discount').textContent = 
-                `${selectedVariant.discountPercentage.toLocaleString() || 0}% off`;
+                `₹${selectedVariant.price ? selectedVariant.price.toLocaleString() : 'N/A'}`;
             
             // Update rating
             document.querySelector('.variant-rating').textContent = 

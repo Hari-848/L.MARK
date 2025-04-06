@@ -1,0 +1,54 @@
+<!-- Active Offers Section -->
+<div class="bg-gradient-to-r from-violet-600 to-indigo-600 rounded-lg shadow-lg p-6 mb-8">
+  <h2 class="text-2xl font-bold text-white mb-4">Active Offers</h2>
+  
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="offersList">
+    <% if (offers && offers.length > 0) { %>
+      <% offers.forEach(offer => { %>
+        <div class="bg-white bg-opacity-10 backdrop-blur-lg rounded-lg p-4 transform transition-transform duration-300 hover:scale-105">
+          <div class="flex items-center mb-2">
+            <% if (offer.offerType === 'Product') { %>
+              <i class="fas fa-tag text-yellow-400 mr-2"></i>
+            <% } else { %>
+              <i class="fas fa-folder text-green-400 mr-2"></i>
+            <% } %>
+            <h3 class="text-lg font-semibold text-white"><%= offer.title %></h3>
+          </div>
+          
+          <p class="text-gray-200 mb-2">
+            <span class="text-2xl font-bold text-yellow-400"><%= offer.discountPercentage %>%</span> OFF
+          </p>
+          
+          <% if (offer.applicableProduct) { %>
+            <p class="text-sm text-gray-300">Valid on: <%= offer.applicableProduct.productName %></p>
+          <% } else if (offer.applicableCategory) { %>
+            <p class="text-sm text-gray-300">Valid on: <%= offer.applicableCategory.name %> category</p>
+          <% } %>
+          
+          <p class="text-xs text-gray-400 mt-2">
+            Valid until: <%= new Date(offer.endDate).toLocaleDateString() %>
+          </p>
+        </div>
+      <% }); %>
+    <% } else { %>
+      <div class="col-span-full text-center text-gray-300">
+        <p>No active offers at the moment</p>
+      </div>
+    <% } %>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Add hover animations
+  const offerCards = document.querySelectorAll('#offersList > div');
+  offerCards.forEach(card => {
+    card.addEventListener('mouseenter', function() {
+      this.classList.add('shadow-xl');
+    });
+    card.addEventListener('mouseleave', function() {
+      this.classList.remove('shadow-xl');
+    });
+  });
+});
+</script> 

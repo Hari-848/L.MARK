@@ -17,14 +17,6 @@ const variantSchema = new Schema(
       type: Number,
       required: true,
     },
-    discountPrice: {
-      type: Number,
-      default: 0, // Optional: Can be 0 if no discount
-    },
-    discountPercentage: {
-      type: Number,
-      default: 0,
-    },
     rating: {
       type: Number,
       default: 0,

@@ -49,32 +49,6 @@
         </div>
 
         <div class="mb-4">
-          <label for="discountPrice" class="block text-gray-400"
-            >Discount Price</label
-          >
-          <input
-            type="number"
-            id="discountPrice"
-            name="discountPrice"
-            step="0.01"
-            class="mt-1 block w-full px-3 py-2 border border-gray-600 bg-zinc-800 text-white rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-        </div>
-
-        <div class="mb-4">
-          <label for="discountPercentage" class="block text-gray-400"
-            >Discount Percentage</label
-          >
-          <input
-            type="number"
-            id="discountPercentage"
-            name="discountPercentage"
-            step="0.01"
-            class="mt-1 block w-full px-3 py-2 border border-gray-600 bg-zinc-800 text-white rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-        </div>
-
-        <div class="mb-4">
           <label for="rating" class="block text-gray-400">Rating</label>
           <input
             type="number"
@@ -116,8 +90,6 @@
                     type: formData.get('type'),
                     stock: formData.get('stock'),
                     price: formData.get('price'),
-                    discountPrice: formData.get('discountPrice'),
-                    discountPercentage: formData.get('discountPercentage'),
                     rating: formData.get('rating')
                 })
             });

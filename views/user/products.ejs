@@ -135,7 +135,7 @@
                                         <%= product.productName %>
                                     </h3>
 
-                                    <!-- Variant Details -->
+                                    <!-- Price Information -->
                                     <% if (product.variants && product.variants.length > 0) { %>
                                         <% const firstVariant = product.variants[0]; %>
                                         
@@ -145,21 +145,8 @@
                                         </p>
 
                                         <!-- Price -->
-                                        <div class="flex gap-2 mb-2">
-                                            <% if (firstVariant.discountPrice) { %>
-                                                <div class="text-xl font-bold text-gray-900">
-                                                    ₹<%= firstVariant.discountPrice.toLocaleString() %>
-                                                </div>
-                                                <% if (firstVariant.price) { %>
-                                                    <div class="text-gray-500 line-through mt-1">
-                                                        ₹<%= firstVariant.price.toLocaleString() %>
-                                                    </div>
-                                                <% } %>
-                                            <% } else if (firstVariant.price) { %>
-                                                <div class="text-xl font-bold text-gray-900">
-                                                    ₹<%= firstVariant.price.toLocaleString() %>
-                                                </div>
-                                            <% } %>
+                                        <div class="text-xl font-bold text-gray-900 mb-2">
+                                            ₹<%= firstVariant.price ? firstVariant.price.toLocaleString() : 'N/A' %>
                                         </div>
 
                                         <!-- Stock Status -->
@@ -346,23 +333,15 @@
                     elements.productGrid.innerHTML = data.products.map(product => `
                         <div class="bg-white rounded-lg shadow-md p-4 flex flex-col transition-transform transform hover:scale-105">
                             <a href="/product/${product._id}">
-                                <img class="w-full h-auto rounded-lg mb-4" src="${product.imageUrl}" alt="${product.productName}" />
+                                <img class="w-full h-48 object-cover rounded-lg mb-4" src="${product.imageUrl}" alt="${product.productName}" />
                             </a>
                             <h3 class="text-lg font-semibold text-gray-800 mb-2">
                                 ${product.productName}
                             </h3>
                             ${product.variants && product.variants[0] ? `
                                 <p class="text-gray-600">${product.variants[0].variantType}</p>
-                                <div class="text-yellow-500 flex items-center">
-                                    <i class="fa fa-star"></i>
-                                    <p class="ml-1 text-gray-800 font-medium">
-                                        ${product.variants[0].rating || 'No rating'}
-                                    </p>
-                                </div>
-                                <div class="flex gap-2">
-                                    <div class="text-xl font-bold text-gray-900">
-                                        ₹${product.variants[0].discountPrice.toLocaleString()}
-                                    </div>
+                                <div class="text-xl font-bold text-gray-900">
+                                    ₹${product.variants[0].price ? product.variants[0].price.toLocaleString() : 'N/A'}
                                 </div>
                                 <div class="flex justify-between items-center mt-4">
                                     <a href="javascript:void(0)" class="hover:text-slate-500" 

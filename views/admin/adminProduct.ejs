@@ -113,21 +113,9 @@
               </td>
               <td class="py-3 px-4 text-white">
                 <% if (product.variants && product.variants.length > 0 && product.variants[0].price) { %>
-                  <% if (product.variants[0].discountPrice > 0) { %>
-                    ₹<%= product.variants[0].discountPrice.toLocaleString() %>
-                    <span class="text-gray-500 line-through">
-                      ₹<%= product.variants[0].price.toLocaleString() %>
-                    </span>
-                  <% } else { %>
-                    ₹<%= product.variants[0].price.toLocaleString() %>
-                  <% } %>
+                  ₹<%= product.variants[0].price.toLocaleString() %>
                 <% } else { %>
-                  ₹<%= product.salePrice ? product.salePrice.toLocaleString() : 'N/A' %>
-                  <% if (product.regularPrice && product.regularPrice > product.salePrice) { %>
-                    <span class="text-gray-500 line-through">
-                      ₹<%= product.regularPrice.toLocaleString() %>
-                    </span>
-                  <% } %>
+                  ₹<%= product.regularPrice ? product.regularPrice.toLocaleString() : 'N/A' %>
                 <% } %>
               </td>
               <td class="py-3 px-4 text-white">
@@ -503,7 +491,7 @@
     <div class="variant-item my-4 p-4 bg-zinc-900 rounded-lg shadow-md">
       <input type="hidden" name="variantIds" value="${variant._id}">
       
-      <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-4">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
         <div>
           <label class="block text-gray-400">Price</label>
           <input type="number" name="price" value="${variant.price}" 
@@ -513,18 +501,6 @@
         <div>
           <label class="block text-gray-400">Stock</label>
           <input type="number" name="stock" value="${variant.stock}"
-                 class="mt-1 block w-full px-3 py-1.5 bg-zinc-800 border border-gray-600 rounded-lg text-white">
-        </div>
-        
-        <div>
-          <label class="block text-gray-400">Discount Price</label>
-          <input type="number" name="discountPrice" value="${variant.discountPrice}"
-                 class="mt-1 block w-full px-3 py-1.5 bg-zinc-800 border border-gray-600 rounded-lg text-white">
-        </div>
-        
-        <div>
-          <label class="block text-gray-400">Discount Percentage</label>
-          <input type="number" name="discountPercentage" value="${variant.discountPercentage}"
                  class="mt-1 block w-full px-3 py-1.5 bg-zinc-800 border border-gray-600 rounded-lg text-white">
         </div>
       </div>
@@ -581,9 +557,7 @@
                 return {
                     _id: variantItem.querySelector('[name="variantIds"]').value,
                     price: variantItem.querySelector('[name="price"]').value,
-                    stock: variantItem.querySelector('[name="stock"]').value,
-                    discountPrice: variantItem.querySelector('[name="discountPrice"]').value,
-                    discountPercentage: variantItem.querySelector('[name="discountPercentage"]').value
+                    stock: variantItem.querySelector('[name="stock"]').value
                 };
             });
 

@@ -24,6 +24,16 @@ exports.products = async (req, res) => {
     // Get array of active category IDs
     const activeCategoryIds = categories.map(cat => cat._id);
 
+    // Get active offers
+    const currentDate = new Date();
+    const activeOffers = await Offer.find({
+      isActive: true,
+      isDeleted: false,
+      startDate: { $lte: currentDate },
+      endDate: { $gte: currentDate }
+    }).populate('applicableProduct', 'productName imageUrl')
+      .populate('applicableCategory', 'name');
+
     // Fetch products with variants using aggregation
     const products = await Product.aggregate([
       {
@@ -81,6 +91,7 @@ exports.products = async (req, res) => {
     res.render('user/products', {
       categories: categories,
       products: formattedProducts,
+      offers: activeOffers
     });
   } catch (err) {
     console.error('Error:', err);
@@ -148,12 +159,12 @@ exports.searchAndFilterProducts = async (req, res) => {
 
     // Price filter
     if (minPrice || maxPrice) {
-      matchCriteria['variants.discountPrice'] = {};
+      matchCriteria['variants.price'] = {};
       if (minPrice) {
-        matchCriteria['variants.discountPrice'].$gte = Number(minPrice);
+        matchCriteria['variants.price'].$gte = Number(minPrice);
       }
       if (maxPrice) {
-        matchCriteria['variants.discountPrice'].$lte = Number(maxPrice);
+        matchCriteria['variants.price'].$lte = Number(maxPrice);
       }
     }
 
@@ -230,13 +241,13 @@ exports.searchAndFilterProducts = async (req, res) => {
               $sort: (() => {
                 switch (sort) {
                   case 'priceLowToHigh':
-                    return { 'variants.discountPrice': 1 };
+                    return { 'variants.price': 1 };
                   case 'priceHighToLow':
-                    return { 'variants.discountPrice': -1 };
+                    return { 'variants.price': -1 };
                   case 'newArrivals':
                     return { createdAt: -1 };
                   default:
-                    return { 'variants.discountPrice': 1 };
+                    return { 'variants.price': 1 };
                 }
               })(),
             },
@@ -248,14 +259,13 @@ exports.searchAndFilterProducts = async (req, res) => {
           productName: { $first: '$productName' },
           imageUrl: { $first: '$imageUrl' },
           categoriesId: { $first: '$categoriesId' },
-          category: { $first: '$category' }, // Include category name
+          category: { $first: '$category' },
           variants: {
             $push: {
               _id: '$variants._id',
               variantType: '$variants.variantType',
               price: '$variants.price',
               rating: '$variants.rating',
-              discountPrice: '$variants.discountPrice',
               stock: '$variants.stock',
             },
           },
@@ -363,11 +373,11 @@ exports.viewProduct = async (req, res) => {
 
     const offers = await Offer.find({ isActive: true });
     
-    // Fetch product with its variants - add isDeleted check
+    // Fetch product with its variants
     const product = await Product.aggregate([
       { $match: { 
           _id: new mongoose.Types.ObjectId(productId),
-          isDeleted: { $ne: true }  // Add this line to filter out deleted products
+          isDeleted: { $ne: true }
         } 
       },
       {
@@ -387,8 +397,6 @@ exports.viewProduct = async (req, res) => {
           description: 1,
           'variants._id': 1,
           'variants.price': 1,
-          'variants.discountPrice': 1,
-          'variants.discountPercentage': 1,
           'variants.rating': 1,
           'variants.variantType': 1,
           'variants.stock': 1,
@@ -400,19 +408,6 @@ exports.viewProduct = async (req, res) => {
       return res.status(404).send('Product not found');
     }
     
-    // Debug log to check variants
-    console.log('Product variants for view:', product[0].variants.map(v => ({
-      id: v._id,
-      type: v.variantType,
-      price: v.price,
-      discountPrice: v.discountPrice
-    })));
-    
-    // Make sure variants have proper IDs
-    if (product[0].variants.length === 0) {
-      console.error('No variants found for product:', productId);
-    }
-
     // Format product data
     const formattedProduct = {
       _id: product[0]._id,
@@ -421,10 +416,8 @@ exports.viewProduct = async (req, res) => {
       description: product[0].description,
       categoriesId: product[0].categoriesId,
       variants: product[0].variants.map(variant => ({
-        _id: variant._id, // Make sure this is correctly set
+        _id: variant._id,
         price: variant.price || 'N/A',
-        discountPrice: variant.discountPrice || 'N/A',
-        discountPercentage: variant.discountPercentage || 'N/A',
         rating: variant.rating || 'No rating',
         variantType: variant.variantType || 'Standard',
         stock: variant.stock,
@@ -452,66 +445,21 @@ exports.viewProduct = async (req, res) => {
       null
     );
 
-    // Fetch related products with proper variant data
-    const products = await Product.aggregate([
-      {
-        $lookup: {
-          from: 'variants',
-          localField: '_id',
-          foreignField: 'productId',
-          as: 'variants',
-        },
-      },
-      {
-        $match: {
-          categoriesId: formattedProduct.categoriesId,
-          _id: { $ne: new mongoose.Types.ObjectId(productId) },
-          isDeleted: { $ne: true }  // Add this line to filter out deleted products
-        },
-      },
-      {
-        $project: {
-          _id: 1,
-          productName: 1,
-          imageUrl: 1,
-          variants: {
-            $map: {
-              input: '$variants',
-              as: 'variant',
-              in: {
-                _id: '$$variant._id',
-                price: '$$variant.price',
-                discountPrice: '$$variant.discountPrice',
-              },
-            },
-          },
-        },
-      },
-      { $limit: 4 },
-    ]);
-
-    console.log('Related products before formatting:', products); // Debug log
-
-    const formattedRelatedProducts = products.map(product => ({
-      _id: product._id,
-      productName: product.productName,
-      imageUrl:
-        Array.isArray(product.imageUrl) && product.imageUrl.length > 0
-          ? product.imageUrl[0]
-          : '/images/default-product.jpg',
-      variants: product.variants,
-    }));
-
-    console.log('Formatted related products:', formattedRelatedProducts); // Debug log
+    // Get related products
+    const relatedProducts = await Product.find({
+      categoriesId: formattedProduct.categoriesId,
+      _id: { $ne: formattedProduct._id },
+      isDeleted: { $ne: true }
+    }).limit(4);
 
     res.render('user/viewProduct', {
       product: formattedProduct,
-      relatedProducts: formattedRelatedProducts,
+      relatedProducts,
       offer: bestOffer,
     });
-  } catch (err) {
-    console.error('Error fetching product:', err.message);
-    res.status(500).send('Server Error');
+  } catch (error) {
+    console.error('Error viewing product:', error);
+    res.status(500).send('Error viewing product');
   }
 };
 
@@ -545,5 +493,43 @@ exports.getVariantDetails = async (req, res) => {
   } catch (error) {
     console.error('Error fetching variant details:', error);
     res.status(500).json({ message: 'Server error. Please try again later.' });
+  }
+};
+
+exports.getActiveOffers = async (req, res) => {
+  try {
+    const currentDate = new Date();
+    
+    // Get active offers that haven't expired
+    const offers = await Offer.find({
+      isActive: true,
+      isDeleted: false,
+      startDate: { $lte: currentDate },
+      endDate: { $gte: currentDate }
+    }).populate('applicableProduct', 'productName imageUrl')
+      .populate('applicableCategory', 'name');
+
+    // Format offers for display
+    const formattedOffers = offers.map(offer => ({
+      _id: offer._id,
+      title: offer.title,
+      discountPercentage: offer.discountPercentage,
+      offerType: offer.offerType,
+      applicableProduct: offer.applicableProduct ? {
+        _id: offer.applicableProduct._id,
+        name: offer.applicableProduct.productName,
+        image: offer.applicableProduct.imageUrl?.[0] || '/images/default-product.jpg'
+      } : null,
+      applicableCategory: offer.applicableCategory ? {
+        _id: offer.applicableCategory._id,
+        name: offer.applicableCategory.name
+      } : null,
+      validUntil: offer.endDate
+    }));
+
+    res.json(formattedOffers);
+  } catch (error) {
+    console.error('Error fetching active offers:', error);
+    res.status(500).json({ error: 'Failed to fetch offers' });
   }
 };

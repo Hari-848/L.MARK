@@ -117,7 +117,17 @@ router.post('/wallet/add-money', isUserAuthenticated, walletController.addMoney)
 router.post('/wallet/verify-payment', isUserAuthenticated, walletController.verifyPayment);
 
 // Add these coupon routes
-router.post('/checkout/apply-coupon', isUserAuthenticated, checkoutController.applyCoupon);
-router.post('/checkout/remove-coupon', isUserAuthenticated, checkoutController.removeCoupon);
+router.get('/coupons/available', isUserAuthenticated, checkoutController.getAvailableCoupons);
+router.post('/cart/apply-coupon', isUserAuthenticated, checkoutController.applyCoupon);
+router.post('/cart/remove-coupon', isUserAuthenticated, checkoutController.removeCoupon);
+
+// Add these offer routes
+router.get('/offers/active', isUserAuthenticated, productsController.getActiveOffers);
+
+// Coupon routes
+router.post('/checkout/apply-coupon', checkoutController.applyCoupon);
+router.post('/checkout/remove-coupon', checkoutController.removeCoupon);
+router.get('/coupons/available', checkoutController.getAvailableCoupons);
+router.post('/checkout/clear-session', checkoutController.clearCheckoutSession);
 
 module.exports = router;
