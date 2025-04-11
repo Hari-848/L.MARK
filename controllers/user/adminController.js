@@ -51,7 +51,7 @@ exports.getDashboard = (req, res) => {
 
 ///////////////////Dashboard Customers-------------------
 
-exports.getCustomers = async (req, res) => {
+exports. getCustomers = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = 12;
@@ -255,8 +255,7 @@ exports.addCategory = async (req, res) => {
 exports.updateCategory = async (req, res) => {
   try {
     const lowerCategoryName = req.body.categoriesName.trim().toLowerCase();
-    const categoriesName =
-      lowerCategoryName.charAt(0).toUpperCase() + lowerCategoryName.slice(1);
+    const categoriesName = lowerCategoryName.charAt(0).toUpperCase() + lowerCategoryName.slice(1);
 
     // Validate the category name
     if (!categoriesName || categoriesName.trim() === '') {
@@ -288,9 +287,10 @@ exports.updateCategory = async (req, res) => {
     console.error('Error updating category:', err);
     res.status(500).send('Error updating category');
   }
-};
+  
+  };
 
-// Delete a category
+  // Delete a category
 exports.deleteCategory = async (req, res) => {
   try {
     await Category.findByIdAndDelete(req.params.id);

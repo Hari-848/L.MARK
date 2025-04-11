@@ -40,12 +40,31 @@
 
         <div class="mb-4">
           <label for="stock" class="block text-gray-400">Stock</label>
-          <input type="number" id="stock" name="stock" class="mt-1 block w-full px-3 py-2 border border-gray-600 bg-zinc-800 text-white rounded-md" required />
+          <input 
+            type="number" 
+            id="stock" 
+            name="stock" 
+            min="0"
+            class="mt-1 block w-full px-3 py-2 border border-gray-600 bg-zinc-800 text-white rounded-md" 
+            required 
+            oninput="validateStock(this)"
+          />
+          <span id="stockError" class="text-red-500 text-sm hidden">Stock cannot be negative</span>
         </div>
 
         <div class="mb-4">
           <label for="price" class="block text-gray-400">Price</label>
-          <input type="number" id="price" name="price" step="0.01" class="mt-1 block w-full px-3 py-2 border border-gray-600 bg-zinc-800 text-white rounded-md" required />
+          <input 
+            type="number" 
+            id="price" 
+            name="price" 
+            min="0.01" 
+            step="0.01" 
+            class="mt-1 block w-full px-3 py-2 border border-gray-600 bg-zinc-800 text-white rounded-md" 
+            required 
+            oninput="validatePrice(this)"
+          />
+          <span id="priceError" class="text-red-500 text-sm hidden">Price must be greater than 0</span>
         </div>
 
         <div class="mb-4">
@@ -108,6 +127,55 @@
             console.error('Error:', error);
             alert('Error adding variant');
         }
+    });
+
+    function validatePrice(input) {
+      const price = parseFloat(input.value);
+      const errorSpan = document.getElementById('priceError');
+      
+      if (price <= 0) {
+        errorSpan.classList.remove('hidden');
+        input.setCustomValidity('Price must be greater than 0');
+      } else {
+        errorSpan.classList.add('hidden');
+        input.setCustomValidity('');
+      }
+    }
+
+    // Add stock validation function
+    function validateStock(input) {
+      const stock = parseInt(input.value);
+      const errorSpan = document.getElementById('stockError');
+      
+      if (stock < 0) {
+        errorSpan.classList.remove('hidden');
+        input.setCustomValidity('Stock cannot be negative');
+      } else {
+        errorSpan.classList.add('hidden');
+        input.setCustomValidity('');
+      }
+    }
+
+    // Update form submission validation to include stock
+    document.querySelector('form').addEventListener('submit', function(e) {
+      const price = parseFloat(document.getElementById('price').value);
+      const stock = parseInt(document.getElementById('stock').value);
+      
+      if (price <= 0) {
+        e.preventDefault();
+        Swal.fire({
+          icon: 'error',
+          title: 'Invalid Price',
+          text: 'Please enter a price greater than 0'
+        });
+      } else if (stock < 0) {
+        e.preventDefault();
+        Swal.fire({
+          icon: 'error',
+          title: 'Invalid Stock',
+          text: 'Stock cannot be negative'
+        });
+      }
     });
     </script>
 

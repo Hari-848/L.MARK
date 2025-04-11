@@ -494,14 +494,29 @@
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
         <div>
           <label class="block text-gray-400">Price</label>
-          <input type="number" name="price" value="${variant.price}" 
-                 class="mt-1 block w-full px-3 py-1.5 bg-zinc-800 border border-gray-600 rounded-lg text-white">
+          <input 
+            type="number" 
+            name="price" 
+            value="${variant.price}" 
+            min="0.01"
+            step="0.01"
+            class="mt-1 block w-full px-3 py-1.5 bg-zinc-800 border border-gray-600 rounded-lg text-white"
+            oninput="validateVariantPrice(this)"
+          />
+          <span class="text-red-500 text-sm hidden price-error">Price must be greater than 0</span>
         </div>
         
         <div>
           <label class="block text-gray-400">Stock</label>
-          <input type="number" name="stock" value="${variant.stock}"
-                 class="mt-1 block w-full px-3 py-1.5 bg-zinc-800 border border-gray-600 rounded-lg text-white">
+          <input 
+            type="number" 
+            name="stock" 
+            value="${variant.stock}"
+            min="0"
+            class="mt-1 block w-full px-3 py-1.5 bg-zinc-800 border border-gray-600 rounded-lg text-white"
+            oninput="validateVariantStock(this)"
+          />
+          <span class="text-red-500 text-sm hidden stock-error">Stock cannot be negative</span>
         </div>
       </div>
     </div>
@@ -521,6 +536,33 @@
       }
     }
 
+    // Add this function to validate variant prices
+    function validateVariantPrice(input) {
+      const price = parseFloat(input.value);
+      const errorSpan = input.parentElement.querySelector('.price-error');
+      
+      if (price <= 0) {
+        errorSpan.classList.remove('hidden');
+        input.setCustomValidity('Price must be greater than 0');
+      } else {
+        errorSpan.classList.add('hidden');
+        input.setCustomValidity('');
+      }
+    }
+
+    // Add stock validation function
+    function validateVariantStock(input) {
+      const stock = parseInt(input.value);
+      const errorSpan = input.parentElement.querySelector('.stock-error');
+      
+      if (stock < 0) {
+        errorSpan.classList.remove('hidden');
+        input.setCustomValidity('Stock cannot be negative');
+      } else {
+        errorSpan.classList.add('hidden');
+        input.setCustomValidity('');
+      }
+    }
 
     function closeModal() {
       const modal = document.getElementById("editModal");
@@ -546,12 +588,41 @@
             const form = event.target;
             const productId = form.getAttribute("data-product-id");
             
-            // Get all form elements including price fields
+            // Validate all variant prices and stock before submission
+            const priceInputs = form.querySelectorAll('.variant-item input[name="price"]');
+            const stockInputs = form.querySelectorAll('.variant-item input[name="stock"]');
+            let hasInvalidInput = false;
+            
+            priceInputs.forEach(input => {
+                const price = parseFloat(input.value);
+                if (price <= 0) {
+                    hasInvalidInput = true;
+                    validateVariantPrice(input);
+                }
+            });
+
+            stockInputs.forEach(input => {
+                const stock = parseInt(input.value);
+                if (stock < 0) {
+                    hasInvalidInput = true;
+                    validateVariantStock(input);
+                }
+            });
+
+            if (hasInvalidInput) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Invalid Input',
+                    text: 'Please ensure all prices are greater than 0 and stock is not negative'
+                });
+                return;
+            }
+            
+            // Rest of the form submission code remains the same
             const productNameInput = document.getElementById('productName');
             const typeSelect = document.getElementById('type');
             const categorySelect = document.getElementById('categorySelect');
             
-            // Get variant price inputs
             const variantInputs = form.querySelectorAll('.variant-item');
             const variants = Array.from(variantInputs).map(variantItem => {
                 return {
@@ -566,7 +637,7 @@
                 type: typeSelect.value,
                 category: categorySelect.options[categorySelect.selectedIndex].text,
                 categoriesId: categorySelect.value,
-                variants: variants // Add variants data
+                variants: variants
             };
 
             console.log('Sending data:', requestData);
