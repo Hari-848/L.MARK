@@ -39,7 +39,16 @@
           <label for="regularPrice" class="block text-gray-400">Price</label>
           <input type="number" id="regularPrice" name="regularPrice"
             class="mt-1 block w-full px-3 py-2 border border-gray-600 bg-zinc-800 text-white rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            required>
+            required min="0.01" step="0.01" oninput="validatePrice(this)">
+          <p id="priceError" class="text-red-500 text-sm mt-1 hidden">Price must be greater than 0</p>
+        </div>
+
+        <div class="mb-4">
+          <label for="stock" class="block text-gray-400">Stock</label>
+          <input type="number" id="stock" name="stock"
+            class="mt-1 block w-full px-3 py-2 border border-gray-600 bg-zinc-800 text-white rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            required min="0" step="1" oninput="validateStock(this)">
+          <p id="stockError" class="text-red-500 text-sm mt-1 hidden">Stock cannot be negative</p>
         </div>
 
         <div class="mb-4">
@@ -234,7 +243,31 @@
       document.getElementById("fileError").classList.add("hidden");
     }
 
+    function validatePrice(input) {
+        const price = parseFloat(input.value);
+        const errorElement = document.getElementById("priceError");
+        
+        if (isNaN(price) || price <= 0) {
+            errorElement.classList.remove("hidden");
+            input.setCustomValidity("Price must be greater than 0");
+        } else {
+            errorElement.classList.add("hidden");
+            input.setCustomValidity("");
+        }
+    }
 
+    function validateStock(input) {
+        const stock = parseInt(input.value);
+        const errorElement = document.getElementById("stockError");
+        
+        if (isNaN(stock) || stock < 0) {
+            errorElement.classList.remove("hidden");
+            input.setCustomValidity("Stock cannot be negative");
+        } else {
+            errorElement.classList.add("hidden");
+            input.setCustomValidity("");
+        }
+    }
 
     document
       .getElementById("productForm")
@@ -246,13 +279,19 @@
         const price = parseFloat(priceInput.value);
         
         if (isNaN(price) || price <= 0) {
-          Swal.fire({
-            icon: 'error',
-            title: 'Invalid Price',
-            text: 'Please enter a valid price greater than 0'
-          });
-          priceInput.focus();
-          return;
+            document.getElementById("priceError").classList.remove("hidden");
+            priceInput.focus();
+            return;
+        }
+
+        // Validate stock
+        const stockInput = document.getElementById("stock");
+        const stock = parseInt(stockInput.value);
+        
+        if (isNaN(stock) || stock < 0) {
+            document.getElementById("stockError").classList.remove("hidden");
+            stockInput.focus();
+            return;
         }
         
         const loadingIndicator = document.getElementById("loadingIndicator");
@@ -264,6 +303,7 @@
         formData.append("productName", document.getElementById("productName").value);
         formData.append("description", document.getElementById("description").value);
         formData.append("regularPrice", price);
+        formData.append("stock", stock);
 
         // Get category
         const categorySelect = document.getElementById("categoriesId");

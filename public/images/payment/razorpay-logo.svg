@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="120" height="32" viewBox="0 0 120 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M0 0H120V32H0V0Z" fill="white"/>
+    <path d="M24.5 8.5H16.5V23.5H24.5V8.5Z" fill="#0F4A8C"/>
+    <path d="M32.5 8.5H24.5V23.5H32.5V8.5Z" fill="#0F4A8C"/>
+    <path d="M40.5 8.5H32.5V23.5H40.5V8.5Z" fill="#0F4A8C"/>
+    <path d="M48.5 8.5H40.5V23.5H48.5V8.5Z" fill="#0F4A8C"/>
+    <path d="M56.5 8.5H48.5V23.5H56.5V8.5Z" fill="#0F4A8C"/>
+    <path d="M64.5 8.5H56.5V23.5H64.5V8.5Z" fill="#0F4A8C"/>
+    <path d="M72.5 8.5H64.5V23.5H72.5V8.5Z" fill="#0F4A8C"/>
+    <path d="M80.5 8.5H72.5V23.5H80.5V8.5Z" fill="#0F4A8C"/>
+    <path d="M88.5 8.5H80.5V23.5H88.5V8.5Z" fill="#0F4A8C"/>
+    <path d="M96.5 8.5H88.5V23.5H96.5V8.5Z" fill="#0F4A8C"/>
+    <path d="M104.5 8.5H96.5V23.5H104.5V8.5Z" fill="#0F4A8C"/>
+    <path d="M112.5 8.5H104.5V23.5H112.5V8.5Z" fill="#0F4A8C"/>
+    <path d="M120 8.5H112.5V23.5H120V8.5Z" fill="#0F4A8C"/>
+</svg> 

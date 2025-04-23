@@ -11,12 +11,45 @@ const cloudinary = require('cloudinary').v2;
 const Wallet = require('../../Models/walletModel');
 
 // -------------User Home Page--------------------
-exports.home = (req, res) => {
-  const user = req.session.user || req.user;
-  if (!user) {
-    return res.redirect('/signin');
+exports.home = async (req, res) => {
+  try {
+    // Get user information
+    const user = req.session.user;
+
+    // Get active offers
+    const currentDate = new Date();
+    const activeOffers = await Offer.find({
+      isActive: true,
+      isDeleted: false,
+      startDate: { $lte: currentDate },
+      endDate: { $gte: currentDate }
+    }).populate('applicableProduct', 'productName imageUrl')
+      .populate('applicableCategory', 'name');
+
+    // Get other data for the homepage
+    const orders = await Order.find({ userId: user._id })
+      .sort({ createdAt: -1 })
+      .limit(5);
+    const addresses = await Address.find({ userId: user._id });
+    
+    // Get wallet information
+    let wallet = await Wallet.findOne({ userId: user._id });
+    if (!wallet) {
+      wallet = new Wallet({ userId: user._id, balance: 0 });
+      await wallet.save();
+    }
+
+    res.render('user/home', {
+      user,
+      activeOffers,
+      orders,
+      addresses,
+      wallet,
+    });
+  } catch (error) {
+    console.error('Error loading homepage:', error);
+    res.status(500).render('error', { error: 'Failed to load homepage' });
   }
-  res.render('user/home', { user });
 };
 
 // -------------User signin Page--------------------
@@ -276,6 +309,12 @@ exports.getProfile = async (req, res) => {
       return res.redirect('/signin');
     }
 
+    const page = parseInt(req.query.page) || 1;
+    const limit = 10;
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const activeTab = req.query.tab || 'profile';
+
     const orders = await Order.find({ userId: user._id })
       .sort({ createdAt: -1 })
       .limit(5);
@@ -288,15 +327,46 @@ exports.getProfile = async (req, res) => {
       await wallet.save();
     }
 
+    // Convert wallet to plain object for manipulation
+    const walletObj = wallet.toObject();
+
+    // Ensure all transactions have valid dates
+    walletObj.transactions = walletObj.transactions.map(transaction => ({
+      ...transaction,
+      date: transaction.date || new Date(transaction.createdAt || Date.now())
+    }));
+
+    // Sort transactions by date in descending order (newest first)
+    walletObj.transactions.sort((a, b) => {
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      return dateB - dateA;
+    });
+
+    // Get total number of transactions for pagination
+    const totalTransactions = walletObj.transactions.length;
+    const totalPages = Math.ceil(totalTransactions / limit);
+
+    // Get the paginated transactions
+    const paginatedTransactions = walletObj.transactions.slice(startIndex, endIndex);
+
     res.render('user/profile', {
       title: 'My Profile',
       layout: 'layouts/main',
       user,
       orders,
       addresses,
-      wallet,
+      wallet: {
+        ...walletObj,
+        transactions: paginatedTransactions
+      },
+      currentPage: page,
+      totalPages,
+      startIndex,
+      endIndex,
       session: req.session,
-      isEditing: false  // Default to not editing
+      isEditing: false,
+      activeTab
     });
   } catch (error) {
     console.error('Profile error:', error);

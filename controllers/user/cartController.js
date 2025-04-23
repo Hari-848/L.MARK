@@ -3,108 +3,114 @@ const Product = require('../../Models/productSchema');
 const Variant = require('../../Models/variantSchema');
 const Wishlist = require('../../Models/wishlistSchema');
 const Category = require('../../Models/categoryModel');
+const Offer = require('../../Models/offerModel');
 
 // Add to cart
 exports.addToCart = async (req, res) => {
   try {
-    console.log('Add to cart request received with body:', JSON.stringify(req.body));
-    console.log('Session data:', req.session);
-    const { productId, variantId, quantity = 1 } = req.body;
+    const { productId, variantId, quantity } = req.body;
     const userId = req.session.user._id;
-    
-    console.log('User ID:', userId);
 
-    // Validate product and variant
+    // Find product and variant
     const product = await Product.findById(productId);
-    if (!product) {
-      console.log('Product not found:', productId);
-      return res.status(404).json({ error: 'Product not found' });
-    }
-    console.log('Product found:', product.productName);
-
-    // Check if product is blocked or unlisted
-    if (product.status !== 'Available' && product.status !== 'Listed') {
-      console.log('Product not available:', product.status);
-      return res.status(400).json({ error: 'This product is currently unavailable' });
-    }
-
     const variant = await Variant.findById(variantId);
-    if (!variant) {
-      console.log('Variant not found:', variantId);
-      return res.status(404).json({ error: 'Variant not found' });
-    }
-    console.log('Variant found:', variant.variantType);
 
-    // Check if variant belongs to the product
-    console.log('Variant productId:', variant.productId.toString());
-    console.log('Product ID:', productId);
-    if (variant.productId.toString() !== productId) {
-      return res.status(400).json({ error: 'Invalid variant for this product' });
+    if (!product || !variant) {
+      return res.status(404).json({ success: false, message: 'Product not found' });
     }
 
-    // Check if variant is in stock
-    if (variant.stock < 1) {
-      return res.status(400).json({ error: 'Product is out of stock' });
-    }
-
-    // Check if requested quantity is available
+    // Check inventory
     if (variant.stock < quantity) {
-      return res.status(400).json({ error: `Only ${variant.stock} items available in stock` });
-    }
-
-    // Find user's cart or create a new one
-    let cart = await Cart.findOne({ userId });
-    if (!cart) {
-      cart = new Cart({ userId, items: [] });
-    }
-
-    // Check if this product variant is already in the cart
-    const existingItemIndex = cart.items.findIndex(
-      item => item.product.toString() === productId && item.variant.toString() === variantId
-    );
-
-    if (existingItemIndex > -1) {
-      // Update quantity if product already exists in cart
-      const newQuantity = cart.items[existingItemIndex].quantity + parseInt(quantity);
-      
-      // Validate against stock
-      if (newQuantity > variant.stock) {
-        return res.status(400).json({ 
-          error: `Cannot add more. You already have ${cart.items[existingItemIndex].quantity} in your cart and only ${variant.stock} are available.` 
-        });
-      }
-      
-      // Update quantity
-      cart.items[existingItemIndex].quantity = newQuantity;
-    } else {
-      // Add new item to cart
-      cart.items.push({
-        product: productId,
-        variant: variantId,
-        quantity: parseInt(quantity),
-        price: variant.price
+      return res.status(400).json({
+        success: false,
+        message: 'Not enough stock available'
       });
     }
 
-    await cart.save();
+    // Get active offers for this product
+    const currentDate = new Date();
+    const activeOffers = await Offer.find({
+      isActive: true,
+      isDeleted: false,
+      startDate: { $lte: currentDate },
+      endDate: { $gte: currentDate },
+      $or: [
+        { offerType: 'Product', applicableProduct: productId },
+        { offerType: 'Category', applicableCategory: product.categoriesId }
+      ]
+    });
 
-    // Remove from wishlist if it exists there
-    await Wishlist.updateOne(
-      { userId },
-      { $pull: { products: { productId: productId } } }
+    // Calculate price with any applicable offers
+    let finalPrice = variant.price;
+    let appliedOffer = null;
+
+    if (activeOffers.length > 0) {
+      // Find best offer (highest discount)
+      const bestOffer = activeOffers.reduce(
+        (best, current) =>
+          current.discountPercentage > best.discountPercentage ? current : best,
+        activeOffers[0]
+      );
+
+      // Calculate discounted price
+      const discountAmount = (variant.price * bestOffer.discountPercentage) / 100;
+      finalPrice = Math.round(variant.price - discountAmount);
+      
+      appliedOffer = {
+        offerId: bestOffer._id,
+        title: bestOffer.title,
+        discountPercentage: bestOffer.discountPercentage
+      };
+    }
+
+    // Find or create cart
+    let cart = await Cart.findOne({ userId });
+
+    if (!cart) {
+      cart = new Cart({
+        userId,
+        items: [],
+        totalAmount: 0
+      });
+    }
+
+    // Check if this product variant is already in cart
+    const existingItemIndex = cart.items.findIndex(
+      item => item.productId.toString() === productId && 
+             item.variantId.toString() === variantId
     );
 
-    // At the end, log the response
-    console.log('Cart updated successfully, items count:', cart.items.length);
-    
-    res.status(200).json({ 
-      success: true, 
-      message: 'Product added to cart successfully',
+    if (existingItemIndex > -1) {
+      // Update existing item
+      cart.items[existingItemIndex].quantity += quantity;
+    } else {
+      // Add new item
+      cart.items.push({
+        productId,
+        variantId,
+        quantity,
+        price: variant.price,
+        finalPrice: finalPrice,
+        offer: appliedOffer
+      });
+    }
+
+    // Recalculate total
+    cart.totalAmount = cart.items.reduce(
+      (total, item) => total + (item.finalPrice * item.quantity), 
+      0
+    );
+
+    await cart.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Item added to cart',
       cartCount: cart.items.length
     });
   } catch (error) {
-    console.error('Add to cart error details:', error);
-    res.status(500).json({ error: 'Failed to add product to cart', details: error.message });
+    console.error('Error adding to cart:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
@@ -117,7 +123,7 @@ exports.getCart = async (req, res) => {
     // Find cart and populate product and variant details, excluding deleted categories
     const cart = await Cart.findOne({ userId })
       .populate({
-        path: 'items.product',
+        path: 'items.productId',
         match: { 
           'isDeleted': { $ne: true }, 
           'categoriesId': { 
@@ -127,7 +133,7 @@ exports.getCart = async (req, res) => {
         select: 'productName imageUrl status'
       })
       .populate({
-        path: 'items.variant',
+        path: 'items.variantId',
         select: 'variantType price discountPrice stock'
       });
     
@@ -138,7 +144,7 @@ exports.getCart = async (req, res) => {
     
     // Filter out items where product is null (due to deleted categories)
     if (cart) {
-      cart.items = cart.items.filter(item => item.product != null);
+      cart.items = cart.items.filter(item => item.productId != null);
       await cart.save();
     }
 
@@ -148,17 +154,14 @@ exports.getCart = async (req, res) => {
 
     // Calculate cart total
     const cartTotal = cart.items.reduce((total, item) => {
-      const itemPrice = (item.variant.discountPrice && item.variant.discountPrice > 0) 
-        ? item.variant.discountPrice 
-        : item.price;
-      return total + (itemPrice * item.quantity);
+      return total + (item.finalPrice * item.quantity);
     }, 0);
 
     // Filter out any products that are no longer available
     const validItems = cart.items.filter(item => 
-      item.product && 
-      (item.product.status === 'Available' || item.product.status === 'Listed') && 
-      item.variant && item.variant.stock > 0
+      item.productId && 
+      (item.productId.status === 'Available' || item.productId.status === 'Listed') && 
+      item.variantId && item.variantId.stock > 0
     );
 
     // If some items were filtered out, update the cart
@@ -175,7 +178,7 @@ exports.getCart = async (req, res) => {
 };
 
 // Update cart item quantity
-exports.  updateCartItem = async (req, res) => {
+exports.updateCartItem = async (req, res) => {
   try {
     const { itemId, action } = req.body;
     const userId = req.session.user._id;
@@ -193,7 +196,7 @@ exports.  updateCartItem = async (req, res) => {
     }
     
     // Get current variant to check stock
-    const variant = await Variant.findById(cartItem.variant);
+    const variant = await Variant.findById(cartItem.variantId);
     if (!variant) {
       return res.status(404).json({ error: 'Product variant no longer available' });
     }
@@ -220,28 +223,22 @@ exports.  updateCartItem = async (req, res) => {
     // Fetch the updated cart with populated variant information
     const updatedCart = await Cart.findOne({ userId })
       .populate({
-        path: 'items.variant',
+        path: 'items.variantId',
         select: 'variantType price discountPrice stock'
       });
     
     // Find the updated item
     const updatedItem = updatedCart.items.id(itemId);
     
-    // Calculate item total with proper discount
+    // Calculate item total using finalPrice
     let itemTotal = 0;
     if (updatedItem) {
-      const itemPrice = (updatedItem.variant.discountPrice && updatedItem.variant.discountPrice > 0) 
-        ? updatedItem.variant.discountPrice 
-        : updatedItem.price;
-      itemTotal = itemPrice * updatedItem.quantity;
+      itemTotal = updatedItem.finalPrice * updatedItem.quantity;
     }
     
-    // Calculate new cart total
+    // Calculate new cart total using finalPrice
     const cartTotal = updatedCart.items.reduce((total, item) => {
-      const itemPrice = (item.variant.discountPrice && item.variant.discountPrice > 0) 
-        ? item.variant.discountPrice 
-        : item.price;
-      return total + (itemPrice * item.quantity);
+      return total + (item.finalPrice * item.quantity);
     }, 0);
     
     res.json({ 

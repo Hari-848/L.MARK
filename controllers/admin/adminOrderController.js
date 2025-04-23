@@ -74,7 +74,7 @@ exports.getAllOrders = async (req, res) => {
     const orders = await Order.find(query)
       .populate('userId', 'email name')
       .populate({
-        path: 'items.product',
+        path: 'items.productId',
         select: 'productName imageUrl'
       })
       .populate('address')
@@ -144,11 +144,11 @@ exports.getOrderDetails = async (req, res) => {
     const order = await Order.findById(orderId)
       .populate('userId', 'email name')
       .populate({
-        path: 'items.product',
+        path: 'items.productId',
         select: 'productName imageUrl'
       })
       .populate({
-        path: 'items.variant',
+        path: 'items.variantId',
         select: 'variantType price discountPrice'
       })
       .populate('address');
@@ -157,10 +157,27 @@ exports.getOrderDetails = async (req, res) => {
       return res.status(404).render('error', { error: 'Order not found' });
     }
     
-    order.shippingCost = order.shippingCost || 0;
-    order.discount = order.discount || 0;
+    // Calculate order summary
+    const orderSummary = {
+      subtotal: order.items.reduce((total, item) => total + (item.finalPrice * item.quantity), 0),
+      productDiscount: order.items.reduce((total, item) => {
+        if (item.discountPrice) {
+          return total + ((item.price - item.discountPrice) * item.quantity);
+        }
+        return total;
+      }, 0),
+      couponDiscount: order.discount || 0,
+      shipping: order.shippingCost || 0,
+      finalTotal: order.total || 0
+    };
+
+    // Add order summary to the order object
+    order.orderSummary = orderSummary;
     
-    res.render('admin/adminOrderDetails', { order });
+    res.render('admin/adminOrderDetails', { 
+      order,
+      title: 'Order Details - Admin Dashboard'
+    });
   } catch (error) {
     console.error('Get order details error:', error);
     res.status(500).render('error', { error: 'Failed to load order details' });
@@ -212,7 +229,7 @@ exports.updateOrderStatus = async (req, res) => {
       // Restore inventory for cancelled orders
       for (const item of order.items) {
         await Variant.findByIdAndUpdate(
-          item.variant,
+          item.variantId,
           { $inc: { stock: item.quantity } }
         );
       }
@@ -276,7 +293,7 @@ exports.processReturnRequest = async (req, res) => {
       // Restore stock for all items
       for (const item of order.items) {
         await Variant.findByIdAndUpdate(
-          item.variant,
+          item.variantId,
           { $inc: { stock: item.quantity } }
         );
       }

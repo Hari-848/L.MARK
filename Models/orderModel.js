@@ -1,28 +1,35 @@
 const mongoose = require('mongoose');
 
 const orderItemSchema = new mongoose.Schema({
-  product: {
+  productId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Product',
     required: true
   },
-  variant: {
+  variantId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Variant',
     required: true
   },
   quantity: {
     type: Number,
-    required: true,
-    min: 1
+    required: true
   },
   price: {
     type: Number,
     required: true
   },
-  discountPrice: {
+  finalPrice: {
     type: Number,
-    default: 0
+    required: true
+  },
+  offer: {
+    offerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Offer'
+    },
+    title: String,
+    discountPercentage: Number
   }
 });
 

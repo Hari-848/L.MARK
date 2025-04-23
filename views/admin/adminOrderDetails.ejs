@@ -181,7 +181,7 @@
                 Quantity
               </th>
               <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                Total
+                Total 
               </th>
             </tr>
           </thead>
@@ -191,17 +191,21 @@
                 <td class="px-6 py-4 whitespace-nowrap">
                   <div class="flex items-center">
                     <div class="h-10 w-10 flex-shrink-0">
-                      <% if (item.product && item.product.imageUrl) { %>
+                      <% if (item.productId && item.productId.imageUrl) { %>
+                        <% const imageUrl = Array.isArray(item.productId.imageUrl) ? item.productId.imageUrl[0] : item.productId.imageUrl; %>
                         <img class="h-10 w-10 rounded-md object-cover" 
-                             src="<%= Array.isArray(item.product.imageUrl) ? item.product.imageUrl[0] : item.product.imageUrl %>" 
-                             alt="<%= item.product.productName %>">
+                             src="<%= imageUrl %>" 
+                             alt="<%= item.productId.productName %>"
+                             onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'h-10 w-10 rounded-md bg-zinc-700 flex items-center justify-center\'><i class=\'fas fa-image text-gray-500\'></i></div>';">
                       <% } else { %>
-                        <div class="h-10 w-10 rounded-md bg-zinc-700"></div>
-                    <% } %>
+                        <div class="h-10 w-10 rounded-md bg-zinc-700 flex items-center justify-center">
+                          <i class="fas fa-image text-gray-500"></i>
+                        </div>
+                      <% } %>
                     </div>
                     <div class="ml-4">
                       <div class="text-sm font-medium text-white">
-                        <%= item.product.productName %>
+                        <%= item.productId ? item.productId.productName : 'Product not found' %>
                       </div>
                     </div>
                   </div>

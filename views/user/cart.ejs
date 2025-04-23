@@ -33,40 +33,36 @@
                 <div class="flex flex-col sm:flex-row border-b pb-4 cart-item" data-id="<%= item._id %>">
                   <div class="sm:w-24 h-24 mb-4 sm:mb-0">
                     <img 
-                      src="<%= item.product.imageUrl && item.product.imageUrl.length > 0 ? item.product.imageUrl[0] : '/images/placeholder.jpg' %>" 
-                      alt="<%= item.product.productName %>" 
+                      src="<%= item.productId.imageUrl && item.productId.imageUrl.length > 0 ? item.productId.imageUrl[0] : '/images/placeholder.jpg' %>" 
+                      alt="<%= item.productId.productName %>" 
                       class="w-full h-full object-cover rounded"
                     >
                   </div>
                   <div class="flex-1 sm:ml-4">
                     <div class="flex flex-col sm:flex-row sm:justify-between">
                       <div>
-                        <h3 class="font-medium"><%= item.product.productName %></h3>
+                        <h3 class="font-medium"><%= item.productId.productName %></h3>
                         <p class="text-sm text-gray-600">
-                          <% if (item.variant.variantType) { %>Variant: <%= item.variant.variantType %><% } %>
+                          <% if (item.variantId.variantType) { %>Variant: <%= item.variantId.variantType %><% } %>
                         </p>
                         <p class="text-sm text-gray-600">
-                          <% if (item.variant.discountPrice && item.variant.discountPrice > 0) { %>
-                            Price: ₹<%= item.variant.discountPrice.toFixed(2) %>
-                            <span class="text-gray-500 line-through">₹<%= item.price.toFixed(2) %></span>
+                          <% if (item.finalPrice < item.variantId.price) { %>
+                            Price: ₹<%= item.finalPrice.toFixed(2) %>
+                            <span class="text-gray-500 line-through">₹<%= item.variantId.price.toFixed(2) %></span>
                           <% } else { %>
-                            Price: ₹<%= item.price.toFixed(2) %>
+                            Price: ₹<%= item.variantId.price.toFixed(2) %>
                           <% } %>
                         </p>
-                        <% if (item.variant.stock <= 5) { %>
+                        <% if (item.variantId.stock <= 5) { %>
                           <p class="text-xs text-orange-600 mt-1">
-                            Only <%= item.variant.stock %> left in stock
+                            Only <%= item.variantId.stock %> left in stock
                           </p>
                         <% } %>
                       </div>
                       <div class="mt-4 sm:mt-0">
                         <p class="font-medium text-right">
                           ₹<span class="item-total">
-                            <% if (item.variant.discountPrice && item.variant.discountPrice > 0) { %>
-                              <%= (item.variant.discountPrice * item.quantity).toFixed(2) %>
-                            <% } else { %>
-                              <%= (item.price * item.quantity).toFixed(2) %>
-                            <% } %>
+                            <%= (item.finalPrice * item.quantity).toFixed(2) %>
                           </span>
                         </p>
                       </div>
@@ -81,8 +77,8 @@
                         </button>
                         <span class="px-3 py-1 quantity"><%= item.quantity %></span>
                         <button 
-                          class="px-3 py-1 increment-btn <%= item.quantity >= item.variant.stock ? 'text-gray-400' : 'text-gray-600 hover:bg-gray-100' %>"
-                          <%= item.quantity >= item.variant.stock ? 'disabled' : '' %>
+                          class="px-3 py-1 increment-btn <%= item.quantity >= item.variantId.stock ? 'text-gray-400' : 'text-gray-600 hover:bg-gray-100' %>"
+                          <%= item.quantity >= item.variantId.stock ? 'disabled' : '' %>
                         >
                           <i class="fas fa-plus text-xs"></i>
                         </button>

@@ -133,25 +133,25 @@
                 <td class="px-6 py-4 whitespace-nowrap">
                   <div class="flex items-center">
                     <div class="flex-shrink-0 h-10 w-10">
-                      <% if (item.product && item.product.imageUrl) { %>
-                        <img class="h-10 w-10 rounded-full object-cover" src="<%= item.product.imageUrl[0] || '/images/placeholder.jpg' %>" alt="<%= item.product.productName %>">
+                      <% if (item.productId && item.productId.imageUrl) { %>
+                        <img class="h-10 w-10 rounded-full object-cover" src="<%= item.productId.imageUrl[0] || '/images/placeholder.jpg' %>" alt="<%= item.productId.productName %>">
                       <% } else { %>
                         <div class="h-10 w-10 rounded-full bg-gray-200"></div>
                       <% } %>
                     </div>
                     <div class="ml-4">
                       <div class="text-sm font-medium text-gray-900">
-                        <%= item.product ? item.product.productName : 'Product Unavailable' %>
+                        <%= item.productId ? item.productId.productName : 'Product Unavailable' %>
                       </div>
                       <div class="text-sm text-gray-500">
-                        <%= item.variant ? item.variant.variantType : '' %>
+                        <%= item.variantId ? item.variantId.variantType : '' %>
                       </div>
                     </div>
                   </div>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
-                  <% if (item.discountPrice && item.discountPrice > 0) { %>
-                    <div class="text-sm text-gray-900">₹<%= item.discountPrice.toFixed(2) %></div>
+                  <% if (item.finalPrice && item.finalPrice < item.price) { %>
+                    <div class="text-sm text-gray-900">₹<%= item.finalPrice.toFixed(2) %></div>
                     <div class="text-sm text-gray-500 line-through">₹<%= item.price.toFixed(2) %></div>
                   <% } else { %>
                     <div class="text-sm text-gray-900">₹<%= item.price.toFixed(2) %></div>
@@ -161,8 +161,8 @@
                   <%= item.quantity %>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  <% const itemTotal = (item.discountPrice && item.discountPrice > 0) ? 
-                    (item.discountPrice * item.quantity) : 
+                  <% const itemTotal = (item.finalPrice && item.finalPrice > 0) ? 
+                    (item.finalPrice * item.quantity) : 
                     (item.price * item.quantity); %>
                   ₹<%= itemTotal.toFixed(2) %>
                 </td>

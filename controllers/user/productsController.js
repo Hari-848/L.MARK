@@ -39,7 +39,7 @@ exports.products = async (req, res) => {
       {
         $match: {
           isDeleted: { $ne: true },
-          categoriesId: { $in: activeCategoryIds }  // Only include products from active categories
+          categoriesId: { $in: activeCategoryIds }
         }
       },
       {
@@ -73,20 +73,86 @@ exports.products = async (req, res) => {
       },
     ]);
 
-    console.log('Sample product:', products[0]); // Debug log
+    const formattedProducts = products.map(product => {
+      const productObj = {
+        _id: product._id,
+        productName: product.productName,
+        imageUrl:
+          Array.isArray(product.imageUrl) && product.imageUrl.length > 0
+            ? product.imageUrl[0]
+            : '/images/default-product.jpg',
+        categoriesId: product.categoriesId,
+        variants: product.variants || [],
+      };
 
-    const formattedProducts = products.map(product => ({
-      _id: product._id,
-      productName: product.productName,
-      imageUrl:
-        Array.isArray(product.imageUrl) && product.imageUrl.length > 0
-          ? product.imageUrl[0]
-          : '/images/default-product.jpg',
-      variants: product.variants || [],
-    }));
-
-    // Debug log
-    console.log('Sample formatted product:', formattedProducts[0]);
+      // Apply offers to products
+      if (productObj.variants.length > 0) {
+        // Find applicable offers for this product
+        const productOffers = activeOffers.filter(
+          offer => 
+            offer.offerType === 'Product' && 
+            offer.applicableProduct && 
+            offer.applicableProduct._id.toString() === product._id.toString()
+        );
+        
+        const categoryOffers = activeOffers.filter(
+          offer => 
+            offer.offerType === 'Category' && 
+            offer.applicableCategory && 
+            offer.applicableCategory._id.toString() === product.categoriesId.toString()
+        );
+        
+        const applicableOffers = [...productOffers, ...categoryOffers];
+        
+        if (applicableOffers.length > 0) {
+          // Sort offers by discount percentage (highest first)
+          const sortedOffers = [...applicableOffers].sort((a, b) => 
+            b.discountPercentage - a.discountPercentage
+          );
+          
+          // Get the best offer (highest discount)
+          const bestOffer = sortedOffers[0];
+          
+          // Get second best offer if available
+          const secondaryOffer = sortedOffers.length > 1 ? sortedOffers[1] : null;
+          
+          // Apply offer to all variants
+          productObj.variants = productObj.variants.map(variant => {
+            const discountAmount = (variant.price * bestOffer.discountPercentage) / 100;
+            
+            // Debug log
+            console.log(`Product: ${product.productName}, Primary offer: ${bestOffer.title}, Secondary offer: ${secondaryOffer ? secondaryOffer.title : 'None'}`);
+            
+            return {
+              ...variant,
+              discountPrice: Math.round(variant.price - discountAmount),
+              offer: {
+                id: bestOffer._id,
+                discountPercentage: bestOffer.discountPercentage,
+                title: bestOffer.title,
+                offerType: bestOffer.offerType
+              },
+              // Include secondary offer if available
+              secondaryOffer: secondaryOffer ? {
+                id: secondaryOffer._id,
+                discountPercentage: secondaryOffer.discountPercentage,
+                title: secondaryOffer.title,
+                offerType: secondaryOffer.offerType
+              } : null,
+              // Include all applicable offers for reference
+              allOffers: sortedOffers.map(offer => ({
+                id: offer._id,
+                discountPercentage: offer.discountPercentage,
+                title: offer.title,
+                offerType: offer.offerType
+              }))
+            };
+          });
+        }
+      }
+      
+      return productObj;
+    });
 
     res.render('user/products', {
       categories: categories,
@@ -118,7 +184,7 @@ exports.searchAndFilterProducts = async (req, res) => {
   try {
     // Get pagination parameters
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 9; // 9 products per page
+    const limit = parseInt(req.query.limit) || 12; // 12 products per page
     const skip = (page - 1) * limit;
     
     // Authentication check
@@ -126,19 +192,18 @@ exports.searchAndFilterProducts = async (req, res) => {
       return res.status(401).json({ message: 'Authentication required' });
     }
 
-    // Set cache control headers
+    // Update cache control headers to prevent stale offer data
     res.set({
       'Cache-Control': 'no-cache, no-store, must-revalidate, private',
       'Pragma': 'no-cache',
       'Expires': '0'
     });
     
-    console.log('Received query params:', req.query);
-    let { query, type, minPrice, maxPrice, category, stockStatus, sort } =
-      req.query;
+    // Get query parameters
+    let { query, type, minPrice, maxPrice, category, stockStatus, sort } = req.query;
 
     // Get active categories
-    const activeCategories = await Category.find({ isDeleted: { $ne: true } }, '_id');
+    const activeCategories = await Category.find({ isDeleted: { $ne: true } }, '_id').lean();
     const activeCategoryIds = activeCategories.map(cat => cat._id);
 
     // Initialize match criteria with active categories
@@ -147,9 +212,15 @@ exports.searchAndFilterProducts = async (req, res) => {
       categoriesId: { $in: activeCategoryIds }
     };
 
-    // Text-based search
+    // Text-based search - Make case-insensitive
     if (query && query.trim()) {
-      matchCriteria.productName = new RegExp(query.trim(), 'i');
+      // Create an array of conditions to check multiple fields
+      const searchRegex = new RegExp(query.trim(), 'i'); // 'i' flag makes it case-insensitive
+      matchCriteria.$or = [
+        { productName: searchRegex },
+        { description: searchRegex },
+        { 'variants.variantType': searchRegex }
+      ];
     }
 
     // Type filter (ruled/unruled)
@@ -168,7 +239,7 @@ exports.searchAndFilterProducts = async (req, res) => {
       }
     }
 
-    // Category filter - Modified to handle both ID and name, considering deleted categories
+    // Category filter - Handle both ID and name
     if (category && category !== 'all') {
       try {
         let categoryDoc;
@@ -177,7 +248,7 @@ exports.searchAndFilterProducts = async (req, res) => {
           categoryDoc = await Category.findOne({
             _id: category,
             isDeleted: { $ne: true }
-          });
+          }).lean();
         }
 
         if (!categoryDoc) {
@@ -185,14 +256,19 @@ exports.searchAndFilterProducts = async (req, res) => {
           categoryDoc = await Category.findOne({
             name: { $regex: new RegExp(`^${category}$`, 'i') },
             isDeleted: { $ne: true }
-          });
+          }).lean();
         }
 
         if (categoryDoc) {
           matchCriteria.categoriesId = categoryDoc._id;
         } else {
           // If category not found or is deleted, return no results
-          matchCriteria.categoriesId = null; // This will ensure no products are returned
+          return res.status(200).json({
+            products: [],
+            totalPages: 0,
+            currentPage: page,
+            message: 'No products found in this category'
+          });
         }
       } catch (error) {
         console.error('Error processing category:', error);
@@ -211,12 +287,31 @@ exports.searchAndFilterProducts = async (req, res) => {
       }
     }
 
-    console.log('Final match criteria:', matchCriteria);
+    // Create sort object based on user selection
+    let sortCriteria = {};
+    if (sort) {
+      switch (sort) {
+        case 'priceLowToHigh':
+          sortCriteria = { 'variants.price': 1 };
+          break;
+        case 'priceHighToLow':
+          sortCriteria = { 'variants.price': -1 };
+          break;
+        case 'newArrivals':
+          sortCriteria = { createdAt: -1 };
+          break;
+        case 'popularity':
+          sortCriteria = { 'variants.rating': -1 };
+          break;
+        default:
+          sortCriteria = { 'variants.price': 1 };
+      }
+    } else {
+      // Default sort is by price ascending
+      sortCriteria = { 'variants.price': 1 };
+    }
 
-    // First, let's check what's in the products collection
-    const sampleProduct = await Product.findOne();
-    console.log('Sample product from DB:', sampleProduct);
-
+    // Aggregation pipeline for efficient querying
     const pipeline = [
       {
         $lookup: {
@@ -224,55 +319,43 @@ exports.searchAndFilterProducts = async (req, res) => {
           localField: '_id',
           foreignField: 'productId',
           as: 'variants',
+          pipeline: [
+            // Filter variants here if needed
+          ]
         },
       },
       {
         $unwind: {
           path: '$variants',
-          preserveNullAndEmptyArrays: false,
+          preserveNullAndEmptyArrays: false, // Only include products with at least one variant
         },
       },
-      {
-        $match: matchCriteria,
-      },
-      ...(sort
-        ? [
-            {
-              $sort: (() => {
-                switch (sort) {
-                  case 'priceLowToHigh':
-                    return { 'variants.price': 1 };
-                  case 'priceHighToLow':
-                    return { 'variants.price': -1 };
-                  case 'newArrivals':
-                    return { createdAt: -1 };
-                  default:
-                    return { 'variants.price': 1 };
-                }
-              })(),
-            },
-          ]
-        : []),
+      { $match: matchCriteria },
+      { $sort: sortCriteria },
       {
         $group: {
           _id: '$_id',
           productName: { $first: '$productName' },
           imageUrl: { $first: '$imageUrl' },
+          description: { $first: '$description' },
           categoriesId: { $first: '$categoriesId' },
-          category: { $first: '$category' },
+          createdAt: { $first: '$createdAt' },
           variants: {
             $push: {
               _id: '$variants._id',
               variantType: '$variants.variantType',
               price: '$variants.price',
-              rating: '$variants.rating',
               stock: '$variants.stock',
+              rating: '$variants.rating',
             },
           },
         },
       },
+      { $skip: skip },
+      { $limit: limit }
     ];
 
+    // Count pipeline for total number of results
     const countPipeline = [
       {
         $lookup: {
@@ -288,66 +371,126 @@ exports.searchAndFilterProducts = async (req, res) => {
           preserveNullAndEmptyArrays: false,
         },
       },
-      {
-        $match: matchCriteria,
-      },
-      {
-        $group: {
-          _id: '$_id',
-        },
-      },
-      {
-        $count: 'total'
-      }
+      { $match: matchCriteria },
+      { $group: { _id: '$_id' } },
+      { $count: 'total' }
     ];
 
-    const totalProductsResult = await Product.aggregate(countPipeline);
+    // Run both queries in parallel for better performance
+    const [products, totalProductsResult] = await Promise.all([
+      Product.aggregate(pipeline).option({ maxTimeMS: 5000 }), // Add timeout for safety
+      Product.aggregate(countPipeline).option({ maxTimeMS: 5000 })
+    ]);
+
     const totalProducts = totalProductsResult.length > 0 ? totalProductsResult[0].total : 0;
     const totalPages = Math.ceil(totalProducts / limit);
-    
-    // Debug your pagination
-    console.log("Pagination parameters:", {
-        page,
-        limit,
-        skip,
-        totalProducts,
-        totalPages
+
+    // After retrieving products, apply offers
+    const currentDate = new Date();
+    const activeOffers = await Offer.find({
+      isActive: true,
+      isDeleted: false,
+      startDate: { $lte: currentDate },
+      endDate: { $gte: currentDate }
+    }).lean();
+
+    const productsWithOffers = products.map(product => {
+      // Process product image URL - handle array or string with fallback
+      let processedImageUrl = '/images/default-product.jpg'; // Default fallback
+      if (product.imageUrl) {
+        if (Array.isArray(product.imageUrl) && product.imageUrl.length > 0) {
+          processedImageUrl = product.imageUrl[0];
+        } else if (typeof product.imageUrl === 'string') {
+          processedImageUrl = product.imageUrl;
+        }
+      }
+      
+      // Find applicable offers for this product
+      const productOffers = activeOffers.filter(
+        offer => 
+          offer.offerType === 'Product' && 
+          offer.applicableProduct && 
+          offer.applicableProduct.toString() === product._id.toString()
+      );
+      
+      const categoryOffers = activeOffers.filter(
+        offer => 
+          offer.offerType === 'Category' && 
+          offer.applicableCategory && 
+          offer.applicableCategory.toString() === product.categoriesId.toString()
+      );
+      
+      const applicableOffers = [...productOffers, ...categoryOffers];
+      
+      if (applicableOffers.length > 0) {
+        // Sort offers by discount percentage (highest first)
+        const sortedOffers = [...applicableOffers].sort((a, b) => 
+          b.discountPercentage - a.discountPercentage
+        );
+        
+        // Get the best offer (highest discount)
+        const bestOffer = sortedOffers[0];
+        
+        // Get second best offer if available
+        const secondaryOffer = sortedOffers.length > 1 ? sortedOffers[1] : null;
+        
+        // Apply offer to all variants
+        product.variants = product.variants.map(variant => {
+          const discountAmount = (variant.price * bestOffer.discountPercentage) / 100;
+          return {
+            ...variant,
+            discountPrice: Math.round(variant.price - discountAmount),
+            offer: {
+              id: bestOffer._id,
+              discountPercentage: bestOffer.discountPercentage,
+              title: bestOffer.title,
+              offerType: bestOffer.offerType
+            },
+            // Include secondary offer if available
+            secondaryOffer: secondaryOffer ? {
+              id: secondaryOffer._id,
+              discountPercentage: secondaryOffer.discountPercentage,
+              title: secondaryOffer.title,
+              offerType: secondaryOffer.offerType
+            } : null,
+            // Include all applicable offers for reference
+            allOffers: sortedOffers.map(offer => ({
+              id: offer._id,
+              discountPercentage: offer.discountPercentage,
+              title: offer.title,
+              offerType: offer.offerType
+            }))
+          };
+        });
+      }
+      
+      return {
+        ...product,
+        imageUrl: processedImageUrl // Replace with the processed image URL
+      };
     });
 
-    const products = await Product.aggregate(pipeline)
-      .skip(skip)
-      .limit(limit);
-
-    console.log(`Found ${products.length} products matching criteria`);
-    if (products.length > 0) {
-      console.log('Sample matched product:', {
-        id: products[0]._id,
-        name: products[0].productName,
-        categoryId: products[0].categoriesId,
-        category: products[0].category,
-      });
-    }
-
-    const formattedProducts = products.map(product => ({
-      _id: product._id,
-      productName: product.productName,
-      imageUrl:
-        Array.isArray(product.imageUrl) && product.imageUrl.length > 0
-          ? product.imageUrl[0]
-          : '/images/default-product.jpg',
-      categoryId: product.categoriesId,
-      category: product.category,
-      variants: product.variants.filter(v => v._id),
-    }));
-
+    // Return structured response
     res.status(200).json({
-      products: formattedProducts,
+      products: productsWithOffers,
       totalPages: totalPages,
-      currentPage: page
+      currentPage: page,
+      totalProducts: totalProducts,
+      resultsPerPage: limit
     });
   } catch (error) {
     console.error('Error searching products:', error);
-    res.status(500).json({ error: 'Failed to search products' });
+    
+    // Better error handling with appropriate status code
+    const statusCode = error.name === 'ValidationError' ? 400 : 500;
+    const errorMessage = process.env.NODE_ENV === 'development' 
+      ? `Error: ${error.message}` 
+      : 'Failed to search products';
+      
+    res.status(statusCode).json({ 
+      error: errorMessage,
+      success: false 
+    });
   }
 };
 
@@ -358,7 +501,7 @@ exports.viewProduct = async (req, res) => {
       return res.redirect('/signin');
     }
 
-    // Set cache control headers
+    // Set cache control headers - prevent caching to ensure fresh data
     res.set({
       'Cache-Control': 'no-cache, no-store, must-revalidate, private',
       'Pragma': 'no-cache',
@@ -371,8 +514,15 @@ exports.viewProduct = async (req, res) => {
       return res.status(400).send('Invalid Product ID');
     }
 
-    const offers = await Offer.find({ isActive: true });
-    
+    // Get active offers with the same criteria as the products and searchAndFilterProducts functions
+    const currentDate = new Date();
+    const offers = await Offer.find({
+      isActive: true,
+      isDeleted: false,
+      startDate: { $lte: currentDate },
+      endDate: { $gte: currentDate }
+    });
+
     // Fetch product with its variants
     const product = await Product.aggregate([
       { $match: { 
@@ -436,14 +586,16 @@ exports.viewProduct = async (req, res) => {
         offer.applicableProduct?.toString() === formattedProduct._id.toString()
     );
 
-    const bestOffer = [...categoryOffers, ...productOffers].reduce(
-      (maxOffer, currentOffer) =>
-        !maxOffer ||
-        currentOffer.discountPercentage > maxOffer.discountPercentage
-          ? currentOffer
-          : maxOffer,
-      null
+    // Sort all applicable offers by discount percentage
+    const sortedOffers = [...categoryOffers, ...productOffers].sort(
+      (a, b) => b.discountPercentage - a.discountPercentage
     );
+
+    // Get the best offer (highest discount)
+    const bestOffer = sortedOffers.length > 0 ? sortedOffers[0] : null;
+    
+    // Get second best offer if available
+    const secondaryOffer = sortedOffers.length > 1 ? sortedOffers[1] : null;
 
     // Get related products
     const relatedProducts = await Product.find({
@@ -452,10 +604,80 @@ exports.viewProduct = async (req, res) => {
       isDeleted: { $ne: true }
     }).limit(4);
 
+    // Format related products and apply offers
+    const formattedRelatedProducts = await Promise.all(relatedProducts.map(async (relatedProduct) => {
+      // Format the basic product info
+      const formattedRelated = {
+        _id: relatedProduct._id,
+        productName: relatedProduct.productName,
+        imageUrl: relatedProduct.imageUrl || ['/images/default-product.jpg'],
+        categoriesId: relatedProduct.categoriesId,
+      };
+
+      // Get variants for this related product
+      const variants = await Variant.find({ productId: relatedProduct._id }).lean();
+      formattedRelated.variants = variants;
+
+      // Apply offers to related product variants if applicable
+      if (variants.length > 0) {
+        // Find applicable offers for this related product
+        const relProductOffers = offers.filter(
+          offer => 
+            offer.offerType === 'Product' && 
+            offer.applicableProduct && 
+            offer.applicableProduct.toString() === relatedProduct._id.toString()
+        );
+        
+        const relCategoryOffers = offers.filter(
+          offer => 
+            offer.offerType === 'Category' && 
+            offer.applicableCategory && 
+            offer.applicableCategory.toString() === relatedProduct.categoriesId.toString()
+        );
+        
+        const relApplicableOffers = [...relProductOffers, ...relCategoryOffers];
+        
+        if (relApplicableOffers.length > 0) {
+          // Sort offers by discount percentage (highest first)
+          const relSortedOffers = [...relApplicableOffers].sort((a, b) => 
+            b.discountPercentage - a.discountPercentage
+          );
+          
+          // Get the best offer and second best offer
+          const relBestOffer = relSortedOffers[0];
+          const relSecondaryOffer = relSortedOffers.length > 1 ? relSortedOffers[1] : null;
+          
+          // Apply offers to all variants
+          formattedRelated.variants = formattedRelated.variants.map(variant => {
+            const discountAmount = (variant.price * relBestOffer.discountPercentage) / 100;
+            return {
+              ...variant,
+              discountPrice: Math.round(variant.price - discountAmount),
+              offer: {
+                id: relBestOffer._id,
+                discountPercentage: relBestOffer.discountPercentage,
+                title: relBestOffer.title,
+                offerType: relBestOffer.offerType
+              },
+              secondaryOffer: relSecondaryOffer ? {
+                id: relSecondaryOffer._id,
+                discountPercentage: relSecondaryOffer.discountPercentage,
+                title: relSecondaryOffer.title,
+                offerType: relSecondaryOffer.offerType
+              } : null
+            };
+          });
+        }
+      }
+
+      return formattedRelated;
+    }));
+
     res.render('user/viewProduct', {
       product: formattedProduct,
-      relatedProducts,
+      relatedProducts: formattedRelatedProducts,
       offer: bestOffer,
+      secondaryOffer: secondaryOffer
     });
   } catch (error) {
     console.error('Error viewing product:', error);

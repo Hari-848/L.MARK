@@ -115,6 +115,26 @@
                                     class="h-10 px-4 py-2 bg-zinc-800 text-white rounded-r-lg transform transition-transform duration-300 ease-in-out hover:bg-zinc-600 hover:scale-105 active:bg-zinc-700 active:scale-95">
                                 Search
                             </button>
+                            <button id="refreshButton" 
+                                    class="h-10 px-4 py-2 bg-blue-600 text-white rounded-lg ml-2 transform transition-transform duration-300 ease-in-out hover:bg-blue-700 hover:scale-105 active:bg-blue-800 active:scale-95"
+                                    title="Refresh product data">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Offer Legend -->
+                    <div class="mb-4 p-3 bg-white rounded-lg shadow-sm">
+                        <p class="text-sm text-gray-600 mb-2">Offer Types:</p>
+                        <div class="flex flex-wrap gap-3">
+                            <div class="flex items-center">
+                                <span class="inline-block w-3 h-3 bg-red-500 rounded-full mr-1"></span>
+                                <span class="text-xs">Product Offer</span>
+                            </div>
+                            <div class="flex items-center">
+                                <span class="inline-block w-3 h-3 bg-blue-500 rounded-full mr-1"></span>
+                                <span class="text-xs">Category Offer</span>
+                            </div>
                         </div>
                     </div>
 
@@ -124,10 +144,27 @@
                             <% products.forEach(function(product) { %>
                                 <div class="bg-white rounded-lg shadow-md p-4 flex flex-col">
                                     <!-- Product Image -->
-                                    <a href="/product/<%= product._id %>">
+                                    <a href="/product/<%= product._id %>" class="relative">
                                         <img class="w-full h-48 object-cover rounded-lg mb-4" 
                                              src="<%= product.imageUrl %>" 
                                              alt="<%= product.productName %>" />
+                                        
+                                        <!-- Display primary and secondary offers with different colors based on type -->
+                                        <% if (product.variants && product.variants[0] && product.variants[0].offer) { %>
+                                            <div class="absolute top-2 right-2 
+                                                <%= product.variants[0].offer.offerType === 'Product' ? 'bg-red-500' : 'bg-blue-500' %> 
+                                                text-white px-2 py-1 rounded-full text-sm">
+                                                <%= product.variants[0].offer.discountPercentage %>% OFF
+                                            </div>
+                                            
+                                            <% if (product.variants[0].secondaryOffer) { %>
+                                                <div class="absolute top-10 right-2 
+                                                    <%= product.variants[0].secondaryOffer.offerType === 'Product' ? 'bg-red-500' : 'bg-blue-500' %> 
+                                                    text-white px-2 py-1 rounded-full text-sm">
+                                                    <%= product.variants[0].secondaryOffer.title %>
+                                                </div>
+                                            <% } %>
+                                        <% } %>
                                     </a>
 
                                     <!-- Product Name -->
@@ -144,9 +181,14 @@
                                             <%= firstVariant.variantType %>
                                         </p>
 
-                                        <!-- Price -->
+                                        <!-- Price - Modified to show discounted price -->
                                         <div class="text-xl font-bold text-gray-900 mb-2">
-                                            ₹<%= firstVariant.price ? firstVariant.price.toLocaleString() : 'N/A' %>
+                                            <% if (firstVariant.offer && firstVariant.offer.discountPercentage > 0) { %>
+                                                <span class="text-red-600">₹<%= (firstVariant.price - (firstVariant.price * firstVariant.offer.discountPercentage / 100)).toLocaleString() %></span>
+                                                <span class="text-gray-400 line-through ml-2">₹<%= firstVariant.price.toLocaleString() %></span>
+                                            <% } else { %>
+                                                ₹<%= firstVariant.price ? firstVariant.price.toLocaleString() : 'N/A' %>
+                                            <% } %>
                                         </div>
 
                                         <!-- Stock Status -->
@@ -157,7 +199,7 @@
                                                 <i class="fa-regular fa-heart"></i>
                                             </a>
                                             <% if (firstVariant.stock > 0) { %>
-                                                <div class="text-green-500">In Stock</div>
+                                                    <div class="text-green-500">In Stock</div>
                                             <% } else { %>
                                                 <div class="text-red-600 bg-red-100 px-2 py-1 rounded">
                                                     Out of Stock
@@ -186,450 +228,453 @@
     <div class="pt-6"><%- include("../partials/user/footer") %></div>
 
     <script>
-        // ... [Previous JavaScript code for notifications] ...
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize all DOM element references at the start using the actual IDs in your HTML
+            const searchInput = document.getElementById('searchInput');
+            const searchButton = document.getElementById('searchButton');
+            const categorySelect = document.getElementById('category');
+            const typeSelect = document.getElementById('type');
+            const minPriceInput = document.getElementById('minPrice');
+            const maxPriceInput = document.getElementById('maxPrice');
+            const stockFilter = document.getElementById('stockFilter');
+            const sortFilter = document.getElementById('sortFilter');
+            const resetButton = document.getElementById('resetButton');
+            const productGrid = document.getElementById('productGrid');
+            const paginationControls = document.getElementById('paginationControls');
+            
+            // Create loading spinner with Tailwind classes instead of Bootstrap
+            const loadingSpinner = document.createElement('div');
+            loadingSpinner.className = 'col-span-full flex justify-center items-center py-8';
+            loadingSpinner.innerHTML = '<div class="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900"></div><p class="ml-2">Loading products...</p>';
+            
+            // Set up state
+            let currentPage = 1;
+            let totalPages = 1;
+            let isLoading = false;
+            
+            // Debounce function for search input
+            function debounce(func, wait) {
+                let timeout;
+                return function() {
+                    const context = this;
+                    const args = arguments;
+                    clearTimeout(timeout);
+                    timeout = setTimeout(() => func.apply(context, args), wait);
+                };
+            }
 
-        document.addEventListener("DOMContentLoaded", async () => {
-            const elements = {
-                category: document.getElementById("category"),
-                type: document.getElementById("type"),
-                stockFilter: document.getElementById("stockFilter"),
-                sortFilter: document.getElementById("sortFilter"),
-                minPrice: document.getElementById("minPrice"),
-                maxPrice: document.getElementById("maxPrice"),
-                searchInput: document.getElementById("searchInput"),
-                productGrid: document.getElementById("productGrid"),
-                currentPage: 1,
-                totalPages: 1,
-                productPerPage: 6
-            };
+            // Main function to update products based on filters
+            async function updateProducts(page = 1, showLoading = true) {
+                try {
+                    if (isLoading) return; // Prevent multiple simultaneous requests
+                    isLoading = true;
+                    currentPage = page;
+                    
+                    // Show loading spinner
+                    if (showLoading) {
+                        productGrid.innerHTML = '';
+                        productGrid.appendChild(loadingSpinner);
+                    }
+                    
+                    // Construct filters object
+                    const filters = new URLSearchParams();
+                    
+                    // Add all filters
+                    filters.append('page', currentPage);
+                    
+                    // Add search query if exists
+                    const searchQuery = searchInput.value.trim();
+                    if (searchQuery) {
+                        filters.append('query', searchQuery);
+                    }
+                    
+                    // Add category filter
+                    const categoryValue = categorySelect.value;
+                    if (categoryValue) {
+                        filters.append('category', categoryValue);
+                    }
+                    
+                    // Add type filter
+                    const typeValue = typeSelect.value;
+                    if (typeValue) {
+                        filters.append('type', typeValue);
+                    }
+                    
+                    // Add price range filters
+                    const minPrice = minPriceInput.value;
+                    const maxPrice = maxPriceInput.value;
+                    if (minPrice) filters.append('minPrice', minPrice);
+                    if (maxPrice) filters.append('maxPrice', maxPrice);
+                    
+                    // Add stock status filter
+                    const stockStatus = stockFilter.value;
+                    if (stockStatus) {
+                        filters.append('stockStatus', stockStatus);
+                    }
+                    
+                    // Add sort option
+                    const sortOption = sortFilter.value;
+                    if (sortOption !== 'default') {
+                        filters.append('sort', sortOption);
+                    }
+                    
+                    // Update URL with current filters
+                    const newUrl = `${window.location.pathname}?${filters.toString()}`;
+                    window.history.replaceState({}, '', newUrl);
+                    
+                    console.log('Fetching with filters:', filters.toString());
+                    
+                    // Fetch products with constructed filters
+                    const response = await fetch(`/products/searchFilter?${filters.toString()}`);
+                    
+                    if (!response.ok) {
+                        throw new Error(`Failed to fetch products: ${response.status}`);
+                    }
+                    
+                    const data = await response.json();
+                    console.log('Received data:', data);
 
-            function updatePaginationControls() {
-                console.log("Updating pagination controls", {
-                    currentPage: elements.currentPage,
-                    totalPages: elements.totalPages
-                });
-                
-                const paginationElement = document.getElementById('paginationControls');
-                
-                if (!paginationElement) return;
-                
-                if (elements.totalPages <= 1) {
-                    paginationElement.innerHTML = '';
-                    return;
+                    // Clear the grid
+                    productGrid.innerHTML = '';
+
+                    // If no products found
+                    if (!data.products || data.products.length === 0) {
+                        productGrid.innerHTML = `
+                            <div class="col-span-full text-center py-8">
+                                <p class="text-lg text-gray-500">No products found matching your criteria</p>
+                                <button id="clearFiltersBtn" class="mt-4 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-700">
+                                    Clear Filters
+                                </button>
+                            </div>
+                        `;
+                        
+                        document.getElementById('clearFiltersBtn')?.addEventListener('click', resetFilters);
+                        updatePaginationControls(0);
+                        return;
+                    }
+                    
+                    // Update pagination info
+                    totalPages = data.totalPages || 1;
+                    
+                    // Render products with the original Tailwind UI
+                    data.products.forEach(product => {
+                        // Get first variant if available
+                        const hasVariants = product.variants && product.variants.length > 0;
+                        const firstVariant = hasVariants ? product.variants[0] : null;
+                        
+                        // Create product card with Tailwind classes (matching your original design)
+                        const productCard = document.createElement('div');
+                        productCard.className = 'bg-white rounded-lg shadow-md p-4 flex flex-col transition-transform transform hover:scale-105';
+                        
+                        // Safe image URL with fallback
+                        const imageUrl = product.imageUrl || '/images/default-product.jpg';
+                        
+                        // Prepare offer badges - show all applicable offers with different colors based on type
+                        let offerBadges = '';
+                        if (hasVariants && firstVariant.offer) {
+                            const primaryBadgeColor = firstVariant.offer.offerType === 'Product' ? 'bg-red-500' : 'bg-blue-500';
+                            offerBadges = `
+                                <div class="absolute top-2 right-2 ${primaryBadgeColor} text-white px-2 py-1 rounded-full text-sm">
+                                    ${firstVariant.offer.discountPercentage}% OFF
+                                </div>
+                            `;
+                            
+                            // If there's a second offer title, show it too (already sorted by best discount)
+                            if (firstVariant.secondaryOffer) {
+                                const secondaryBadgeColor = firstVariant.secondaryOffer.offerType === 'Product' ? 'bg-red-500' : 'bg-blue-500';
+                                offerBadges += `
+                                    <div class="absolute top-10 right-2 ${secondaryBadgeColor} text-white px-2 py-1 rounded-full text-sm">
+                                        ${firstVariant.secondaryOffer.title}
+                                    </div>
+                                `;
+                            }
+                        }
+                        
+                        // Prepare the HTML with proper offer badging
+                        let priceHTML = '';
+                        if (hasVariants) {
+                            if (firstVariant.offer && firstVariant.offer.discountPercentage > 0) {
+                                const discountedPrice = Math.round(firstVariant.price - (firstVariant.price * firstVariant.offer.discountPercentage / 100));
+                                priceHTML = `
+                                    <span class="text-red-600">₹${discountedPrice.toLocaleString()}</span>
+                                    <span class="text-gray-400 line-through ml-2">₹${firstVariant.price.toLocaleString()}</span>
+                                `;
+                            } else {
+                                priceHTML = `₹${firstVariant.price ? firstVariant.price.toLocaleString() : 'N/A'}`;
+                            }
+                        } else {
+                            priceHTML = `<span class="text-gray-500">Price not available</span>`;
+                        }
+                        
+                        productCard.innerHTML = `
+                            <a href="/product/${product._id}" class="relative">
+                                <img class="w-full h-48 object-cover rounded-lg mb-4" 
+                                     src="${imageUrl}" 
+                                     alt="${product.productName}"
+                                     onerror="this.onerror=null; this.src='/images/default-product.jpg';" />
+                                
+                                ${offerBadges}
+                            </a>
+                            
+                                <h3 class="text-lg font-semibold text-gray-800 mb-2">
+                                    ${product.productName}
+                                </h3>
+                            
+                            ${hasVariants ? `
+                                <p class="text-gray-600 mb-2">
+                                    ${firstVariant.variantType || 'Standard'}
+                                </p>
+                                
+                                <div class="text-xl font-bold text-gray-900 mb-2">
+                                    ${priceHTML}
+                                            </div>
+                                
+                                <div class="flex justify-between items-center mt-auto">
+                                    <a href="javascript:void(0)" 
+                                       class="hover:text-slate-500" 
+                                           onclick="addToWishlist(event, '${product._id}', '${firstVariant._id}')">
+                                            <i class="fa-regular fa-heart"></i>
+                                        </a>
+                                    
+                                    ${firstVariant.stock > 0 ? `
+                                        <div class="flex space-x-2 items-center">
+                                                <div class="text-green-500">In Stock</div>
+                                                <button onclick="addToCart('${product._id}', '${firstVariant._id}')" 
+                                                        class="ml-2 p-2 bg-black text-white rounded-lg hover:bg-gray-800">
+                                                    <i class="fas fa-shopping-cart"></i>
+                                                </button>
+                                    </div>
+                                ` : `
+                                        <div class="text-red-600 bg-red-100 px-2 py-1 rounded">
+                                            Out of Stock
+                                        </div>
+                                `}
+                            </div>
+                            ` : `
+                                <div class="text-gray-500 mt-auto">No variants available</div>
+                            `}
+                        `;
+                        
+                        productGrid.appendChild(productCard);
+                    });
+                    
+                    // Update pagination controls
+                    updatePaginationControls(totalPages);
+                    
+                } catch (error) {
+                    console.error('Error fetching products:', error);
+                    productGrid.innerHTML = `
+                        <div class="col-span-full text-center py-8">
+                            <p class="text-lg text-red-500">Error loading products</p>
+                            <p class="text-gray-500 mb-4">${error.message}</p>
+                            <button id="retryButton" class="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-700">
+                                Retry
+                            </button>
+                        </div>
+                    `;
+                    
+                    // Add retry button handler
+                    document.getElementById('retryButton')?.addEventListener('click', () => updateProducts(currentPage));
+                } finally {
+                    isLoading = false;
                 }
+            }
+            
+            // Update pagination controls using Tailwind classes
+            function updatePaginationControls(pages) {
+                if (!paginationControls) return;
                 
-                let paginationHTML = '';
+                paginationControls.innerHTML = '';
+                if (pages <= 1) return;
                 
                 // Previous button
-                paginationHTML += `
-                    <button 
-                        ${elements.currentPage === 1 ? 'disabled' : ''}
-                        onclick="changePage(${elements.currentPage - 1})"
-                        class="${elements.currentPage === 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-200'} px-3 py-1 bg-white rounded border border-gray-300">
-                        <i class="fas fa-chevron-left"></i>
-                    </button>
-                `;
+                const prevButton = document.createElement('button');
+                prevButton.disabled = currentPage === 1;
+                prevButton.className = `${currentPage === 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-200'} px-3 py-1 bg-white rounded border border-gray-300`;
+                prevButton.innerHTML = '<i class="fas fa-chevron-left"></i>';
+                if (currentPage > 1) {
+                    prevButton.addEventListener('click', () => changePage(currentPage - 1));
+                }
+                paginationControls.appendChild(prevButton);
                 
-                // Page numbers
-                let startPage = Math.max(1, elements.currentPage - 2);
-                let endPage = Math.min(elements.totalPages, startPage + 4);
+                // First page
+                addPageButton(1);
                 
-                if (endPage - startPage < 4) {
-                    startPage = Math.max(1, endPage - 4);
+                // Ellipsis for many pages at the start
+                if (currentPage > 3) {
+                    const ellipsis = document.createElement('span');
+                    ellipsis.className = 'px-3 py-1 bg-white rounded border border-gray-300';
+                    ellipsis.textContent = '...';
+                    paginationControls.appendChild(ellipsis);
                 }
                 
-                // Show ellipsis for many pages
-                if (startPage > 1) {
-                    paginationHTML += `<span class="px-3 py-1 bg-white rounded border border-gray-300">...</span>`;
+                // Pages around current
+                for (let i = Math.max(2, currentPage - 1); i <= Math.min(pages - 1, currentPage + 1); i++) {
+                    if (i > 1 && i < pages) {
+                        addPageButton(i);
+                    }
                 }
                 
-                // Page numbers
-                for (let i = startPage; i <= endPage; i++) {
-                    paginationHTML += `
-                        <button 
-                            onclick="changePage(${i})"
-                            class="${elements.currentPage === i ? 'bg-gray-900 text-white' : 'bg-white hover:bg-gray-200'} px-3 py-1 rounded border border-gray-300">
-                            ${i}
-                        </button>
-                    `;
+                // Ellipsis for many pages at the end
+                if (currentPage < pages - 2) {
+                    const ellipsis = document.createElement('span');
+                    ellipsis.className = 'px-3 py-1 bg-white rounded border border-gray-300';
+                    ellipsis.textContent = '...';
+                    paginationControls.appendChild(ellipsis);
                 }
                 
-                // Show ellipsis for many pages at the end
-                if (endPage < elements.totalPages) {
-                    paginationHTML += `<span class="px-3 py-1 bg-white rounded border border-gray-300">...</span>`;
+                // Last page if more than one page
+                if (pages > 1) {
+                    addPageButton(pages);
                 }
                 
                 // Next button
-                paginationHTML += `
-                    <button 
-                        ${elements.currentPage === elements.totalPages ? 'disabled' : ''}
-                        onclick="changePage(${elements.currentPage + 1})"
-                        class="${elements.currentPage === elements.totalPages ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-200'} px-3 py-1 bg-white rounded border border-gray-300">
-                        <i class="fas fa-chevron-right"></i>
-                    </button>
-                `;
+                const nextButton = document.createElement('button');
+                nextButton.disabled = currentPage === pages;
+                nextButton.className = `${currentPage === pages ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-200'} px-3 py-1 bg-white rounded border border-gray-300`;
+                nextButton.innerHTML = '<i class="fas fa-chevron-right"></i>';
+                if (currentPage < pages) {
+                    nextButton.addEventListener('click', () => changePage(currentPage + 1));
+                }
+                paginationControls.appendChild(nextButton);
                 
-                paginationElement.innerHTML = paginationHTML;
+                // Helper function to add page button
+                function addPageButton(page) {
+                    const button = document.createElement('button');
+                    button.textContent = page;
+                    button.className = currentPage === page 
+                        ? 'bg-gray-900 text-white px-3 py-1 rounded border border-gray-300' 
+                        : 'bg-white hover:bg-gray-200 px-3 py-1 rounded border border-gray-300';
+                    button.addEventListener('click', () => changePage(page));
+                    paginationControls.appendChild(button);
+                }
             }
-
+            
+            // Function to change page
             function changePage(page) {
-                console.log("Changing to page:", page);
-                if (page < 1 || page > elements.totalPages) return;
+                if (page < 1 || page > totalPages) return;
                 
-                // Scroll to top
+                // Scroll to top for better UX
                 window.scrollTo({ top: 0, behavior: 'smooth' });
                 
                 // Update products with the new page
                 updateProducts(page);
             }
-
-            // Make changePage globally accessible
+            
+            // Make the changePage function global so it can be called from HTML
             window.changePage = changePage;
-
-            async function updateProducts(page = 1) {
-                try {
-                    elements.currentPage = page;
-                    
-                    const filters = {
-                        category: elements.category.value,
-                        type: elements.type.value,
-                        minPrice: elements.minPrice.value,
-                        maxPrice: elements.maxPrice.value,
-                        stockStatus: elements.stockFilter.value,
-                        sort: elements.sortFilter.value,
-                        page: elements.currentPage,
-                        limit: elements.productPerPage
-                    };
-
-                    // Add search query if it exists
-                    const searchQuery = elements.searchInput.value.trim();
-                    if (searchQuery) {
-                        filters.query = searchQuery.toLowerCase();
-                    }
-
-                    const queryParams = new URLSearchParams();
-                    Object.entries(filters).forEach(([key, value]) => {
-                        if (value) queryParams.append(key, value);
-                    });
-
-                    const response = await fetch(`/products/searchFilter?${queryParams}`);
-                    const data = await response.json();
-
-                    if (!data.products || data.products.length === 0) {
-                        elements.productGrid.innerHTML = '<div class="col-span-full text-center text-gray-500">No products found</div>';
-                        elements.totalPages = 0;
-                        updatePaginationControls();
-                        return;
-                    }
-
-                    elements.totalPages = data.totalPages || 1;
-                    
-                    console.log("Pagination data:", {
-                        currentPage: elements.currentPage,
-                        totalPages: data.totalPages,
-                        productsCount: data.products.length
-                    });
-                    
-                    elements.productGrid.innerHTML = data.products.map(product => `
-                        <div class="bg-white rounded-lg shadow-md p-4 flex flex-col transition-transform transform hover:scale-105">
-                            <a href="/product/${product._id}">
-                                <img class="w-full h-48 object-cover rounded-lg mb-4" src="${product.imageUrl}" alt="${product.productName}" />
-                            </a>
-                            <h3 class="text-lg font-semibold text-gray-800 mb-2">
-                                ${product.productName}
-                            </h3>
-                            ${product.variants && product.variants[0] ? `
-                                <p class="text-gray-600">${product.variants[0].variantType}</p>
-                                <div class="text-xl font-bold text-gray-900">
-                                    ₹${product.variants[0].price ? product.variants[0].price.toLocaleString() : 'N/A'}
-                                </div>
-                                <div class="flex justify-between items-center mt-4">
-                                    <a href="javascript:void(0)" class="hover:text-slate-500" 
-                                       onclick="addToWishlist(event, '${product._id}', '${product.variants[0]._id}')">
-                                        <i class="fa-regular fa-heart"></i>
-                                    </a>
-                                    ${product.variants[0].stock > 0 ? 
-                                        `<div class="flex space-x-2 items-center">
-                                            <div class="text-green-500">In Stock</div>
-                                            <button onclick="addToCart('${product._id}', '${product.variants[0]._id}')" 
-                                                    class="ml-2 p-2 bg-black text-white rounded-lg hover:bg-gray-800">
-                                                <i class="fas fa-shopping-cart"></i>
-                                            </button>
-                                         </div>` :
-                                        `<div class="mt-2 font-semibold text-red-600 bg-red-100 border border-red-600 rounded-lg p-2">
-                                            Out of Stock
-                                         </div>`
-                                    }
-                                </div>
-                            ` : `
-                                <div class="text-xl font-bold text-gray-900">Price Not Available</div>
-                            `}
-                        </div>
-                    `).join('');
-                    
-                    // Update pagination controls
-                    updatePaginationControls();
-                } catch (error) {
-                    console.error("Error updating products:", error);
-                    elements.productGrid.innerHTML = '<div class="col-span-full text-center text-red-500">Error loading products</div>';
-                }
-            }
-
-            // Add event listeners for all filters
-            Object.values(elements).forEach(element => {
-                if (element.tagName === "SELECT" || element.tagName === "INPUT") {
-                    element.addEventListener("change", () => {
-                        elements.currentPage = 1;
-                        updateProducts();
-                    });
-                }
-            });
-
-            // Add search input listener with debounce
-            elements.searchInput.addEventListener("input", debounce(updateProducts, 300));
-
-            // Add search button click handler
-            document.getElementById("searchButton").addEventListener("click", () => {
-                elements.currentPage = 1;
-                updateProducts();
-            });
-
-            // Reset button handler
-            document.getElementById("resetButton").addEventListener("click", () => {
-                elements.category.value = "";
-                elements.type.value = "";
-                elements.stockFilter.value = "";
-                elements.sortFilter.value = "default";
-                elements.minPrice.value = "";
-                elements.maxPrice.value = "";
-                elements.searchInput.value = "";
-                elements.currentPage = 1;
+            
+            // Function to reset all filters
+            function resetFilters() {
+                if (searchInput) searchInput.value = '';
+                if (categorySelect) categorySelect.value = '';
+                if (typeSelect) typeSelect.value = '';
+                if (minPriceInput) minPriceInput.value = '';
+                if (maxPriceInput) maxPriceInput.value = '';
+                if (stockFilter) stockFilter.value = '';
+                if (sortFilter) sortFilter.value = 'default';
+                
+                // Reset to page 1 and update
                 updateProducts(1);
+            }
+            
+            // Initialize event listeners
+            // Search input with debounce
+            const debouncedSearch = debounce(() => {
+                updateProducts(1);
+            }, 300);
+            
+            if (searchInput) {
+                searchInput.addEventListener('input', debouncedSearch);
+            }
+            
+            // Search button click
+            if (searchButton) {
+                searchButton.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    updateProducts(1);
+                });
+            }
+            
+            // Refresh button click
+            const refreshButton = document.getElementById('refreshButton');
+            if (refreshButton) {
+                refreshButton.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    updateProducts(currentPage, true); // true to show loading spinner
+                });
+            }
+            
+            // Category, type, and stock filter changes
+            [categorySelect, typeSelect, stockFilter, sortFilter].forEach(element => {
+                if (element) {
+                    element.addEventListener('change', () => updateProducts(1));
+                }
             });
-
-            // Check wishlist status for all products
-            try {
-                const userId = "<%= session?.user?._id %>";
-                if (!userId) return;
-                
-                const response = await fetch('/wishlist/all');
-                const data = await response.json();
-                
-                if (response.ok && data.wishlistItems) {
-                    // Get all product IDs in the wishlist
-                    const wishlistProductIds = data.wishlistItems.map(item => item.productId);
-                    
-                    // Update heart icons for products in wishlist
-                    document.querySelectorAll('[onclick^="addToWishlist"]').forEach(button => {
-                        const productId = button.getAttribute('onclick').split("'")[1];
-                        if (wishlistProductIds.includes(productId)) {
-                            const heartIcon = button.querySelector('i');
-                            if (heartIcon) {
-                                heartIcon.classList.remove('fa-regular');
-                                heartIcon.classList.add('fa-solid');
-                                heartIcon.style.color = '#e53e3e';
-                            }
-                        }
-                    });
+            
+            // Price filter changes with debounce
+            [minPriceInput, maxPriceInput].forEach(element => {
+                if (element) {
+                    element.addEventListener('input', debounce(() => updateProducts(1), 500));
                 }
-            } catch (error) {
-                console.error('Error checking wishlist status:', error);
+            });
+            
+            // Reset button click
+            if (resetButton) {
+                resetButton.addEventListener('click', resetFilters);
             }
-
-            // Add this line to trigger initial products load with pagination
-            updateProducts(1);
+            
+            // Initialize from URL parameters
+            function initFromUrlParams() {
+                const params = new URLSearchParams(window.location.search);
+                
+                if (params.has('query') && searchInput) {
+                    searchInput.value = params.get('query');
+                }
+                
+                if (params.has('category') && categorySelect) {
+                    categorySelect.value = params.get('category');
+                }
+                
+                if (params.has('type') && typeSelect) {
+                    typeSelect.value = params.get('type');
+                }
+                
+                if (params.has('minPrice') && minPriceInput) {
+                    minPriceInput.value = params.get('minPrice');
+                }
+                
+                if (params.has('maxPrice') && maxPriceInput) {
+                    maxPriceInput.value = params.get('maxPrice');
+                }
+                
+                if (params.has('stockStatus') && stockFilter) {
+                    stockFilter.value = params.get('stockStatus');
+                }
+                
+                if (params.has('sort') && sortFilter) {
+                    sortFilter.value = params.get('sort');
+                }
+                
+                if (params.has('page')) {
+                    currentPage = parseInt(params.get('page')) || 1;
+                }
+            }
+            
+            // Initialize
+            initFromUrlParams();
+            updateProducts(currentPage);
+            
+            // Add page visibility event listener to refresh product data when user returns to page
+            document.addEventListener('visibilitychange', function() {
+                if (document.visibilityState === 'visible') {
+                    // User has returned to the page, refresh data to get latest offers
+                    updateProducts(currentPage, false); // false to avoid showing loading spinner on every tab change
+                }
+            });
         });
-
-        // Debounce function
-        function debounce(func, wait) {
-            let timeout;
-            return function (...args) {
-                clearTimeout(timeout);
-                timeout = setTimeout(() => func.apply(this, args), wait);
-            };
-        }
-
-        // Add CSS styles
-        const styles = `
-            #searchSuggestions {
-                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-                transition: all 0.3s ease;
-                background-color: #f8f9fa; /* Light gray background */ 
-            }
-            #searchSuggestions .suggestion-item {
-                background-color: #f8f9fa; /* Light gray background */
-                transition: background-color 0.2s;
-            }
-            #searchSuggestions .suggestion-item:hover {
-                background-color: #e9ecef; /* Slightly darker on hover */
-            }
-            #searchSuggestions .aspect-w-1 {
-                position: relative;
-                padding-bottom: 100%;
-            }
-            #searchSuggestions .aspect-w-1 img {
-                position: absolute;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                object-fit: cover;
-            }
-            .line-clamp-2 {
-                display: -webkit-box;
-                -webkit-line-clamp: 2;
-                -webkit-box-orient: vertical;
-                overflow: hidden;
-            }
-        `;
-
-        const styleSheet = document.createElement("style");
-        styleSheet.innerText = styles;
-        document.head.appendChild(styleSheet);
-
-        // Add to Cart function
-        async function addToCart(productId, variantId) {
-            try {
-                const response = await fetch('/cart/add', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        productId,
-                        variantId,
-                        quantity: 1
-                    }),
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    // Try to use Swal if available, otherwise use regular alert
-                    if (typeof Swal !== 'undefined') {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Added to Cart',
-                            text: 'Product has been added to your cart',
-                            showConfirmButton: false,
-                            timer: 1500
-                        });
-                    } else {
-                        alert('Product added to cart successfully!');
-                    }
-                    
-                    // Update cart count if you have a cart counter element
-                    if (document.getElementById('cartCount')) {
-                        document.getElementById('cartCount').textContent = data.cartCount || '0';
-                    }
-                } else {
-                    if (typeof Swal !== 'undefined') {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error',
-                            text: data.message || 'Failed to add product to cart'
-                        });
-                    } else {
-                        alert(data.message || 'Failed to add product to cart');
-                    }
-                }
-            } catch (error) {
-                console.error('Error adding to cart:', error);
-                if (typeof Swal !== 'undefined') {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: 'An unexpected error occurred'
-                    });
-                } else {
-                    alert('An unexpected error occurred while adding to cart');
-                }
-            }
-        }
-
-        async function addToWishlist(event, productId, variantId) {
-            try {
-                // Check if the item is already in wishlist (heart is solid)
-                const heartIcon = event.currentTarget.querySelector('i');
-                const isInWishlist = heartIcon && heartIcon.classList.contains('fa-solid');
-                
-                let url = isInWishlist ? `/wishlist/remove/${productId}` : '/wishlist/add';
-                let method = isInWishlist ? 'DELETE' : 'POST';
-                let body = isInWishlist ? null : JSON.stringify({ productId, variantId });
-                
-                const response = await fetch(url, {
-                    method: method,
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: body
-                });
-                
-                const data = await response.json();
-                
-                if (response.ok) {
-                    // Toggle heart icon
-                    if (event && event.currentTarget) {
-                        const heartIcon = event.currentTarget.querySelector('i');
-                        if (heartIcon) {
-                            if (isInWishlist) {
-                                // Remove from wishlist - change to outline heart
-                                heartIcon.classList.remove('fa-solid');
-                                heartIcon.classList.add('fa-regular');
-                                heartIcon.style.color = ''; // Remove red color
-                                
-                                Swal.fire({
-                                    icon: 'success',
-                                    title: 'Removed from Wishlist',
-                                    text: 'Product has been removed from your wishlist',
-                                    showConfirmButton: true,
-                                    timer: 2000
-                                });
-                            } else {
-                                // Add to wishlist - change to solid heart
-                                heartIcon.classList.remove('fa-regular');
-                                heartIcon.classList.add('fa-solid');
-                                heartIcon.style.color = '#e53e3e'; // Add red color
-                                
-                                Swal.fire({
-                                    icon: 'success',
-                                    title: 'Added to Wishlist',
-                                    text: 'Product has been added to your wishlist',
-                                    showConfirmButton: true,
-                                    timer: 2000
-                                });
-                            }
-                        }
-                    }
-                } else {
-                    throw new Error(data.error || 'Failed to update wishlist');
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                
-                // Check if the error is due to not being logged in
-                if (error.message.includes('login') || error.message.includes('authentication')) {
-                    Swal.fire({
-                        icon: 'info',
-                        title: 'Login Required',
-                        text: 'Please login to manage your wishlist',
-                        showCancelButton: true,
-                        confirmButtonText: 'Login Now',
-                        cancelButtonText: 'Later'
-                    }).then((result) => {
-                        if (result.isConfirmed) {
-                            window.location.href = '/signin';
-                        }
-                    });
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: error.message || 'Failed to update wishlist'
-                    });
-                }
-            }
-        }
+        
+        // Reuse existing addToWishlist and addToCart functions (already defined in your HTML)
     </script>
 </body>
 </html>

@@ -18,7 +18,7 @@ const walletTransactionSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Order'
   },
-  createdAt: {
+  date: {
     type: Date,
     default: Date.now
   }

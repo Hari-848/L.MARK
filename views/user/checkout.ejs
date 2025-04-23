@@ -90,9 +90,9 @@
                 <p class="font-medium">Online Payment</p>
                 <p class="text-sm text-gray-600">Pay securely with Razorpay</p>
                 <div class="mt-2 flex space-x-2">
-                  <img src="/images/razorpay-logo.png" alt="Razorpay" class="h-6" onerror="this.src='https://razorpay.com/assets/razorpay-logo.svg'; this.onerror='';">
-                  <img src="/images/visa.png" alt="Visa" class="h-6" onerror="this.src='https://cdn.iconscout.com/icon/free/png-256/visa-3-226460.png'; this.onerror='';">
-                  <img src="/images/mastercard.png" alt="Mastercard" class="h-6" onerror="this.src='https://cdn.iconscout.com/icon/free/png-256/mastercard-3-226462.png'; this.onerror='';">
+                  <img src="https://razorpay.com/assets/razorpay-logo.svg" alt="Razorpay" class="h-6">
+                  <img src="https://cdn.iconscout.com/icon/free/png-256/visa-3-226460.png" alt="Visa" class="h-6">
+                  <img src="https://cdn.iconscout.com/icon/free/png-256/mastercard-3-226462.png" alt="Mastercard" class="h-6">
                 </div>
               </div>
             </label>
@@ -124,8 +124,8 @@
               <div class="flex items-center pb-4 border-b last:border-b-0">
                 <div class="w-16 h-16 mr-4 relative rounded-lg overflow-hidden">
                   <img 
-                    src="<%= item.product.imageUrl && item.product.imageUrl.length > 0 ? item.product.imageUrl[0] : '/images/placeholder.jpg' %>" 
-                    alt="<%= item.product.productName %>" 
+                    src="<%= item.productId.imageUrl && item.productId.imageUrl.length > 0 ? item.productId.imageUrl[0] : '/images/placeholder.jpg' %>" 
+                    alt="<%= item.productId.productName %>" 
                     class="w-full h-full object-cover"
                   >
                   <span class="absolute top-0 right-0 bg-gray-800 text-white text-xs px-1.5 py-0.5 rounded">
@@ -133,18 +133,18 @@
                   </span>
                 </div>
                 <div class="flex-1">
-                  <p class="font-medium text-sm line-clamp-1"><%= item.product.productName %></p>
+                  <p class="font-medium text-sm line-clamp-1"><%= item.productId.productName %></p>
                   <p class="text-xs text-gray-600">
-                    <% if (item.variant.variantType) { %>
-                      <%= item.variant.variantType %>
+                    <% if (item.variantId.variantType) { %>
+                      <%= item.variantId.variantType %>
                     <% } %>
                   </p>
                   <div class="mt-1">
-                    <% if (item.variant.discountPrice && item.variant.discountPrice > 0) { %>
-                      <span class="font-medium">₹<%= (item.variant.discountPrice * item.quantity).toFixed(2) %></span>
-                      <span class="text-xs text-gray-500 line-through ml-1">₹<%= (item.price * item.quantity).toFixed(2) %></span>
+                    <% if (item.finalPrice < item.variantId.price) { %>
+                      <span class="font-medium">₹<%= (item.finalPrice * item.quantity).toFixed(2) %></span>
+                      <span class="text-xs text-gray-500 line-through ml-1">₹<%= (item.variantId.price * item.quantity).toFixed(2) %></span>
                     <% } else { %>
-                      <span class="font-medium">₹<%= (item.price * item.quantity).toFixed(2) %></span>
+                      <span class="font-medium">₹<%= (item.finalPrice * item.quantity).toFixed(2) %></span>
                     <% } %>
                   </div>
                 </div>

@@ -99,11 +99,36 @@
                         </a>
                     </div>
 
-                    <!-- Price Information -->
-                    <div class="my-4">
-                        <p class="text-lg text-gray-800 font-bold variant-price">
-                            ₹<%= product.variants[0]?.price.toLocaleString() || 'N/A' %>
-                        </p>
+                    <!-- Price section -->
+                    <div class="price-container mt-4">
+                        <% if (product.variants && product.variants.length > 0) { %>
+                            <% const selectedVariant = product.variants[0]; %>
+                            
+                            <!-- Offer badge -->
+                            <% if (offer) { %>
+                                <div class="bg-red-500 text-white px-3 py-1 rounded-full inline-block mb-2">
+                                    <span class="font-bold"><%= offer.discountPercentage %>% OFF</span> - <%= offer.title %>
+                                </div>
+                                
+                                <!-- Secondary Offer Badge -->
+                                <% if (secondaryOffer) { %>
+                                    <div class="bg-blue-500 text-white px-3 py-1 rounded-full inline-block mb-2 ml-2">
+                                        <%= secondaryOffer.title %>
+                                    </div>
+                                <% } %>
+                            <% } %>
+                            
+                            <!-- Price display -->
+                            <div class="text-3xl font-bold">
+                                <% if (offer) { %>
+                                    <% const discountedPrice = selectedVariant.price - (selectedVariant.price * offer.discountPercentage / 100); %>
+                                    <span class="text-red-600">₹<%= discountedPrice.toLocaleString() %></span>
+                                    <span class="text-gray-400 line-through ml-2">₹<%= selectedVariant.price.toLocaleString() %></span>
+                                <% } else { %>
+                                    <span>₹<%= selectedVariant.price.toLocaleString() %></span>
+                                <% } %>
+                            </div>
+                        <% } %>
                     </div>
 
                     <!-- Rating -->
@@ -172,10 +197,27 @@
         <div class="mx-4 mb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
             <% relatedProducts.slice(0, 4).forEach(product => { %>
                 <div class="bg-white rounded-lg shadow-md p-4 flex flex-col transition-transform transform hover:scale-105">
-                    <a href="/product/<%= product._id %>">
+                    <a href="/product/<%= product._id %>" class="relative">
                         <img class="w-full h-48 object-cover rounded-lg mb-4" 
                              src="<%= product.imageUrl[0] %>" 
                              alt="<%= product.productName %>" />
+                             
+                        <!-- Display offers on related products -->
+                        <% if (product.variants && product.variants.length > 0 && product.variants[0].offer) { %>
+                            <div class="absolute top-2 right-2 
+                                <%= product.variants[0].offer.offerType === 'Product' ? 'bg-red-500' : 'bg-blue-500' %> 
+                                text-white px-2 py-1 rounded-full text-sm">
+                                <%= product.variants[0].offer.discountPercentage %>% OFF
+                            </div>
+                            
+                            <% if (product.variants[0].secondaryOffer) { %>
+                                <div class="absolute top-10 right-2 
+                                    <%= product.variants[0].secondaryOffer.offerType === 'Product' ? 'bg-red-500' : 'bg-blue-500' %> 
+                                    text-white px-2 py-1 rounded-full text-sm">
+                                    <%= product.variants[0].secondaryOffer.title %>
+                                </div>
+                            <% } %>
+                        <% } %>
                     </a>
                     <h3 class="text-lg font-semibold text-gray-800 mb-2">
                         <%= product.productName %>
@@ -183,7 +225,14 @@
 
                     <% if (product.variants && product.variants.length > 0 && product.variants[0].price) { %>
                         <div class="text-xl font-bold text-gray-900">
-                            ₹<%= product.variants[0].price.toLocaleString() %>
+                            <!-- Show discounted price if offer exists -->
+                            <% if (product.variants[0].offer && product.variants[0].offer.discountPercentage > 0) { %>
+                                <% const discountedPrice = Math.round(product.variants[0].price - (product.variants[0].price * product.variants[0].offer.discountPercentage / 100)); %>
+                                <span class="text-red-600">₹<%= discountedPrice.toLocaleString() %></span>
+                                <span class="text-gray-400 line-through ml-2">₹<%= product.variants[0].price.toLocaleString() %></span>
+                            <% } else { %>
+                                ₹<%= product.variants[0].price.toLocaleString() %>
+                            <% } %>
                         </div>
                     <% } else if (product.regularPrice) { %>
                         <div class="text-xl font-bold text-gray-900">

@@ -107,19 +107,25 @@ exports.postAddProduct = async (req, res) => {
       productName,
       description,
       regularPrice,
-      category, // This will be the category name
+      category,
+      stock
     } = req.body;
 
-    console.log('Received category name:', category); // Debug log
-
     // Validate required fields
-    if (
-      !productName ||
-      !description ||
-      !regularPrice ||
-      !category
-    ) {
-      return res.status(400).json({ error: 'Missing required fields' });
+    if (!productName || !description || !regularPrice || !category || !stock) {
+      return res.status(400).json({ error: 'All fields are required' });
+    }
+
+    // Validate price
+    regularPrice = Number(regularPrice);
+    if (isNaN(regularPrice) || regularPrice <= 0) {
+      return res.status(400).json({ error: 'Price must be greater than 0' });
+    }
+
+    // Validate stock
+    stock = Number(stock);
+    if (isNaN(stock) || stock < 0) {
+      return res.status(400).json({ error: 'Stock cannot be negative' });
     }
 
     // Find category by name
@@ -128,14 +134,11 @@ exports.postAddProduct = async (req, res) => {
       return res.status(400).json({ error: 'Category not found' });
     }
 
-    regularPrice = Number(regularPrice);
-
     // Handle image uploads
     let imageUrls = [];
 
     if (req.files && req.files.length > 0) {
       try {
-        // Upload each image buffer to Cloudinary
         for (const file of req.files) {
           const b64 = Buffer.from(file.buffer).toString('base64');
           const dataURI = 'data:' + file.mimetype + ';base64,' + b64;
@@ -145,7 +148,6 @@ exports.postAddProduct = async (req, res) => {
             resource_type: 'auto',
           });
 
-          console.log('Upload Success:', result);
           imageUrls.push(result.secure_url);
         }
       } catch (uploadError) {
@@ -154,23 +156,18 @@ exports.postAddProduct = async (req, res) => {
       }
     }
 
-    // Create new product with both category ID and name
+    // Create new product
     const newProduct = new Product({
       productName,
       description,
       regularPrice,
-      categoriesId: categoryDoc._id, // Save the category ID
-      category: category, // Save the category name as well
+      categoriesId: categoryDoc._id,
+      category: category,
       imageUrl: imageUrls,
       status: 'Available',
+      stock: stock,
       variants: [],
     });
-
-    console.log('Saving product:', {
-      productName,
-      category,
-      categoryId: categoryDoc._id,
-    }); // Debug log
 
     const savedProduct = await newProduct.save();
 

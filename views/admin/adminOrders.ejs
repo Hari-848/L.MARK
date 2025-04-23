@@ -130,35 +130,36 @@
     </div>
     
     <!-- Orders Table -->
-    <div class="bg-zinc-800 rounded-lg p-6">
+    <div class="bg-zinc-800 rounded-lg p-6 overflow-x-auto">
       <table class="min-w-full text-left text-gray-400">
         <thead>
           <tr class="border-b border-gray-700">
-            <th class="py-3 px-4">Order ID</th>
-            <th class="py-3 px-4">Date</th>
-            <th class="py-3 px-4">Customer</th>
-            <th class="py-3 px-4">Amount</th>
-            <th class="py-3 px-4">Payment</th>
-            <th class="py-3 px-4">Status</th>
-            <th class="py-3 px-4">Return</th>
-            <th class="py-3 px-4">Actions</th>
+            <th class="py-3 px-4 w-32">Order ID</th>
+            <th class="py-3 px-4 w-24">Date</th>
+            <th class="py-3 px-4 w-48">Customer</th>
+            <th class="py-3 px-4 w-24">Amount</th>
+            <th class="py-3 px-4 w-32">Payment</th>
+            <th class="py-3 px-4 w-32">Status</th>
+            <th class="py-3 px-4 w-32">Return</th>
+            <th class="py-3 px-4 w-64">Items</th>
+            <th class="py-3 px-4 w-48">Actions</th>
           </tr>
         </thead>
         <tbody>
           <% if (orders.length === 0) { %>
             <tr class="border-b border-gray-700">
-              <td colspan="8" class="py-4 text-center text-gray-500">No orders found</td>
+              <td colspan="9" class="py-4 text-center text-gray-500">No orders found</td>
             </tr>
           <% } else { %>
             <% orders.forEach(order => { %>
               <tr class="border-b border-gray-700">
-                <td class="py-3 px-4 text-white">
+                <td class="py-3 px-4 text-white truncate">
                   <%= order._id.toString().substring(0, 10) %>...
                 </td>
                 <td class="py-3 px-4 text-white">
                   <%= new Date(order.createdAt).toLocaleDateString() %>
                 </td>
-                <td class="py-3 px-4 text-white">
+                <td class="py-3 px-4 text-white truncate">
                   <%= order.userId ? order.userId.email : 'Unknown' %>
                 </td>
                 <td class="py-3 px-4 text-white">
@@ -205,23 +206,53 @@
                     <span class="text-gray-500">-</span>
                   <% } %>
                 </td>
+                <td class="py-3 px-4">
+                  <div class="flex items-center">
+                    <div class="flex-shrink-0 h-10 w-10">
+                      <% if (order.items[0].productId && order.items[0].productId.imageUrl) { %>
+                        <% const imageUrl = Array.isArray(order.items[0].productId.imageUrl) ? order.items[0].productId.imageUrl[0] : order.items[0].productId.imageUrl; %>
+                        <img class="h-10 w-10 rounded-full object-cover" 
+                             src="<%= imageUrl %>" 
+                             alt="<%= order.items[0].productId.productName %>"
+                             onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'h-10 w-10 rounded-full bg-zinc-700 flex items-center justify-center\'><i class=\'fas fa-image text-gray-500\'></i></div>';">
+                      <% } else { %>
+                        <div class="h-10 w-10 rounded-full bg-zinc-700 flex items-center justify-center">
+                          <i class="fas fa-image text-gray-500"></i>
+                        </div>
+                      <% } %>
+                    </div>
+                    <div class="ml-4 min-w-0">
+                      <div class="text-sm font-medium text-white truncate">
+                        <%= order.items[0].productId ? order.items[0].productId.productName : 'Product Unavailable' %>
+                        <% if (order.items.length > 1) { %>
+                          <span class="text-white-500">and <%= order.items.length - 1 %> more</span>
+                        <% } %>
+                      </div>
+                      <div class="text-sm text-white-500 truncate">
+                        <%= order.items[0].variantId ? order.items[0].variantId.variantType : '' %>
+                      </div>
+                    </div>
+                  </div>
+                </td>
                 <td class="py-3 px-4 whitespace-nowrap text-sm font-medium">
-                  <a href="/admin/order/<%= order._id %>" class="text-violet-400 hover:text-violet-300 mr-3">View</a>
-                  <button 
-                    onclick="openUpdateStatusModal('<%= order._id %>', '<%= order.orderStatus %>')" 
-                    class="text-blue-400 hover:text-blue-300 mr-3"
-                  >
-                    Update Status
-                  </button>
-                  
-                  <% if (order.returnRequested && order.returnStatus === 'pending') { %>
+                  <div class="flex flex-col space-y-1">
+                    <a href="/admin/order/<%= order._id %>" class="text-violet-400 hover:text-violet-300">View</a>
                     <button 
-                      onclick="openProcessReturnModal('<%= order._id %>')" 
-                      class="text-orange-400 hover:text-orange-300"
+                      onclick="openUpdateStatusModal('<%= order._id %>', '<%= order.orderStatus %>')" 
+                      class="text-blue-400 hover:text-blue-300"
                     >
-                      Process Return
+                      Update Status
                     </button>
-                  <% } %>
+                    
+                    <% if (order.returnRequested && order.returnStatus === 'pending') { %>
+                      <button 
+                        onclick="openProcessReturnModal('<%= order._id %>')" 
+                        class="text-orange-400 hover:text-orange-300"
+                      >
+                        Process Return
+                      </button>
+                    <% } %>
+                  </div>
                 </td>
               </tr>
             <% }); %>

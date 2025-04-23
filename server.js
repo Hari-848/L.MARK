@@ -16,6 +16,7 @@ const adminRoutes = require('./routes/adminRoutes');
 const Product = require('./Models/productSchema');
 const MongoStore = require('connect-mongo');
 const cartRoutes = require('./routes/cartRoutes');
+const userController = require('./controllers/user/userController');
 
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
@@ -210,9 +211,8 @@ const isAuthenticated = (req, res, next) => {
 };
 
 // Routes
-app.get('/', isAuthenticated, (req, res) => {
-  res.render('user/home', { user: req.session.user || req.user });
-});
+app.get('/', isAuthenticated, userController.home);
+app.get('/home', isAuthenticated, userController.home);
 
 app.get('/auth/google', passport.authenticate('google', {
   scope: ['profile', 'email'],

@@ -5,6 +5,9 @@ const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
 const Wallet = require('../../Models/walletModel');
+const Cart = require('../../Models/cartModel');
+const Address = require('../../Models/addressModel');
+const Offer = require('../../Models/offerModel');
 
 function isWithin7Days(deliveredAt) {
   const delivered = new Date(deliveredAt);
@@ -43,7 +46,7 @@ exports.getUserOrders = async (req, res) => {
       
       // Add product search if we found matching products
       if (productIds.length > 0) {
-        searchConditions.push({ 'items.product': { $in: productIds } });
+        searchConditions.push({ 'items.productId': { $in: productIds } });
       }
       
       // Add ObjectId search if valid format
@@ -60,11 +63,11 @@ exports.getUserOrders = async (req, res) => {
     // Get orders with pagination
     const orders = await Order.find(query)
       .populate({
-        path: 'items.product',
+        path: 'items.productId',
         select: 'productName imageUrl'
       })
       .populate({
-        path: 'items.variant',
+        path: 'items.variantId',
         select: 'variantType'
       })
       .populate('address')
@@ -102,11 +105,11 @@ exports.getOrderDetails = async (req, res) => {
     
     const order = await Order.findOne({ _id: orderId, userId })
       .populate({
-        path: 'items.product',
+        path: 'items.productId',
         select: 'productName imageUrl'
       })
       .populate({
-        path: 'items.variant',
+        path: 'items.variantId',
         select: 'variantType price discountPrice'
       })
       .populate('address');
@@ -391,5 +394,171 @@ exports.processReturn = async (req, res) => {
     return res.status(500).json({ 
       error: 'An error occurred while processing the return' 
     });
+  }
+};
+
+exports.checkout = async (req, res) => {
+  try {
+    const userId = req.session.user._id;
+    const cart = await Cart.findOne({ userId }).populate({
+      path: 'items.productId',
+      select: 'productName imageUrl'
+    });
+
+    if (!cart || cart.items.length === 0) {
+      return res.redirect('/cart');
+    }
+
+    // Get variants and verify offers are still valid
+    const currentDate = new Date();
+    for (const item of cart.items) {
+      const variant = await Variant.findById(item.variantId);
+      
+      // Check if variant exists and has stock
+      if (!variant || variant.stock < item.quantity) {
+        return res.redirect('/cart?error=stock_changed');
+      }
+      
+      // If item has an offer, verify it's still valid
+      if (item.offer) {
+        const offer = await Offer.findOne({
+          _id: item.offer.offerId,
+          isActive: true,
+          isDeleted: false,
+          startDate: { $lte: currentDate },
+          endDate: { $gte: currentDate }
+        });
+        
+        if (!offer) {
+          // Offer no longer valid, update price
+          item.finalPrice = item.price;
+          item.offer = null;
+        } else if (offer.discountPercentage !== item.offer.discountPercentage) {
+          // Discount changed, update price
+          const discountAmount = (item.price * offer.discountPercentage) / 100;
+          item.finalPrice = Math.round(item.price - discountAmount);
+          item.offer.discountPercentage = offer.discountPercentage;
+        }
+      }
+    }
+    
+    // Recalculate cart total
+    cart.totalAmount = cart.items.reduce(
+      (total, item) => total + (item.finalPrice * item.quantity), 
+      0
+    );
+    
+    await cart.save();
+
+    // Get addresses for checkout
+    const addresses = await Address.find({ userId });
+
+    res.render('user/checkout', {
+      cart,
+      addresses,
+      // Other data needed for checkout
+    });
+  } catch (error) {
+    console.error('Error loading checkout:', error);
+    res.status(500).render('error', { error: 'Failed to load checkout page' });
+  }
+};
+
+exports.placeOrder = async (req, res) => {
+  try {
+    const userId = req.session.user._id;
+    const { addressId, paymentMethod } = req.body;
+    
+    const cart = await Cart.findOne({ userId });
+    if (!cart || cart.items.length === 0) {
+      return res.status(400).json({ success: false, message: 'Cart is empty' });
+    }
+    
+    // Verify all items are in stock and offers are valid
+    const currentDate = new Date();
+    const orderItems = [];
+    let subtotal = 0;
+    
+    for (const item of cart.items) {
+      const variant = await Variant.findById(item.variantId);
+      const product = await Product.findById(item.productId);
+      
+      if (!variant || !product || variant.stock < item.quantity) {
+        return res.status(400).json({ 
+          success: false, 
+          message: `${product ? product.productName : 'Item'} is no longer available in the requested quantity` 
+        });
+      }
+      
+      // Verify offers again
+      let finalPrice = item.price;
+      let appliedOffer = null;
+      
+      if (item.offer) {
+        const offer = await Offer.findOne({
+          _id: item.offer.offerId,
+          isActive: true,
+          isDeleted: false,
+          startDate: { $lte: currentDate },
+          endDate: { $gte: currentDate }
+        });
+        
+        if (offer) {
+          const discountAmount = (item.price * offer.discountPercentage) / 100;
+          finalPrice = Math.round(item.price - discountAmount);
+          
+          appliedOffer = {
+            offerId: offer._id,
+            title: offer.title,
+            discountPercentage: offer.discountPercentage
+          };
+        }
+      }
+      
+      // Add to order items
+      orderItems.push({
+        productId: item.productId,
+        variantId: item.variantId,
+        quantity: item.quantity,
+        price: item.price,
+        finalPrice: finalPrice,
+        offer: appliedOffer
+      });
+      
+      // Add to subtotal
+      subtotal += finalPrice * item.quantity;
+      
+      // Update inventory
+      variant.stock -= item.quantity;
+      await variant.save();
+    }
+    
+    // Create order
+    const order = new Order({
+      userId,
+      items: orderItems,
+      totalAmount: subtotal,
+      shippingAddress: addressId,
+      paymentMethod,
+      paymentStatus: paymentMethod === 'cod' ? 'pending' : 'completed',
+      orderStatus: 'placed'
+    });
+    
+    await order.save();
+    
+    // Clear cart
+    await Cart.findOneAndUpdate(
+      { userId },
+      { $set: { items: [], totalAmount: 0 } }
+    );
+    
+    res.status(200).json({
+      success: true,
+      message: 'Order placed successfully',
+      orderId: order._id
+    });
+  } catch (error) {
+    console.error('Error placing order:', error);
+    res.status(500).json({ success: false, message: 'Failed to place order' });
   }
 }; 

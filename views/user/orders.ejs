@@ -76,21 +76,25 @@
                   <%= new Date(order.createdAt).toLocaleDateString() %>
                 </td>
                 <td class="px-6 py-4 text-sm text-gray-500">
-                  <div class="flex items-center space-x-2">
-                    <div class="flex -space-x-2 overflow-hidden">
-                      <% for(let i = 0; i < Math.min(3, order.items.length); i++) { %>
-                        <% if (order.items[i].product && order.items[i].product.imageUrl) { %>
-                          <img 
-                            src="<%= Array.isArray(order.items[i].product.imageUrl) ? order.items[i].product.imageUrl[0] : order.items[i].product.imageUrl %>" 
-                            alt="Product" 
-                            class="w-8 h-8 object-cover rounded-full border border-white"
-                          >
-                        <% } else { %>
-                          <div class="w-8 h-8 bg-gray-200 rounded-full border border-white"></div>
-                        <% } %>
+                  <div class="flex items-center">
+                    <div class="flex-shrink-0 h-10 w-10">
+                      <% if (order.items[0].productId && order.items[0].productId.imageUrl) { %>
+                        <img class="h-10 w-10 rounded-full object-cover" src="<%= order.items[0].productId.imageUrl[0] || '/images/placeholder.jpg' %>" alt="<%= order.items[0].productId.productName %>">
+                      <% } else { %>
+                        <div class="h-10 w-10 rounded-full bg-gray-200"></div>
                       <% } %>
                     </div>
-                    <span><%= order.items.length %> item<%= order.items.length > 1 ? 's' : '' %></span>
+                    <div class="ml-4">
+                      <div class="text-sm font-medium text-gray-900">
+                        <%= order.items[0].productId ? order.items[0].productId.productName : 'Product Unavailable' %>
+                        <% if (order.items.length > 1) { %>
+                          <span class="text-gray-500">and <%= order.items.length - 1 %> more</span>
+                        <% } %>
+                      </div>
+                      <div class="text-sm text-gray-500">
+                        <%= order.items[0].variantId ? order.items[0].variantId.variantType : '' %>
+                      </div>
+                    </div>
                   </div>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">

@@ -25,11 +25,11 @@ exports.getCheckout = async (req, res) => {
     // Get cart with populated items
     const cart = await Cart.findOne({ userId })
       .populate({
-        path: 'items.product',
+        path: 'items.productId',
         select: 'productName imageUrl'
       })
       .populate({
-        path: 'items.variant',
+        path: 'items.variantId',
         select: 'variantType price discountPrice stock'
       });
     
@@ -37,17 +37,15 @@ exports.getCheckout = async (req, res) => {
       return res.redirect('/cart');
     }
     
-    // Calculate original subtotal (before any discounts)
+    // Calculate subtotal using finalPrice
     const subtotal = cart.items.reduce((total, item) => {
-      const itemPrice = item.variant.price || item.price;
-      return total + (itemPrice * item.quantity);
+      return total + (item.finalPrice * item.quantity);
     }, 0);
 
-    // Calculate product discounts (from variant discountPrice)
+    // Calculate product discounts (difference between original and final price)
     const productDiscount = cart.items.reduce((total, item) => {
-      if (item.variant.discountPrice && item.variant.discountPrice > 0) {
-        const originalPrice = item.variant.price || item.price;
-        const discount = (originalPrice - item.variant.discountPrice) * item.quantity;
+      if (item.variantId.price > item.finalPrice) {
+        const discount = (item.variantId.price - item.finalPrice) * item.quantity;
         return total + discount;
       }
       return total;
@@ -60,7 +58,7 @@ exports.getCheckout = async (req, res) => {
     const couponDiscount = appliedCoupon ? appliedCoupon.discount : 0;
 
     // Calculate final total
-    const total = subtotal - productDiscount - couponDiscount + shipping;
+    const total = subtotal - couponDiscount + shipping;
     
     // Get user addresses
     const addresses = await Address.find({ userId });
@@ -109,11 +107,11 @@ exports.placeOrder = async (req, res) => {
     // Get cart with populated items
     const cart = await Cart.findOne({ userId })
       .populate({
-        path: 'items.product',
-        select: 'name'
+        path: 'items.productId',
+        select: 'productName imageUrl'
       })
       .populate({
-        path: 'items.variant',
+        path: 'items.variantId',
         select: 'price discountPrice stock'
       });
       
@@ -123,14 +121,15 @@ exports.placeOrder = async (req, res) => {
 
     // Calculate totals
     const orderItems = cart.items.map(item => ({
-      product: item.product._id,
-      variant: item.variant._id,
+      productId: item.productId._id,
+      variantId: item.variantId._id,
       quantity: item.quantity,
-      price: item.variant.discountPrice || item.variant.price
+      price: item.variantId.price,
+      finalPrice: item.finalPrice
     }));
 
     const subtotal = cart.items.reduce((total, item) => {
-      return total + ((item.variant.discountPrice || item.variant.price) * item.quantity);
+      return total + (item.finalPrice * item.quantity);
     }, 0);
 
     const shipping = 0;
@@ -205,7 +204,7 @@ exports.placeOrder = async (req, res) => {
         // Update stock
         for (const item of cart.items) {
           await Variant.findByIdAndUpdate(
-            item.variant._id,
+            item.variantId._id,
             { $inc: { stock: -item.quantity } }
           );
         }
@@ -278,7 +277,7 @@ exports.placeOrder = async (req, res) => {
       // Update stock and clear cart for COD
       for (const item of cart.items) {
         await Variant.findByIdAndUpdate(
-          item.variant._id,
+          item.variantId._id,
           { $inc: { stock: -item.quantity } }
         );
       }
@@ -493,22 +492,20 @@ exports.applyCoupon = async (req, res) => {
       return res.status(400).json({ error: 'You have already used this coupon the maximum number of times' });
     }
 
-    // Get cart total
+    // Get cart total using finalPrice
     const cart = await Cart.findOne({ userId })
       .populate({
-        path: 'items.variant',
-        select: 'discountPrice price'
+        path: 'items.variantId',
+        select: 'price discountPrice'
       });
 
     if (!cart || cart.items.length === 0) {
       return res.status(400).json({ error: 'Your cart is empty' });
     }
 
+    // Calculate subtotal using finalPrice
     const subtotal = cart.items.reduce((total, item) => {
-      const itemPrice = (item.variant.discountPrice && item.variant.discountPrice > 0) 
-        ? item.variant.discountPrice 
-        : item.variant.price;
-      return total + (itemPrice * item.quantity);
+      return total + (item.finalPrice * item.quantity);
     }, 0);
 
     // Check minimum purchase requirement
@@ -596,8 +593,8 @@ exports.getAvailableCoupons = async (req, res) => {
     // Get cart total to check minimum purchase requirements
     const cart = await Cart.findOne({ userId })
       .populate({
-        path: 'items.variant',
-        select: 'discountPrice price'
+        path: 'items.variantId',
+        select: 'price discountPrice'
       });
 
     if (!cart || cart.items.length === 0) {
@@ -605,10 +602,7 @@ exports.getAvailableCoupons = async (req, res) => {
     }
 
     const cartTotal = cart.items.reduce((total, item) => {
-      const itemPrice = (item.variant.discountPrice && item.variant.discountPrice > 0) 
-        ? item.variant.discountPrice 
-        : item.variant.price;
-      return total + (itemPrice * item.quantity);
+      return total + (item.finalPrice * item.quantity);
     }, 0);
 
     // Find valid coupons
