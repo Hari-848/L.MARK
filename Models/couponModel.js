@@ -38,16 +38,28 @@ const couponSchema = new mongoose.Schema({
   },
   usageLimit: {
     type: Number,
-    default: 1
+    default: 1,
+    min: 1,
+    max: 100
   },
   usedBy: [{
     userId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
+      ref: 'User',
+      required: true
     },
     usedAt: {
       type: Date,
       default: Date.now
+    },
+    orderId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Order'
+    },
+    status: {
+      type: String,
+      enum: ['applied', 'completed', 'cancelled'],
+      default: 'applied'
     }
   }],
   isActive: {
@@ -61,7 +73,27 @@ const couponSchema = new mongoose.Schema({
   deletedAt: {
     type: Date
   }
-}, { timestamps: true });
+}, { 
+  timestamps: true,
+  methods: {
+    async canBeUsedByUser(userId) {
+      const userUsage = this.usedBy.filter(usage => 
+        usage.userId.toString() === userId.toString() && 
+        usage.status !== 'cancelled'
+      ).length;
+      
+      return userUsage < this.usageLimit;
+    },
+    async getRemainingUses(userId) {
+      const userUsage = this.usedBy.filter(usage => 
+        usage.userId.toString() === userId.toString() && 
+        usage.status !== 'cancelled'
+      ).length;
+      
+      return this.usageLimit - userUsage;
+    }
+  }
+});
 
 const Coupon = mongoose.model('Coupon', couponSchema);
 module.exports = Coupon;

@@ -106,26 +106,12 @@ exports.postAddProduct = async (req, res) => {
     let {
       productName,
       description,
-      regularPrice,
-      category,
-      stock
+      category
     } = req.body;
 
     // Validate required fields
-    if (!productName || !description || !regularPrice || !category || !stock) {
+    if (!productName || !description || !category) {
       return res.status(400).json({ error: 'All fields are required' });
-    }
-
-    // Validate price
-    regularPrice = Number(regularPrice);
-    if (isNaN(regularPrice) || regularPrice <= 0) {
-      return res.status(400).json({ error: 'Price must be greater than 0' });
-    }
-
-    // Validate stock
-    stock = Number(stock);
-    if (isNaN(stock) || stock < 0) {
-      return res.status(400).json({ error: 'Stock cannot be negative' });
     }
 
     // Find category by name
@@ -160,12 +146,10 @@ exports.postAddProduct = async (req, res) => {
     const newProduct = new Product({
       productName,
       description,
-      regularPrice,
       categoriesId: categoryDoc._id,
       category: category,
       imageUrl: imageUrls,
       status: 'Available',
-      stock: stock,
       variants: [],
     });
 

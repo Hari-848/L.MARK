@@ -240,6 +240,22 @@ exports.placeOrder = async (req, res) => {
           });
         });
 
+        // Update coupon usage status if applied
+        if (req.session.appliedCoupon) {
+          const coupon = await Coupon.findOne({ code: req.session.appliedCoupon.code });
+          if (coupon) {
+            const latestUsage = coupon.usedBy
+              .filter(usage => usage.userId.toString() === userId.toString())
+              .sort((a, b) => b.usedAt - a.usedAt)[0];
+
+            if (latestUsage && latestUsage.status === 'applied') {
+              latestUsage.status = 'completed';
+              latestUsage.orderId = order._id;
+              await coupon.save();
+            }
+          }
+        }
+
         return res.json({
           success: true,
           orderId: order._id,
@@ -397,7 +413,7 @@ exports.verifyPayment = async (req, res) => {
 // Payment failure handler
 exports.paymentFailure = async (req, res) => {
   try {
-    const { orderId } = req.body;
+    const { orderId, error_code, error_description } = req.body;
     
     // Find and update order
     const order = await Order.findById(orderId);
@@ -405,22 +421,32 @@ exports.paymentFailure = async (req, res) => {
       return res.status(404).json({ error: 'Order not found' });
     }
     
-    // Update order status
+    // Update order with more detailed failure information
     order.paymentStatus = 'failed';
+    order.paymentFailureReason = error_description;
+    order.paymentErrorCode = error_code;
+    order.lastFailedAttempt = new Date();
     await order.save();
     
-    return res.json({
-      success: true,
-      message: 'Payment failure recorded',
-      orderId: order._id
-    });
+    // Redirect URL for failure page
+    const redirectUrl = `/order/failure/${orderId}`;
     
+    return res.json({
+      success: false,
+      message: 'Payment failed',
+      orderId: order._id,
+      redirectUrl,
+      error: error_description
+    });
   } catch (error) {
     console.error('Payment failure error:', error);
-    res.status(500).json({ error: 'Failed to record payment failure' });
+    res.status(500).json({ 
+      error: 'Failed to record payment failure',
+      redirectUrl: '/cart'  // Fallback redirect
+    });
   }
 };
-
+  
 // Order success page
 exports.getOrderSuccess = async (req, res) => {
   try {
@@ -466,9 +492,15 @@ exports.applyCoupon = async (req, res) => {
     const { couponCode } = req.body;
     const userId = req.session.user._id;
 
-    if (!couponCode) {
-      return res.status(400).json({ error: 'Coupon code is required' });
+    // Get cart total
+    const cart = await Cart.findOne({ user: userId }).populate('items.product');
+    if (!cart || cart.items.length === 0) {
+      return res.status(400).json({ error: 'Cart is empty' });
     }
+
+    const cartTotal = cart.items.reduce((total, item) => {
+      return total + (item.product.price * item.quantity);
+    }, 0);
 
     // Find coupon
     const coupon = await Coupon.findOne({ 
@@ -483,33 +515,17 @@ exports.applyCoupon = async (req, res) => {
       return res.status(400).json({ error: 'Invalid or expired coupon' });
     }
 
-    // Check if user has already used this coupon
-    const userUsage = coupon.usedBy.filter(usage => 
-      usage.userId.toString() === userId.toString()
-    ).length;
-
-    if (userUsage >= coupon.usageLimit) {
-      return res.status(400).json({ error: 'You have already used this coupon the maximum number of times' });
-    }
-
-    // Get cart total using finalPrice
-    const cart = await Cart.findOne({ userId })
-      .populate({
-        path: 'items.variantId',
-        select: 'price discountPrice'
+    // Check if user can use the coupon
+    const canUse = await coupon.canBeUsedByUser(userId);
+    if (!canUse) {
+      const remaining = await coupon.getRemainingUses(userId);
+      return res.status(400).json({ 
+        error: `Coupon usage limit reached. You have ${remaining} uses remaining.` 
       });
-
-    if (!cart || cart.items.length === 0) {
-      return res.status(400).json({ error: 'Your cart is empty' });
     }
 
-    // Calculate subtotal using finalPrice
-    const subtotal = cart.items.reduce((total, item) => {
-      return total + (item.finalPrice * item.quantity);
-    }, 0);
-
-    // Check minimum purchase requirement
-    if (subtotal < coupon.minPurchase) {
+    // Check minimum purchase
+    if (cartTotal < coupon.minPurchase) {
       return res.status(400).json({ 
         error: `Minimum purchase of ₹${coupon.minPurchase} required` 
       });
@@ -518,44 +534,35 @@ exports.applyCoupon = async (req, res) => {
     // Calculate discount
     let discount = 0;
     if (coupon.discountType === 'percentage') {
-      discount = (subtotal * coupon.discountAmount) / 100;
-      if (coupon.maxDiscount) {
-        discount = Math.min(discount, coupon.maxDiscount);
+      discount = (cartTotal * coupon.discountAmount) / 100;
+      if (coupon.maxDiscount && discount > coupon.maxDiscount) {
+        discount = coupon.maxDiscount;
       }
     } else {
-      discount = Math.min(coupon.discountAmount, subtotal); // Don't allow discount more than subtotal
+      discount = coupon.discountAmount;
     }
 
-    // Check if this coupon is already applied in the current session
-    if (req.session.appliedCoupon && req.session.appliedCoupon.code === coupon.code) {
-      return res.status(400).json({ error: 'This coupon is already applied' });
-    }
+    // Record coupon usage
+    coupon.usedBy.push({
+      userId: userId,
+      status: 'applied'
+    });
+    await coupon.save();
 
-    // Store coupon in session
+    // Store in session
     req.session.appliedCoupon = {
       code: coupon.code,
-      discount: discount,
-      couponId: coupon._id,
-      usageCount: userUsage + 1 // Track current usage count
+      discount: discount
     };
 
-    // Save session explicitly to ensure it's updated
-    await new Promise((resolve, reject) => {
-      req.session.save(err => {
-        if (err) reject(err);
-        else resolve();
-      });
-    });
-
-    return res.json({
+    res.json({
       success: true,
       discount: discount,
-      message: 'Coupon applied successfully',
-      remainingUses: coupon.usageLimit - (userUsage + 1)
+      message: 'Coupon applied successfully'
     });
 
   } catch (error) {
-    console.error('Apply coupon error:', error);
+    console.error('Error applying coupon:', error);
     res.status(500).json({ error: 'Failed to apply coupon' });
   }
 };
@@ -563,23 +570,29 @@ exports.applyCoupon = async (req, res) => {
 // Remove coupon
 exports.removeCoupon = async (req, res) => {
   try {
-    // Remove coupon from session
-    delete req.session.appliedCoupon;
+    const userId = req.session.user._id;
+    const couponCode = req.session.appliedCoupon?.code;
 
-    // Save session explicitly to ensure it's updated
-    await new Promise((resolve, reject) => {
-      req.session.save(err => {
-        if (err) reject(err);
-        else resolve();
-      });
-    });
+    if (couponCode) {
+      // Find and update the coupon usage status
+      const coupon = await Coupon.findOne({ code: couponCode });
+      if (coupon) {
+        const latestUsage = coupon.usedBy
+          .filter(usage => usage.userId.toString() === userId.toString())
+          .sort((a, b) => b.usedAt - a.usedAt)[0];
 
-    return res.json({
-      success: true,
-      message: 'Coupon removed successfully'
-    });
+        if (latestUsage && latestUsage.status === 'applied') {
+          latestUsage.status = 'cancelled';
+          await coupon.save();
+        }
+      }
+
+      delete req.session.appliedCoupon;
+    }
+
+    res.json({ success: true, message: 'Coupon removed successfully' });
   } catch (error) {
-    console.error('Remove coupon error:', error);
+    console.error('Error removing coupon:', error);
     res.status(500).json({ error: 'Failed to remove coupon' });
   }
 };

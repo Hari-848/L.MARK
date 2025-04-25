@@ -679,13 +679,30 @@
               name: 'L.MARK',
               description: 'Order Payment',
               order_id: result.razorpayOrderId,
+              modal: {
+                ondismiss: async function() {
+                  // Handle modal dismissal
+                  try {
+                    await fetch('/order/payment-failure', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        orderId: result.orderId,
+                        error_code: 'MODAL_DISMISSED',
+                        error_description: 'Payment cancelled by user'
+                      })
+                    });
+                    window.location.href = `/order/failure/${result.orderId}`;
+                  } catch (error) {
+                    console.error('Error handling payment dismissal:', error);
+                  }
+                }
+              },
               handler: async function(response) {
                 try {
                   const verifyResponse = await fetch('/order/verify-payment', {
                     method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                       orderId: result.orderId,
                       razorpay_payment_id: response.razorpay_payment_id,
@@ -697,7 +714,17 @@
                   if (verifyResponse.ok) {
                     window.location.href = `/order/success/${result.orderId}`;
                   } else {
-                    throw new Error('Payment verification failed');
+                    const errorData = await verifyResponse.json();
+                    await fetch('/order/payment-failure', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        orderId: result.orderId,
+                        error_code: 'VERIFICATION_FAILED',
+                        error_description: errorData.error || 'Payment verification failed'
+                      })
+                    });
+                    window.location.href = `/order/failure/${result.orderId}`;
                   }
                 } catch (error) {
                   console.error('Payment verification error:', error);

@@ -2,9 +2,23 @@ const Coupon = require('../../Models/couponModel');
 
 exports.getCoupons = async (req, res) => {
   try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = 10; // Number of coupons per page
+    const skip = (page - 1) * limit;
+
+    const totalCoupons = await Coupon.countDocuments({ isDeleted: false });
+    const totalPages = Math.ceil(totalCoupons / limit);
+
     const coupons = await Coupon.find({ isDeleted: false })
-      .sort({ createdAt: -1 });
-    res.render('admin/coupons', { coupons });
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    res.render('admin/coupons', { 
+      coupons,
+      currentPage: page,
+      totalPages
+    });
   } catch (error) {
     console.error('Get coupons error:', error);
     res.status(500).render('error', { error: 'Failed to load coupons' });
@@ -30,12 +44,36 @@ exports.createCoupon = async (req, res) => {
       return res.status(400).json({ error: 'All required fields must be filled' });
     }
 
+    // Validate coupon code format
+    if (!/^[A-Z0-9]{4,10}$/.test(code)) {
+      return res.status(400).json({ error: 'Coupon code must be 4-10 characters long and contain only uppercase letters and numbers' });
+    }
+
     // Validate dates
     const validFromDate = new Date(validFrom);
     const validUntilDate = new Date(validUntil);
     
+    // Set both dates to start of day for proper comparison
+    validFromDate.setHours(0, 0, 0, 0);
+    validUntilDate.setHours(0, 0, 0, 0);
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
     if (validUntilDate <= validFromDate) {
       return res.status(400).json({ error: 'Valid until date must be after valid from date' });
+    }
+
+    // Validate date ranges
+    if (validFromDate.getTime() < today.getTime()) {
+      return res.status(400).json({ error: 'Valid from date cannot be before today' });
+    }
+
+    const maxValidUntil = new Date();
+    maxValidUntil.setFullYear(maxValidUntil.getFullYear() + 1);
+    maxValidUntil.setHours(0, 0, 0, 0);
+    if (validUntilDate > maxValidUntil) {
+      return res.status(400).json({ error: 'Coupon validity cannot exceed 1 year' });
     }
 
     // Validate discount amount
@@ -56,9 +94,42 @@ exports.createCoupon = async (req, res) => {
       return res.status(400).json({ error: 'Maximum discount amount cannot be negative' });
     }
 
+    // Validate minimum purchase vs maximum discount
+    if (maxDiscount && minPurchase && maxDiscount > minPurchase) {
+      return res.status(400).json({ error: 'Maximum discount cannot be greater than minimum purchase amount' });
+    }
+
     // Validate usage limit
     if (usageLimit < 1) {
       return res.status(400).json({ error: 'Usage limit must be at least 1' });
+    }
+    if (usageLimit > 100) {
+      return res.status(400).json({ error: 'Usage limit cannot exceed 100 per user' });
+    }
+
+    // Enhanced discount validations
+    if (discountType === 'fixed') {
+      // For fixed amount discounts
+      if (minPurchase && discountAmount > minPurchase) {
+        return res.status(400).json({ error: 'Discount amount cannot be greater than minimum purchase amount' });
+      }
+      
+      if (maxDiscount) {
+        if (maxDiscount > minPurchase) {
+          return res.status(400).json({ error: 'Maximum discount cannot be greater than minimum purchase amount' });
+        }
+        if (discountAmount > maxDiscount) {
+          return res.status(400).json({ error: 'Discount amount cannot be greater than maximum discount' });
+        }
+      }
+    } else if (discountType === 'percentage') {
+      // For percentage discounts
+      if (minPurchase && maxDiscount) {
+        const calculatedMaxDiscount = (minPurchase * discountAmount) / 100;
+        if (maxDiscount > calculatedMaxDiscount) {
+          return res.status(400).json({ error: 'Maximum discount cannot be greater than the calculated discount based on minimum purchase' });
+        }
+      }
     }
 
     // Check if coupon code already exists
@@ -67,7 +138,9 @@ exports.createCoupon = async (req, res) => {
       isDeleted: false 
     });
     if (existingCoupon) {
-      return res.status(400).json({ error: 'Coupon code already exists' });
+      return res.status(400).json({ 
+        error: `Coupon code "${code.toUpperCase()}" already exists. Please use a different code or update the existing coupon.` 
+      });
     }
 
     // Create coupon
@@ -84,12 +157,22 @@ exports.createCoupon = async (req, res) => {
       isActive: true
     });
 
-    await coupon.save();
-    res.status(201).json({ 
-      success: true, 
-      message: 'Coupon created successfully',
-      coupon 
-    });
+    try {
+      await coupon.save();
+      res.status(201).json({ 
+        success: true, 
+        message: 'Coupon created successfully',
+        coupon 
+      });
+    } catch (error) {
+      if (error.code === 11000) {
+        return res.status(400).json({ 
+          error: `Coupon code "${code.toUpperCase()}" already exists. Please use a different code or update the existing coupon.` 
+        });
+      }
+      console.error('Error creating coupon:', error);
+      res.status(500).json({ error: 'Failed to create coupon' });
+    }
   } catch (error) {
     console.error('Error creating coupon:', error);
     res.status(500).json({ error: 'Failed to create coupon' });
@@ -156,12 +239,36 @@ exports.updateCoupon = async (req, res) => {
       return res.status(400).json({ error: 'All required fields must be filled' });
     }
 
+    // Validate coupon code format
+    if (!/^[A-Z0-9]{4,10}$/.test(code)) {
+      return res.status(400).json({ error: 'Coupon code must be 4-10 characters long and contain only uppercase letters and numbers' });
+    }
+
     // Validate dates
     const validFromDate = new Date(validFrom);
     const validUntilDate = new Date(validUntil);
     
+    // Set both dates to start of day for proper comparison
+    validFromDate.setHours(0, 0, 0, 0);
+    validUntilDate.setHours(0, 0, 0, 0);
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
     if (validUntilDate <= validFromDate) {
       return res.status(400).json({ error: 'Valid until date must be after valid from date' });
+    }
+
+    // Validate date ranges
+    if (validFromDate.getTime() < today.getTime()) {
+      return res.status(400).json({ error: 'Valid from date cannot be before today' });
+    }
+
+    const maxValidUntil = new Date();
+    maxValidUntil.setFullYear(maxValidUntil.getFullYear() + 1);
+    maxValidUntil.setHours(0, 0, 0, 0);
+    if (validUntilDate > maxValidUntil) {
+      return res.status(400).json({ error: 'Coupon validity cannot exceed 1 year' });
     }
 
     // Validate discount amount
@@ -182,9 +289,42 @@ exports.updateCoupon = async (req, res) => {
       return res.status(400).json({ error: 'Maximum discount amount cannot be negative' });
     }
 
+    // Validate minimum purchase vs maximum discount
+    if (maxDiscount && minPurchase && maxDiscount > minPurchase) {
+      return res.status(400).json({ error: 'Maximum discount cannot be greater than minimum purchase amount' });
+    }
+
     // Validate usage limit
     if (usageLimit < 1) {
       return res.status(400).json({ error: 'Usage limit must be at least 1' });
+    }
+    if (usageLimit > 100) {
+      return res.status(400).json({ error: 'Usage limit cannot exceed 100 per user' });
+    }
+
+    // Enhanced discount validations
+    if (discountType === 'fixed') {
+      // For fixed amount discounts
+      if (minPurchase && discountAmount > minPurchase) {
+        return res.status(400).json({ error: 'Discount amount cannot be greater than minimum purchase amount' });
+      }
+      
+      if (maxDiscount) {
+        if (maxDiscount > minPurchase) {
+          return res.status(400).json({ error: 'Maximum discount cannot be greater than minimum purchase amount' });
+        }
+        if (discountAmount > maxDiscount) {
+          return res.status(400).json({ error: 'Discount amount cannot be greater than maximum discount' });
+        }
+      }
+    } else if (discountType === 'percentage') {
+      // For percentage discounts
+      if (minPurchase && maxDiscount) {
+        const calculatedMaxDiscount = (minPurchase * discountAmount) / 100;
+        if (maxDiscount > calculatedMaxDiscount) {
+          return res.status(400).json({ error: 'Maximum discount cannot be greater than the calculated discount based on minimum purchase' });
+        }
+      }
     }
 
     // Check if coupon code already exists for another coupon
