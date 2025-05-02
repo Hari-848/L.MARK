@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const adminController = require('../controllers/user/adminController.js');
+const adminController = require('../controllers/admin/adminController.js');
 const adminAuthenticated = require('../middleware/adminauthMiddleware');
 const uploadMiddleware = require('../middleware/uploadMiddleware');
 const adminOrderController = require('../controllers/admin/adminOrderController');

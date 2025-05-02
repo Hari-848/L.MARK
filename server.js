@@ -15,7 +15,7 @@ const userRoutes = require('./routes/userRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const Product = require('./Models/productSchema');
 const MongoStore = require('connect-mongo');
-const cartRoutes = require('./routes/cartRoutes');
+const cartRoutes = require('./routes/user/cartRoutes');
 const userController = require('./controllers/user/userController');
 
 app.set('views', path.join(__dirname, 'views'));

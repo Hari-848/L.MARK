@@ -5,7 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Product Page</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#000000',
+                    }
+                }
+            }
+        }
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <!-- Add any other necessary CSS/JS files -->
     
     <style>
@@ -180,10 +192,10 @@
                     <!-- Add to Cart Button -->
                     <div class="mt-8 flex space-x-4" id="div-for-addToCart">
                         <button id="addToCartButton" 
-                                class="px-6 py-3 bg-black text-white rounded-lg font-bold shadow-md hover:bg-gray-800 <%= product.variants[0].stock > 0 ? '' : 'opacity-50 cursor-not-allowed' %>"
-                                <%= product.variants[0].stock > 0 ? '' : 'disabled' %>>
+                                class="px-6 py-3 bg-black text-white rounded-lg font-bold shadow-md hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                                <%= product.variants[0].stock === 0 ? 'disabled' : '' %>>
                             <i class="fas fa-shopping-cart mr-2"></i>
-                            Add To Cart
+                            <span id="buttonText">Add To Cart</span>
                         </button>
                     </div>
                 </div>
@@ -272,37 +284,109 @@
             imageZoom.style.setProperty("--url", `url(${imageUrl})`);
         }
 
-        // Replace your existing click handler with this updated version
-        document.getElementById("addToCartButton")?.addEventListener("click", async function() {
-            console.log('Add to cart button clicked');
-            
+        // Initialize variables
+        let isProcessing = false;
+        const addToCartBtn = document.getElementById('addToCartButton');
+        const stockCountDisplay = document.getElementById('stock-count');
+        let isInCart = false;
+
+        // Function to check if product is in cart
+        async function checkIfInCart(productId, variantId) {
             try {
+                const response = await fetch('/cart/check-item', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        productId,
+                        variantId
+                    })
+                });
+                const data = await response.json();
+                return data.isInCart;
+            } catch (error) {
+                console.error('Error checking cart:', error);
+                return false;
+            }
+        }
+
+        // Function to update button state
+        function updateButtonState(inCart) {
+            const buttonText = document.getElementById('buttonText');
+            if (inCart) {
+                buttonText.textContent = 'Go to Cart';
+                addToCartBtn.onclick = function() {
+                    window.location.href = '/cart';
+                };
+            } else {
+                buttonText.textContent = 'Add to Cart';
+                addToCartBtn.onclick = addToCartHandler;
+            }
+        }
+
+        // Check cart status when page loads
+        document.addEventListener('DOMContentLoaded', async function() {
+            const productId = "<%= product._id %>";
+            const variantSelect = document.querySelector('select#variantType');
+            const variantId = variantSelect.value;
+            
+            isInCart = await checkIfInCart(productId, variantId);
+            updateButtonState(isInCart);
+        });
+
+        // Add this function before the addToCartHandler
+        function updateStockDisplay(newStock) {
+            const stockElement = document.querySelector('.variant-stock');
+            if (newStock === 0) {
+                stockElement.innerHTML = `
+                    <div class="font-bold text-red-600 bg-red-100 border border-red-600 rounded-lg p-2" style="width: fit-content">
+                        Out of Stock
+                    </div>
+                `;
+            } else {
+                stockElement.innerHTML = `
+                    <div class="text-green-500">
+                        <p class="font-semibold">In stock (${newStock} left)</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Add to Cart functionality
+        const addToCartHandler = async function() {
+            if (isProcessing || this.disabled) return;
+
+            try {
+                isProcessing = true;
+                addToCartBtn.disabled = true;
+                addToCartBtn.classList.add('opacity-50', 'cursor-not-allowed');
+
                 const productId = "<%= product._id %>";
-                const variantSelect = document.querySelector('select#variantType');
-                console.log('Variant select element:', variantSelect);
+                const variantSelect = document.getElementById('variantType');
                 
                 if (!variantSelect) {
-                    console.error('Variant select element not found!');
                     throw new Error("Variant selection not available");
                 }
-                
-                // If no variant is selected, try to select the first one
-                if (!variantSelect.value && variantSelect.options.length > 0) {
-                    variantSelect.value = variantSelect.options[0].value;
-                    console.log('Auto-selected first variant:', variantSelect.value);
-                }
-                
+
                 const variantId = variantSelect.value;
-                console.log('Selected variant ID:', variantId);
-                
-                // Validate that we have a non-empty variant ID
                 if (!variantId) {
-                    console.error('No variant available for selection');
                     throw new Error("No variants available for this product");
                 }
+
+                // Get the selected variant's stock from the variants array
+                const variants = JSON.parse('<%- JSON.stringify(product.variants) %>');
+                const selectedVariant = variants.find(v => v._id === variantId);
                 
-                console.log('Sending request with:', { productId, variantId, quantity: 1 });
-                
+                if (!selectedVariant) {
+                    throw new Error("Selected variant not found");
+                }
+
+                // Check stock from the variant data
+                if (selectedVariant.stock <= 0) {
+                    throw new Error("This product is currently out of stock");
+                }
+
                 const response = await fetch('/cart/add', {
                     method: 'POST',
                     headers: {
@@ -314,60 +398,98 @@
                         quantity: 1
                     })
                 });
-                
+
                 const data = await response.json();
-                console.log('Response received:', data);
-                
-                if (response.ok) {
-                    // Update cart count in navbar
-                    const cartCountElement = document.getElementById('cartCount');
-                    if (cartCountElement) {
-                        cartCountElement.textContent = data.cartCount;
-                        cartCountElement.classList.remove('hidden');
-                    }
-                    
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Added to Cart',
-                        text: 'Product has been added to your cart',
-                        showCancelButton: true,
-                        confirmButtonText: 'View Cart',
-                        cancelButtonText: 'Continue Shopping'
-                    }).then((result) => {
-                        if (result.isConfirmed) {
-                            window.location.href = '/cart';
-                        }
-                    });
-                } else {
-                    throw new Error(data.error || 'Failed to add to cart');
+
+                if (!response.ok) {
+                    throw new Error(data.message || 'Failed to add to cart');
                 }
+
+                // Update cart count in navbar
+                const cartCountElement = document.getElementById('cartCount');
+                if (cartCountElement) {
+                    cartCountElement.textContent = data.cartCount;
+                    cartCountElement.classList.remove('hidden');
+                }
+
+                // Update stock display with the new stock count from server
+                if (typeof data.updatedStock === 'number') {
+                    updateStockDisplay(data.updatedStock);
+                }
+
+                // Update button state
+                isInCart = true;
+                updateButtonState(true);
+
+                // Show success message
+                await Swal.fire({
+                    icon: 'success',
+                    title: 'Added to Cart',
+                    text: 'Product has been added to your cart',
+                    showCancelButton: true,
+                    confirmButtonText: 'View Cart',
+                    cancelButtonText: 'Continue Shopping'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        window.location.href = '/cart';
+                    } else {
+                        // Refresh the page if user clicks "Continue Shopping"
+                        window.location.reload();
+                    }
+                });
+
             } catch (error) {
                 console.error('Error:', error);
+                // Show user-friendly error message
+                let errorMessage = error.message;
+                if (errorMessage.includes('Only') && errorMessage.includes('more items available')) {
+                    errorMessage = "This product is currently out of stock";
+                }
+                
                 Swal.fire({
                     icon: 'error',
-                    title: 'Error',
-                    text: error.message || 'Failed to add product to cart'
+                    title: 'Cannot Add to Cart',
+                    text: errorMessage,
+                    confirmButtonText: 'OK'
                 });
+            } finally {
+                isProcessing = false;
+                // Re-enable button only if there's still stock available
+                const variants = JSON.parse('<%- JSON.stringify(product.variants) %>');
+                const selectedVariant = variants.find(v => v._id === variantSelect.value);
+                if (selectedVariant && selectedVariant.stock > 0) {
+                    addToCartBtn.disabled = false;
+                    addToCartBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                }
             }
-        });
+        };
 
         // Update Add to Cart button when variant changes
-        document.getElementById("variantType").addEventListener("change", function() {
+        document.getElementById("variantType").addEventListener("change", async function() {
             const selectedId = this.value;
             const variants = JSON.parse('<%- JSON.stringify(product.variants) %>');
             const selectedVariant = variants.find(v => v._id === selectedId);
             const addToCartButton = document.getElementById("addToCartButton");
             
-            if (selectedVariant && selectedVariant.stock > 0) {
-                addToCartButton.classList.remove('opacity-50', 'cursor-not-allowed');
-                addToCartButton.removeAttribute('disabled');
-            } else {
-                addToCartButton.classList.add('opacity-50', 'cursor-not-allowed');
-                addToCartButton.setAttribute('disabled', '');
-            }
+            // Check if new variant is in cart
+            isInCart = await checkIfInCart("<%= product._id %>", selectedId);
+            updateButtonState(isInCart);
             
-            // Update variant details
-            updateVariantDetails(selectedVariant);
+            if (selectedVariant) {
+                // Update stock display
+                updateStockDisplay(selectedVariant.stock);
+                
+                if (selectedVariant.stock > 0 && !isInCart) {
+                    addToCartButton.classList.remove('opacity-50', 'cursor-not-allowed');
+                    addToCartButton.removeAttribute('disabled');
+                } else {
+                    addToCartButton.classList.add('opacity-50', 'cursor-not-allowed');
+                    addToCartButton.setAttribute('disabled', '');
+                }
+                
+                // Update variant details
+                updateVariantDetails(selectedVariant);
+            }
         });
 
         // Add this function before the event listener for variant changes (around line 286)

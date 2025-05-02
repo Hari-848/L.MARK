@@ -179,6 +179,7 @@ exports.getCategories = async (req, res) => {
       .limit(limit);
     
     console.log(`Found ${categories.length} non-deleted categories`);
+
     
     if (categories.length > 0) {
       console.log('Sample category:', {
@@ -187,6 +188,7 @@ exports.getCategories = async (req, res) => {
         isDeleted: categories[0].isDeleted
       });
     }
+     
     
     const totalCategories = await Category.countDocuments({ isDeleted: { $ne: true } });
     const totalPages = Math.ceil(totalCategories / limit);
@@ -379,7 +381,9 @@ exports.restoreCategory = async (req, res) => {
     // Set isDeleted flag to false
     category.isDeleted = false;
     await category.save();
+     
     
+
     console.log(`Category restored successfully. New isDeleted value: ${category.isDeleted}`);
     
     res.status(200).json({ success: true, message: 'Category restored successfully' });

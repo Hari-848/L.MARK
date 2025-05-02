@@ -127,7 +127,9 @@ exports.createCoupon = async (req, res) => {
       if (minPurchase && maxDiscount) {
         const calculatedMaxDiscount = (minPurchase * discountAmount) / 100;
         if (maxDiscount > calculatedMaxDiscount) {
-          return res.status(400).json({ error: 'Maximum discount cannot be greater than the calculated discount based on minimum purchase' });
+          return res.status(400).json({ 
+            error: `Maximum discount (₹${maxDiscount}) cannot be greater than the calculated discount (₹${calculatedMaxDiscount}) based on minimum purchase (₹${minPurchase}) and discount percentage (${discountAmount}%)` 
+          });
         }
       }
     }
@@ -322,7 +324,9 @@ exports.updateCoupon = async (req, res) => {
       if (minPurchase && maxDiscount) {
         const calculatedMaxDiscount = (minPurchase * discountAmount) / 100;
         if (maxDiscount > calculatedMaxDiscount) {
-          return res.status(400).json({ error: 'Maximum discount cannot be greater than the calculated discount based on minimum purchase' });
+          return res.status(400).json({ 
+            error: `Maximum discount (₹${maxDiscount}) cannot be greater than the calculated discount (₹${calculatedMaxDiscount}) based on minimum purchase (₹${minPurchase}) and discount percentage (${discountAmount}%)` 
+          });
         }
       }
     }

@@ -1100,6 +1100,93 @@
         }
       }
 
+      // Password validation and form submission
+      document.getElementById('passwordForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const currentPassword = document.getElementById('currentPassword').value;
+        const newPassword = document.getElementById('newPassword').value;
+        const confirmPassword = document.getElementById('confirmPassword').value;
+        
+        // Reset error messages
+        document.getElementById('currentPasswordError').textContent = '';
+        document.getElementById('newPasswordError').textContent = '';
+        document.getElementById('confirmPasswordError').textContent = '';
+        
+        let isValid = true;
+        
+        // Validate current password
+        if (!currentPassword) {
+          document.getElementById('currentPasswordError').textContent = 'Current password is required';
+          isValid = false;
+        }
+        
+        // Validate new password
+        if (!newPassword) {
+          document.getElementById('newPasswordError').textContent = 'New password is required';
+          isValid = false;
+        } else if (newPassword.length < 8) {
+          document.getElementById('newPasswordError').textContent = 'Password must be at least 8 characters long';
+          isValid = false;
+        } else if (!/(?=.*[a-z])/.test(newPassword)) {
+          document.getElementById('newPasswordError').textContent = 'Password must contain at least one lowercase letter';
+          isValid = false;
+        } else if (!/(?=.*[A-Z])/.test(newPassword)) {
+          document.getElementById('newPasswordError').textContent = 'Password must contain at least one uppercase letter';
+          isValid = false;
+        } else if (!/(?=.*\d)/.test(newPassword)) {
+          document.getElementById('newPasswordError').textContent = 'Password must contain at least one number';
+          isValid = false;
+        } else if (!/(?=.*[@$!%*?&])/.test(newPassword)) {
+          document.getElementById('newPasswordError').textContent = 'Password must contain at least one special character';
+          isValid = false;
+        }
+        
+        // Validate confirm password
+        if (!confirmPassword) {
+          document.getElementById('confirmPasswordError').textContent = 'Please confirm your new password';
+          isValid = false;
+        } else if (newPassword !== confirmPassword) {
+          document.getElementById('confirmPasswordError').textContent = 'Passwords do not match';
+          isValid = false;
+        }
+        
+        if (!isValid) return;
+        
+        try {
+          const response = await axios.post('/change-password', {
+            currentPassword,
+            newPassword
+          });
+          
+          Swal.fire({
+            title: 'Success!',
+            text: 'Password changed successfully',
+            icon: 'success',
+            confirmButtonText: 'OK'
+          }).then(() => {
+            // Clear form
+            document.getElementById('currentPassword').value = '';
+            document.getElementById('newPassword').value = '';
+            document.getElementById('confirmPassword').value = '';
+          });
+        } catch (error) {
+          console.error('Password change error:', error);
+          const errorMessage = error.response?.data?.error || 'Failed to change password';
+          
+          if (error.response?.status === 400) {
+            document.getElementById('currentPasswordError').textContent = errorMessage;
+          } else {
+            Swal.fire({
+              title: 'Error!',
+              text: errorMessage,
+              icon: 'error',
+              confirmButtonText: 'OK'
+            });
+          }
+        }
+      });
+
       // Handle logout
       document.getElementById('logout-btn').addEventListener('click', function(e) {
         e.preventDefault();

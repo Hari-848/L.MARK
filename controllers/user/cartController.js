@@ -16,14 +16,58 @@ exports.addToCart = async (req, res) => {
     const variant = await Variant.findById(variantId);
 
     if (!product || !variant) {
-      return res.status(404).json({ success: false, message: 'Product not found' });
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Product not found',
+        updatedStock: 0
+      });
+    }
+
+    // Check if variant belongs to the product
+    if (variant.productId.toString() !== productId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid variant for this product',
+        updatedStock: variant.stock
+      });
     }
 
     // Check inventory
-    if (variant.stock < quantity) {
+    if (variant.stock <= 0) {
       return res.status(400).json({
         success: false,
-        message: 'Not enough stock available'
+        message: 'This product is currently out of stock',
+        updatedStock: 0
+      });
+    }
+
+    // Find or create cart
+    let cart = await Cart.findOne({ userId });
+
+    if (!cart) {
+      cart = new Cart({
+        userId,
+        items: [],
+        totalAmount: 0
+      });
+    }
+
+    // Check if this product variant is already in cart
+    const existingItemIndex = cart.items.findIndex(
+      item => item.productId.toString() === productId && 
+             item.variantId.toString() === variantId
+    );
+
+    // Calculate total requested quantity
+    const existingQuantity = existingItemIndex > -1 ? cart.items[existingItemIndex].quantity : 0;
+    const totalRequestedQuantity = existingQuantity + quantity;
+
+    // Check if total requested quantity exceeds stock
+    if (totalRequestedQuantity > variant.stock) {
+      return res.status(400).json({
+        success: false,
+        message: `Only ${variant.stock - existingQuantity} item${variant.stock - existingQuantity === 1 ? '' : 's'} available in stock`,
+        updatedStock: variant.stock
       });
     }
 
@@ -63,28 +107,13 @@ exports.addToCart = async (req, res) => {
       };
     }
 
-    // Find or create cart
-    let cart = await Cart.findOne({ userId });
-
-    if (!cart) {
-      cart = new Cart({
-        userId,
-        items: [],
-        totalAmount: 0
-      });
-    }
-
-    // Check if this product variant is already in cart
-    const existingItemIndex = cart.items.findIndex(
-      item => item.productId.toString() === productId && 
-             item.variantId.toString() === variantId
-    );
-
+    // Update or add item to cart
     if (existingItemIndex > -1) {
-      // Update existing item
-      cart.items[existingItemIndex].quantity += quantity;
+      cart.items[existingItemIndex].quantity = totalRequestedQuantity;
+      cart.items[existingItemIndex].price = variant.price;
+      cart.items[existingItemIndex].finalPrice = finalPrice;
+      cart.items[existingItemIndex].offer = appliedOffer;
     } else {
-      // Add new item
       cart.items.push({
         productId,
         variantId,
@@ -94,6 +123,10 @@ exports.addToCart = async (req, res) => {
         offer: appliedOffer
       });
     }
+
+    // Update stock
+    variant.stock -= quantity;
+    await variant.save();
 
     // Recalculate total
     cart.totalAmount = cart.items.reduce(
@@ -105,12 +138,19 @@ exports.addToCart = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Item added to cart',
-      cartCount: cart.items.length
+      message: 'Item added to cart successfully',
+      cartCount: cart.items.reduce((total, item) => total + item.quantity, 0),
+      updatedStock: variant.stock
     });
+
   } catch (error) {
     console.error('Error adding to cart:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error',
+      error: error.message,
+      updatedStock: 0
+    });
   }
 };
 
@@ -269,5 +309,31 @@ exports.clearCart = async (req, res) => {
   } catch (error) {
     console.error('Clear cart error:', error);
     res.status(500).json({ error: 'Failed to clear cart' });
+  }
+};
+
+// Check if item is in cart
+exports.checkItemInCart = async (req, res) => {
+  try {
+    const { productId, variantId } = req.body;
+    const userId = req.session.user._id;
+
+    // Find cart
+    const cart = await Cart.findOne({ userId });
+
+    if (!cart) {
+      return res.json({ isInCart: false });
+    }
+
+    // Check if item exists in cart
+    const isInCart = cart.items.some(
+      item => item.productId.toString() === productId && 
+             item.variantId.toString() === variantId
+    );
+
+    res.json({ isInCart });
+  } catch (error) {
+    console.error('Error checking cart item:', error);
+    res.status(500).json({ error: 'Failed to check cart item' });
   }
 }; 

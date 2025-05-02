@@ -163,6 +163,7 @@ exports.products = async (req, res) => {
     console.error('Error:', err);
     res.status(500).send('Server Error');
   }
+
 };
 
 exports.getFilterOptions = async (req, res) => {
@@ -184,7 +185,7 @@ exports.searchAndFilterProducts = async (req, res) => {
   try {
     // Get pagination parameters
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 12; // 12 products per page
+    const limit = parseInt(req.query.limit) || 6; 
     const skip = (page - 1) * limit;
     
     // Authentication check
@@ -292,10 +293,10 @@ exports.searchAndFilterProducts = async (req, res) => {
     if (sort) {
       switch (sort) {
         case 'priceLowToHigh':
-          sortCriteria = { 'variants.price': 1 };
+          sortCriteria = { 'variants.price': 1 }; // Initial sort by base price
           break;
         case 'priceHighToLow':
-          sortCriteria = { 'variants.price': -1 };
+          sortCriteria = { 'variants.price': -1 }; // Initial sort by base price
           break;
         case 'newArrivals':
           sortCriteria = { createdAt: -1 };
@@ -307,7 +308,6 @@ exports.searchAndFilterProducts = async (req, res) => {
           sortCriteria = { 'variants.price': 1 };
       }
     } else {
-      // Default sort is by price ascending
       sortCriteria = { 'variants.price': 1 };
     }
 
@@ -319,15 +319,12 @@ exports.searchAndFilterProducts = async (req, res) => {
           localField: '_id',
           foreignField: 'productId',
           as: 'variants',
-          pipeline: [
-            // Filter variants here if needed
-          ]
         },
       },
       {
         $unwind: {
           path: '$variants',
-          preserveNullAndEmptyArrays: false, // Only include products with at least one variant
+          preserveNullAndEmptyArrays: false,
         },
       },
       { $match: matchCriteria },
@@ -350,9 +347,7 @@ exports.searchAndFilterProducts = async (req, res) => {
             },
           },
         },
-      },
-      { $skip: skip },
-      { $limit: limit }
+      }
     ];
 
     // Count pipeline for total number of results
@@ -377,15 +372,15 @@ exports.searchAndFilterProducts = async (req, res) => {
     ];
 
     // Run both queries in parallel for better performance
-    const [products, totalProductsResult] = await Promise.all([
-      Product.aggregate(pipeline).option({ maxTimeMS: 5000 }), // Add timeout for safety
+    const [allProducts, totalProductsResult] = await Promise.all([
+      Product.aggregate(pipeline).option({ maxTimeMS: 5000 }),
       Product.aggregate(countPipeline).option({ maxTimeMS: 5000 })
     ]);
 
     const totalProducts = totalProductsResult.length > 0 ? totalProductsResult[0].total : 0;
     const totalPages = Math.ceil(totalProducts / limit);
 
-    // After retrieving products, apply offers
+    // After retrieving all products, apply offers and sort by final price if needed
     const currentDate = new Date();
     const activeOffers = await Offer.find({
       isActive: true,
@@ -394,9 +389,9 @@ exports.searchAndFilterProducts = async (req, res) => {
       endDate: { $gte: currentDate }
     }).lean();
 
-    const productsWithOffers = products.map(product => {
-      // Process product image URL - handle array or string with fallback
-      let processedImageUrl = '/images/default-product.jpg'; // Default fallback
+    let productsWithOffers = allProducts.map(product => {
+      // Process product image URL
+      let processedImageUrl = '/images/default-product.jpg';
       if (product.imageUrl) {
         if (Array.isArray(product.imageUrl) && product.imageUrl.length > 0) {
           processedImageUrl = product.imageUrl[0];
@@ -446,33 +441,37 @@ exports.searchAndFilterProducts = async (req, res) => {
               title: bestOffer.title,
               offerType: bestOffer.offerType
             },
-            // Include secondary offer if available
             secondaryOffer: secondaryOffer ? {
               id: secondaryOffer._id,
               discountPercentage: secondaryOffer.discountPercentage,
               title: secondaryOffer.title,
               offerType: secondaryOffer.offerType
-            } : null,
-            // Include all applicable offers for reference
-            allOffers: sortedOffers.map(offer => ({
-              id: offer._id,
-              discountPercentage: offer.discountPercentage,
-              title: offer.title,
-              offerType: offer.offerType
-            }))
+            } : null
           };
         });
       }
       
       return {
         ...product,
-        imageUrl: processedImageUrl // Replace with the processed image URL
+        imageUrl: processedImageUrl
       };
     });
 
+    // Sort all products by final price if price sorting is selected
+    if (sort === 'priceLowToHigh' || sort === 'priceHighToLow') {
+      productsWithOffers.sort((a, b) => {
+        const priceA = a.variants[0]?.discountPrice || a.variants[0]?.price || 0;
+        const priceB = b.variants[0]?.discountPrice || b.variants[0]?.price || 0;
+        return sort === 'priceLowToHigh' ? priceA - priceB : priceB - priceA;
+      });
+    }
+
+    // Apply pagination after sorting
+    const paginatedProducts = productsWithOffers.slice(skip, skip + limit);
+
     // Return structured response
     res.status(200).json({
-      products: productsWithOffers,
+      products: paginatedProducts,
       totalPages: totalPages,
       currentPage: page,
       totalProducts: totalProducts,

@@ -30,7 +30,9 @@
 
             <div class="space-y-4">
               <% cart.items.forEach(item => { %>
-                <div class="flex flex-col sm:flex-row border-b pb-4 cart-item" data-id="<%= item._id %>">
+                <div class="flex flex-col sm:flex-row border-b pb-4 cart-item" 
+                     data-id="<%= item._id %>"
+                     data-stock="<%= item.variantId.stock %>">
                   <div class="sm:w-24 h-24 mb-4 sm:mb-0">
                     <img 
                       src="<%= item.productId.imageUrl && item.productId.imageUrl.length > 0 ? item.productId.imageUrl[0] : '/images/placeholder.jpg' %>" 
@@ -53,11 +55,6 @@
                             Price: ₹<%= item.variantId.price.toFixed(2) %>
                           <% } %>
                         </p>
-                        <% if (item.variantId.stock <= 5) { %>
-                          <p class="text-xs text-orange-600 mt-1">
-                            Only <%= item.variantId.stock %> left in stock
-                          </p>
-                        <% } %>
                       </div>
                       <div class="mt-4 sm:mt-0">
                         <p class="font-medium text-right">
@@ -70,15 +67,17 @@
                     <div class="flex justify-between items-center mt-4">
                       <div class="flex items-center border rounded-md">
                         <button 
-                          class="px-3 py-1 decrement-btn <%= item.quantity <= 1 ? 'text-gray-400' : 'text-gray-600 hover:bg-gray-100' %>"
+                          class="px-3 py-1 decrement-btn <%= item.quantity <= 1 ? 'text-gray-400 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100' %>"
                           <%= item.quantity <= 1 ? 'disabled' : '' %>
+                          title="<%= item.quantity <= 1 ? 'Minimum quantity reached' : 'Decrease quantity' %>"
                         >
                           <i class="fas fa-minus text-xs"></i>
                         </button>
                         <span class="px-3 py-1 quantity"><%= item.quantity %></span>
                         <button 
-                          class="px-3 py-1 increment-btn <%= item.quantity >= item.variantId.stock ? 'text-gray-400' : 'text-gray-600 hover:bg-gray-100' %>"
+                          class="px-3 py-1 increment-btn <%= item.quantity >= item.variantId.stock ? 'text-gray-400 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100' %>"
                           <%= item.quantity >= item.variantId.stock ? 'disabled' : '' %>
+                          title="<%= item.quantity >= item.variantId.stock ? 'Maximum stock reached' : 'Increase quantity' %>"
                         >
                           <i class="fas fa-plus text-xs"></i>
                         </button>
@@ -87,6 +86,13 @@
                         <i class="fas fa-trash"></i>
                       </button>
                     </div>
+                    <% if (item.variantId.stock <= 5) { %>
+                      <div class="mt-2">
+                        <p class="text-xs text-orange-600">
+                          Only <%= item.variantId.stock %> left in stock
+                        </p>
+                      </div>
+                    <% } %>
                   </div>
                 </div>
               <% }); %>
@@ -148,11 +154,32 @@
     document.addEventListener('DOMContentLoaded', function() {
       // Handle increment button
       document.querySelectorAll('.increment-btn').forEach(button => {
-        button.addEventListener('click', function() {
-          if (button.hasAttribute('disabled')) return;
+        button.addEventListener('click', async function() {
+          if (button.hasAttribute('disabled')) {
+            Swal.fire({
+              icon: 'warning',
+              title: 'Stock Limit Reached',
+              text: 'Cannot add more items. Maximum stock limit reached.',
+              confirmButtonText: 'OK'
+            });
+            return;
+          }
           
           const cartItem = this.closest('.cart-item');
           const itemId = cartItem.dataset.id;
+          const maxStock = parseInt(cartItem.dataset.stock);
+          const currentQuantity = parseInt(cartItem.querySelector('.quantity').textContent);
+
+          if (currentQuantity >= maxStock) {
+            Swal.fire({
+              icon: 'warning',
+              title: 'Stock Limit Reached',
+              text: `Only ${maxStock} items available in stock.`,
+              confirmButtonText: 'OK'
+            });
+            return;
+          }
+
           updateCartItem(itemId, 'increment', cartItem);
         });
       });
@@ -160,7 +187,15 @@
       // Handle decrement button
       document.querySelectorAll('.decrement-btn').forEach(button => {
         button.addEventListener('click', function() {
-          if (button.hasAttribute('disabled')) return;
+          if (button.hasAttribute('disabled')) {
+            Swal.fire({
+              icon: 'warning',
+              title: 'Minimum Quantity',
+              text: 'Cannot reduce quantity below 1.',
+              confirmButtonText: 'OK'
+            });
+            return;
+          }
           
           const cartItem = this.closest('.cart-item');
           const itemId = cartItem.dataset.id;
@@ -227,50 +262,87 @@
           });
           
           if (response.data.success) {
-            const cartItem = element.closest('.cart-item');
+            if (action === 'remove') {
+              // Animate item removal
+              element.style.transition = 'all 0.3s ease';
+              element.style.opacity = '0';
+              element.style.height = '0';
+              setTimeout(() => {
+                element.remove();
+                // If no items left, refresh to show empty cart state
+                if (document.querySelectorAll('.cart-item').length === 0) {
+                  window.location.reload();
+                }
+              }, 300);
+              return;
+            }
+
+            const cartItem = element;
             const quantityElement = cartItem.querySelector('.quantity');
             const itemTotalElement = cartItem.querySelector('.item-total');
             const incrementBtn = cartItem.querySelector('.increment-btn');
             const decrementBtn = cartItem.querySelector('.decrement-btn');
+            const maxStock = parseInt(cartItem.dataset.stock);
             
             const currentQuantity = parseInt(quantityElement.textContent);
+            const newQuantity = action === 'increment' ? currentQuantity + 1 : currentQuantity - 1;
             
-            if (action === 'increment') {
-              quantityElement.textContent = currentQuantity + 1;
-              
-              // Disable increment if at max stock
-              if (currentQuantity + 1 >= parseInt(cartItem.querySelector('.text-orange-600')?.textContent.match(/\d+/)?.[0] || Infinity)) {
-                incrementBtn.classList.add('text-gray-400');
-                incrementBtn.classList.remove('text-gray-600', 'hover:bg-gray-100');
-                incrementBtn.setAttribute('disabled', '');
-              }
-              
-              // Enable decrement if > 1
-              decrementBtn.classList.remove('text-gray-400');
-              decrementBtn.classList.add('text-gray-600', 'hover:bg-gray-100');
-              decrementBtn.removeAttribute('disabled');
-            } else if (action === 'decrement') {
-              quantityElement.textContent = currentQuantity - 1;
-              
-              // Disable decrement if at 1
-              if (currentQuantity - 1 <= 1) {
-                decrementBtn.classList.add('text-gray-400');
-                decrementBtn.classList.remove('text-gray-600', 'hover:bg-gray-100');
-                decrementBtn.setAttribute('disabled', '');
-              }
-              
-              // Enable increment
-              incrementBtn.classList.remove('text-gray-400');
+            // Animate quantity change
+            quantityElement.style.transition = 'all 0.2s ease';
+            quantityElement.style.transform = 'scale(1.2)';
+            setTimeout(() => {
+              quantityElement.style.transform = 'scale(1)';
+            }, 200);
+            
+            // Update quantity display
+            quantityElement.textContent = newQuantity;
+            
+            // Handle increment button state
+            if (newQuantity >= maxStock) {
+              incrementBtn.classList.add('text-gray-400', 'cursor-not-allowed');
+              incrementBtn.classList.remove('text-gray-600', 'hover:bg-gray-100');
+              incrementBtn.setAttribute('disabled', '');
+              incrementBtn.title = 'Maximum stock reached';
+            } else {
+              incrementBtn.classList.remove('text-gray-400', 'cursor-not-allowed');
               incrementBtn.classList.add('text-gray-600', 'hover:bg-gray-100');
               incrementBtn.removeAttribute('disabled');
+              incrementBtn.title = 'Increase quantity';
             }
             
-            // Update item total with the value from the server
-            itemTotalElement.textContent = response.data.itemTotal.toFixed(2);
+            // Handle decrement button state
+            if (newQuantity <= 1) {
+              decrementBtn.classList.add('text-gray-400', 'cursor-not-allowed');
+              decrementBtn.classList.remove('text-gray-600', 'hover:bg-gray-100');
+              decrementBtn.setAttribute('disabled', '');
+              decrementBtn.title = 'Minimum quantity reached';
+            } else {
+              decrementBtn.classList.remove('text-gray-400', 'cursor-not-allowed');
+              decrementBtn.classList.add('text-gray-600', 'hover:bg-gray-100');
+              decrementBtn.removeAttribute('disabled');
+              decrementBtn.title = 'Decrease quantity';
+            }
             
-            // Update cart total
-            document.getElementById('cart-subtotal').textContent = response.data.cartTotal.toFixed(2);
-            document.getElementById('cart-total').textContent = response.data.cartTotal.toFixed(2);
+            // Animate total update
+            itemTotalElement.style.transition = 'all 0.3s ease';
+            itemTotalElement.style.color = '#059669';
+            setTimeout(() => {
+              itemTotalElement.style.color = '';
+            }, 500);
+            
+            // Update totals with animation
+            const oldTotal = parseFloat(itemTotalElement.textContent);
+            const newTotal = response.data.itemTotal;
+            animateNumber(itemTotalElement, oldTotal, newTotal, 300);
+            
+            // Update cart totals with animation
+            const subtotalElement = document.getElementById('cart-subtotal');
+            const totalElement = document.getElementById('cart-total');
+            const oldCartTotal = parseFloat(subtotalElement.textContent);
+            const newCartTotal = response.data.cartTotal;
+            
+            animateNumber(subtotalElement, oldCartTotal, newCartTotal, 300);
+            animateNumber(totalElement, oldCartTotal, newCartTotal, 300);
             
             // Update cart count in navbar if it exists
             const cartCountElement = document.getElementById('cartCount');
@@ -280,21 +352,55 @@
           }
         } catch (error) {
           console.error('Error updating cart:', error);
-          if (error.response && error.response.data && error.response.data.error) {
-            alert(error.response.data.error);
-          } else {
-            alert('Failed to update cart');
-          }
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: error.response?.data?.error || 'Failed to update cart',
+            confirmButtonText: 'OK'
+          });
         }
       }
-      
+
+      // Function to animate number changes
+      function animateNumber(element, start, end, duration) {
+        const startTime = performance.now();
+        const change = end - start;
+        
+        function update(currentTime) {
+          const elapsed = currentTime - startTime;
+          const progress = Math.min(elapsed / duration, 1);
+          
+          const value = start + (change * progress);
+          element.textContent = value.toFixed(2);
+          
+          if (progress < 1) {
+            requestAnimationFrame(update);
+          }
+        }
+        
+        requestAnimationFrame(update);
+      }
+
       // Function to clear cart
       async function clearCart() {
         try {
           const response = await axios.post('/cart/clear');
           
           if (response.data.success) {
-            window.location.reload();
+            // Animate all items removal
+            const cartItems = document.querySelectorAll('.cart-item');
+            cartItems.forEach((item, index) => {
+              setTimeout(() => {
+                item.style.transition = 'all 0.3s ease';
+                item.style.opacity = '0';
+                item.style.height = '0';
+              }, index * 100);
+            });
+            
+            // After all animations, reload the page
+            setTimeout(() => {
+              window.location.reload();
+            }, cartItems.length * 100 + 300);
           }
         } catch (error) {
           console.error('Error clearing cart:', error);

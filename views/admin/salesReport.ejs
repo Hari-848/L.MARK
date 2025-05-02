@@ -166,13 +166,27 @@ function generateReport(type, page = 1) {
 
   params.append('page', page);
   url += `?${params.toString()}`;
-  console.log('Fetching report from:', url);
 
   // Show loading state
   document.getElementById('reportSummary').classList.add('hidden');
   document.getElementById('orderDetails').classList.add('hidden');
   document.getElementById('downloadOptions').classList.add('hidden');
   document.getElementById('pagination').classList.add('hidden');
+
+  // Show loading indicator
+  Swal.fire({
+    title: 'Generating Report',
+    text: 'Please wait...',
+    allowOutsideClick: false,
+    allowEscapeKey: false,
+    allowEnterKey: false,
+    showConfirmButton: false,
+    background: '#1a1a1a',
+    color: '#fff',
+    customClass: {
+      popup: 'bg-zinc-800 text-white'
+    }
+  });
 
   fetch(url, {
     method: 'GET',
@@ -183,20 +197,18 @@ function generateReport(type, page = 1) {
     credentials: 'include'
   })
   .then(response => {
-    console.log('Response status:', response.status);
     if (!response.ok) {
-      return response.text().then(text => {
-        console.error('Error response:', text);
-        throw new Error(`HTTP error! status: ${response.status}`);
+      return response.json().then(errorData => {
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       });
     }
     return response.json();
   })
   .then(data => {
-    console.log('Report data:', data);
     if (!data) {
       throw new Error('No data received from server');
     }
+    Swal.close();
     displayReport(data);
     setupPagination(data.pagination);
   })
@@ -296,69 +308,85 @@ function displayReport(data) {
     return;
   }
 
-  // Update summary
-  const totalOrdersElement = document.getElementById('totalOrders');
-  const totalSalesElement = document.getElementById('totalSales');
-  const totalDiscountsElement = document.getElementById('totalDiscounts');
-  const dateRangeElement = document.getElementById('dateRange');
+  try {
+    // Update summary
+    const totalOrdersElement = document.getElementById('totalOrders');
+    const totalSalesElement = document.getElementById('totalSales');
+    const totalDiscountsElement = document.getElementById('totalDiscounts');
+    const dateRangeElement = document.getElementById('dateRange');
 
-  if (totalOrdersElement) totalOrdersElement.textContent = data.totalOrders || 0;
-  if (totalSalesElement) totalSalesElement.textContent = formatCurrency(data.totalSales || 0);
-  if (totalDiscountsElement) totalDiscountsElement.textContent = formatCurrency(data.totalDiscounts || 0);
-  if (dateRangeElement && data.dateRange) {
-    dateRangeElement.textContent = 
-      `${formatDate(data.dateRange.start)} to ${formatDate(data.dateRange.end)}`;
-  }
+    if (totalOrdersElement) totalOrdersElement.textContent = data.totalOrders || 0;
+    if (totalSalesElement) totalSalesElement.textContent = formatCurrency(data.totalSales || 0);
+    if (totalDiscountsElement) totalDiscountsElement.textContent = formatCurrency(data.totalDiscounts || 0);
+    if (dateRangeElement && data.dateRange) {
+      dateRangeElement.textContent = 
+        `${formatDate(data.dateRange.start)} to ${formatDate(data.dateRange.end)}`;
+    }
 
-  // Update order details table
-  const tbody = document.getElementById('orderDetailsBody');
-  if (tbody) {
-    tbody.innerHTML = '';
-    
-    if (data.orderDetails && data.orderDetails.length > 0) {
-      data.orderDetails.forEach(order => {
+    // Update order details table
+    const tbody = document.getElementById('orderDetailsBody');
+    if (tbody) {
+      tbody.innerHTML = '';
+      
+      if (data.orderDetails && Array.isArray(data.orderDetails) && data.orderDetails.length > 0) {
+        data.orderDetails.forEach(order => {
+          if (!order) return;
+          
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td class="px-6 py-4 whitespace-nowrap text-white">${order.orderId || ''}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-white">${formatDate(order.date)}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-white">${order.userEmail || 'N/A'}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-white">${formatCurrency(order.total || 0)}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-white">${formatCurrency(order.discount || 0)}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-white">${formatCurrency(order.netAmount || 0)}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-white">${order.paymentMethod || 'N/A'}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-white">
+              <span class="px-2 py-1 rounded-full text-xs ${
+                order.status === 'delivered' ? 'bg-green-500' :
+                order.status === 'shipped' ? 'bg-blue-500' :
+                order.status === 'processing' ? 'bg-yellow-500' : 'bg-gray-500'
+              }">
+                ${order.status || 'N/A'}
+              </span>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-white">${order.couponCode || 'N/A'}</td>
+          `;
+          tbody.appendChild(row);
+        });
+      } else {
+        // Show a message when there are no orders
         const row = document.createElement('tr');
         row.innerHTML = `
-          <td class="px-6 py-4 whitespace-nowrap text-white">${order.orderId || ''}</td>
-          <td class="px-6 py-4 whitespace-nowrap text-white">${formatDate(order.date)}</td>
-          <td class="px-6 py-4 whitespace-nowrap text-white">${order.userId?.email || 'N/A'}</td>
-          <td class="px-6 py-4 whitespace-nowrap text-white">${formatCurrency(order.total || 0)}</td>
-          <td class="px-6 py-4 whitespace-nowrap text-white">${formatCurrency(order.discount || 0)}</td>
-          <td class="px-6 py-4 whitespace-nowrap text-white">${formatCurrency(order.netAmount || 0)}</td>
-          <td class="px-6 py-4 whitespace-nowrap text-white">${order.paymentMethod || ''}</td>
-          <td class="px-6 py-4 whitespace-nowrap text-white">
-            <span class="px-2 py-1 rounded-full text-xs ${
-              order.status === 'delivered' ? 'bg-green-500' :
-              order.status === 'shipped' ? 'bg-blue-500' :
-              order.status === 'processing' ? 'bg-yellow-500' : 'bg-gray-500'
-            }">
-              ${order.status || 'N/A'}
-            </span>
+          <td colspan="9" class="px-6 py-4 text-center text-white">
+            No orders found for the selected date range
           </td>
-          <td class="px-6 py-4 whitespace-nowrap text-white">${order.couponCode || 'N/A'}</td>
         `;
         tbody.appendChild(row);
-      });
-    } else {
-      // Show a message when there are no orders
-      const row = document.createElement('tr');
-      row.innerHTML = `
-        <td colspan="9" class="px-6 py-4 text-center text-white">
-          No orders found for the selected date range
-        </td>
-      `;
-      tbody.appendChild(row);
+      }
     }
+
+    // Show sections
+    const reportSummary = document.getElementById('reportSummary');
+    const orderDetails = document.getElementById('orderDetails');
+    const downloadOptions = document.getElementById('downloadOptions');
+
+    if (reportSummary) reportSummary.classList.remove('hidden');
+    if (orderDetails) orderDetails.classList.remove('hidden');
+    if (downloadOptions) downloadOptions.classList.remove('hidden');
+  } catch (error) {
+    console.error('Error displaying report:', error);
+    Swal.fire({
+      icon: 'error',
+      title: 'Error',
+      text: 'Failed to display report data',
+      background: '#1a1a1a',
+      color: '#fff',
+      customClass: {
+        popup: 'bg-zinc-800 text-white'
+      }
+    });
   }
-
-  // Show sections
-  const reportSummary = document.getElementById('reportSummary');
-  const orderDetails = document.getElementById('orderDetails');
-  const downloadOptions = document.getElementById('downloadOptions');
-
-  if (reportSummary) reportSummary.classList.remove('hidden');
-  if (orderDetails) orderDetails.classList.remove('hidden');
-  if (downloadOptions) downloadOptions.classList.remove('hidden');
 }
 
 async function downloadReport(format) {
@@ -459,6 +487,44 @@ document.getElementById('customDateForm').addEventListener('submit', (e) => {
     return;
   }
 
+  // Validate dates
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const selectedStartDate = new Date(startDate);
+  const selectedEndDate = new Date(endDate);
+
+  // Reset time components to ensure accurate date comparison
+  selectedStartDate.setHours(0, 0, 0, 0);
+  selectedEndDate.setHours(0, 0, 0, 0);
+
+  if (selectedStartDate > today || selectedEndDate > today) {
+    Swal.fire({
+      icon: 'error',
+      title: 'Error',
+      text: 'Future dates cannot be selected. Please select dates up to today.',
+      background: '#1a1a1a',
+      color: '#fff',
+      customClass: {
+        popup: 'bg-zinc-800 text-white'
+      }
+    });
+    return;
+  }
+
+  if (selectedStartDate > selectedEndDate) {
+    Swal.fire({
+      icon: 'error',
+      title: 'Error',
+      text: 'Start date cannot be after end date. Please select a valid date range.',
+      background: '#1a1a1a',
+      color: '#fff',
+      customClass: {
+        popup: 'bg-zinc-800 text-white'
+      }
+    });
+    return;
+  }
+
   // Set the current report type to custom
   currentReportType = 'custom';
   currentStartDate = startDate;
@@ -467,6 +533,47 @@ document.getElementById('customDateForm').addEventListener('submit', (e) => {
   // Generate report with custom dates
   generateReport('custom', 1);
   closeCustomDateModal();
+});
+
+// Add input validation for date fields
+document.querySelector('input[name="startDate"]').addEventListener('change', function() {
+  const startDate = new Date(this.value);
+  const endDateInput = document.querySelector('input[name="endDate"]');
+  const endDate = new Date(endDateInput.value);
+
+  if (endDateInput.value && startDate > endDate) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'Invalid Date Range',
+      text: 'Start date cannot be after end date. Please adjust your selection.',
+      background: '#1a1a1a',
+      color: '#fff',
+      customClass: {
+        popup: 'bg-zinc-800 text-white'
+      }
+    });
+    this.value = ''; // Clear the invalid start date
+  }
+});
+
+document.querySelector('input[name="endDate"]').addEventListener('change', function() {
+  const endDate = new Date(this.value);
+  const startDateInput = document.querySelector('input[name="startDate"]');
+  const startDate = new Date(startDateInput.value);
+
+  if (startDateInput.value && startDate > endDate) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'Invalid Date Range',
+      text: 'End date cannot be before start date. Please adjust your selection.',
+      background: '#1a1a1a',
+      color: '#fff',
+      customClass: {
+        popup: 'bg-zinc-800 text-white'
+      }
+    });
+    this.value = ''; // Clear the invalid end date
+  }
 });
 </script>
 

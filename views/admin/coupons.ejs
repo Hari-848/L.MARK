@@ -51,8 +51,8 @@
                 data-discount-amount="<%= coupon.discountAmount %>"
                 data-min-purchase="<%= coupon.minPurchase %>"
                 data-max-discount="<%= coupon.maxDiscount %>"
-                data-valid-from="<%= coupon.validFrom.toISOString().split('T')[0] %>"
-                data-valid-until="<%= coupon.validUntil.toISOString().split('T')[0] %>"
+                data-valid-from="<%= new Date(coupon.validFrom.getTime() - coupon.validFrom.getTimezoneOffset() * 60000).toISOString().split('T')[0] %>"
+                data-valid-until="<%= new Date(coupon.validUntil.getTime() - coupon.validUntil.getTimezoneOffset() * 60000).toISOString().split('T')[0] %>"
                 data-usage-limit="<%= coupon.usageLimit %>"
               >
                 Edit
@@ -339,8 +339,11 @@ function editCoupon(id, code, description, discountType, discountAmount, minPurc
   document.getElementById('editDiscountAmount').value = discountAmount;
   document.getElementById('editMinPurchase').value = minPurchase;
   document.getElementById('editMaxDiscount').value = maxDiscount;
+  
+  // Set dates directly without conversion
   document.getElementById('editValidFrom').value = validFrom;
   document.getElementById('editValidUntil').value = validUntil;
+  
   document.getElementById('editUsageLimit').value = usageLimit;
 
   document.getElementById('editCouponModal').classList.remove('hidden');

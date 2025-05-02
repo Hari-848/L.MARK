@@ -24,29 +24,28 @@ const getDateRange = (type) => {
 
   switch (type) {
     case 'daily':
-      // Today's date
-      start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-      end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+      start = new Date(now);
+      start.setHours(0, 0, 0, 0);
+      end = new Date(now);
+      end.setHours(23, 59, 59, 999);
       break;
     case 'weekly':
-      // This week (Sunday to Saturday)
-      const day = now.getDay();
-      const diff = now.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
-      start = new Date(now.setDate(diff));
+      start = new Date(now);
+      start.setDate(now.getDate() - now.getDay()); // Set to Sunday
       start.setHours(0, 0, 0, 0);
       end = new Date(start);
-      end.setDate(start.getDate() + 6);
+      end.setDate(start.getDate() + 6); // Set to Saturday
       end.setHours(23, 59, 59, 999);
       break;
     case 'yearly':
-      // Current year
-      start = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
+      start = new Date(now.getFullYear(), 0, 1);
       end = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
       break;
     default:
-      // Default to today
-      start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-      end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+      start = new Date(now);
+      start.setHours(0, 0, 0, 0);
+      end = new Date(now);
+      end.setHours(23, 59, 59, 999);
   }
 
   return { start, end };
@@ -82,9 +81,35 @@ const getDateRangeFromRequest = async (req) => {
     }
     return { startDate: start, endDate: end };
   } else if (startDate && endDate) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    // Reset time components to ensure accurate date comparison
+    start.setHours(0, 0, 0, 0);
+    end.setHours(0, 0, 0, 0);
+
+    // Validate future dates
+    if (start > today || end > today) {
+      throw new Error('Future dates cannot be selected. Please select dates up to today.');
+    }
+
+    // Validate date range
+    if (start > end) {
+      throw new Error('Start date cannot be after end date. Please select a valid date range.');
+    }
+
+    // Validate date range is not too large (optional: limit to 1 year)
+    const oneYearInMs = 365 * 24 * 60 * 60 * 1000;
+    if (end - start > oneYearInMs) {
+      throw new Error('Date range cannot exceed one year. Please select a smaller range.');
+    }
+
     return {
-      startDate: new Date(startDate),
-      endDate: new Date(endDate)
+      startDate: start,
+      endDate: end
     };
   }
   throw new Error('Invalid date range parameters');
@@ -93,6 +118,14 @@ const getDateRangeFromRequest = async (req) => {
 // Generate sales report data
 const generateSalesReport = async (startDate, endDate, page = 1, limit = 10) => {
   try {
+    if (!startDate || !endDate) {
+      throw new Error('Start date and end date are required');
+    }
+
+    if (startDate > endDate) {
+      throw new Error('Start date cannot be after end date');
+    }
+
     console.log('Fetching orders between:', startDate, 'and', endDate);
     
     // First, get all orders within date range for total calculations
@@ -101,7 +134,11 @@ const generateSalesReport = async (startDate, endDate, page = 1, limit = 10) => 
         $gte: startDate,
         $lte: endDate
       }
-    });
+    }).lean();
+
+    if (!allOrders || !Array.isArray(allOrders)) {
+      throw new Error('Failed to fetch orders');
+    }
 
     // Initialize counters
     let totalSales = 0;
@@ -117,16 +154,19 @@ const generateSalesReport = async (startDate, endDate, page = 1, limit = 10) => 
 
     // Calculate totals and count orders by status
     allOrders.forEach(order => {
+      if (!order || typeof order !== 'object') return;
+      
       // Count orders by status
-      orderCounts[order.orderStatus] = (orderCounts[order.orderStatus] || 0) + 1;
+      const status = order.orderStatus || 'processing';
+      orderCounts[status] = (orderCounts[status] || 0) + 1;
       
       // Only include delivered orders in sales calculations
-      if (order.orderStatus === 'delivered') {
-        const orderSubtotal = order.subtotal || 0;
-        const orderDiscount = order.discount || 0;
-        const orderTotal = order.total || 0;
-        totalSales += orderTotal; // Use net amount (after discount)
-        totalDiscounts += orderDiscount; // Total discounts applied
+      if (status === 'delivered') {
+        const orderSubtotal = Number(order.subtotal) || 0;
+        const orderDiscount = Number(order.discount) || 0;
+        const orderTotal = Number(order.total) || 0;
+        totalSales += orderTotal;
+        totalDiscounts += orderDiscount;
       }
     });
 
@@ -144,39 +184,41 @@ const generateSalesReport = async (startDate, endDate, page = 1, limit = 10) => 
     })
     .populate('userId', 'email')
     .populate({
-      path: 'items.product',
+      path: 'items.productId',
       select: 'productName'
     })
     .populate({
-      path: 'items.variant',
+      path: 'items.variantId',
       select: 'variantType price'
     })
     .sort({ createdAt: -1 })
     .skip(skip)
-    .limit(limit);
+    .limit(limit)
+    .lean();
 
-    console.log('Found orders:', paginatedOrders.length, 'out of', totalOrders);
-    console.log('Order counts by status:', orderCounts);
+    if (!paginatedOrders || !Array.isArray(paginatedOrders)) {
+      throw new Error('Failed to fetch paginated orders');
+    }
 
     // Prepare order details for display
     const orderDetails = paginatedOrders.map(order => ({
       orderId: order._id,
       date: order.createdAt,
-      total: order.subtotal || 0, // Show subtotal (before discount)
-      discount: order.discount || 0,
-      netAmount: order.total || 0, // Show final amount after discount
-      paymentMethod: order.paymentMethod,
+      total: Number(order.subtotal) || 0,
+      discount: Number(order.discount) || 0,
+      netAmount: Number(order.total) || 0,
+      paymentMethod: order.paymentMethod || 'N/A',
       couponCode: order.couponCode || 'N/A',
-      status: order.orderStatus,
+      status: order.orderStatus || 'processing',
       userEmail: order.userId?.email || 'N/A'
     }));
 
     return {
-      totalSales, // Total after discounts (net amount)
-      totalDiscounts, // Total discounts applied
-      totalOrders, // All orders including cancelled
-      orderCounts, // Breakdown of orders by status
-      orderDetails, // Paginated order details
+      totalSales,
+      totalDiscounts,
+      totalOrders,
+      orderCounts,
+      orderDetails,
       pagination: {
         currentPage: page,
         totalPages,
@@ -210,26 +252,44 @@ const generatePDFReport = async (reportData) => {
   doc.pipe(stream);
 
   // Add title
-  doc.fontSize(20).text('Sales Report', { align: 'center' });
-  doc.moveDown();
+  doc.fontSize(24)
+    .font('Helvetica-Bold')
+    .text('Sales Report', { align: 'center' })
+    .moveDown(0.5);
+
+  doc
+    .fontSize(10)
+    .font('Helvetica')
+    .text(`Generated on: ${new Date().toLocaleString()}`, { align: 'right' })
+    .moveDown(1);
 
   // Add date range
-  doc.fontSize(12).text(
-    `Period: ${formatDate(reportData.dateRange.start)} to ${formatDate(reportData.dateRange.end)}`,
-    { align: 'center' }
-  );
-  doc.moveDown();
+  doc
+    .fontSize(12)
+    .font('Helvetica')
+    .text(`Period: ${formatDate(reportData.dateRange.start)} to ${formatDate(reportData.dateRange.end)}`, { align: 'center' })
+    .moveDown(1);
 
   // Add summary
-  doc.fontSize(14).text('Summary');
-  doc.fontSize(12).text(`Total Orders: ${reportData.totalOrders}`);
-  doc.text(`Total Sales: ${formatCurrency(reportData.totalSales)}`);
-  doc.text(`Total Discounts: ${formatCurrency(reportData.totalDiscounts)}`);
-  doc.moveDown();
+  doc
+    .fontSize(14)
+    .font('Helvetica-Bold')
+    .text('Summary')
+    .moveDown(0.3);
+  doc
+    .fontSize(12)
+    .font('Helvetica')
+    .text(`Total Orders: ${reportData.totalOrders}`)
+    .text(`Total Sales: ${formatCurrency(reportData.totalSales)}`)
+    .text(`Total Discounts: ${formatCurrency(reportData.totalDiscounts)}`)
+    .moveDown(1);
 
   // Add order details
-  doc.fontSize(14).text('Order Details');
-  doc.moveDown();
+  doc
+    .fontSize(14)
+    .font('Helvetica-Bold')
+    .text('Order Details')
+    .moveDown(0.5);
 
   reportData.orderDetails.forEach(order => {
     doc.fontSize(10).text(`Order ID: ${order.orderId}`);
@@ -361,81 +421,137 @@ exports.downloadPDFReport = async (req, res) => {
     const { startDate, endDate } = await getDateRangeFromRequest(req);
     const report = await generateSalesReport(startDate, endDate);
     
-    // Generate PDF report
     const filename = `sales-report-${Date.now()}.pdf`;
     const filepath = path.join(reportDir, filename);
     
-    // Create PDF document
-    const doc = new PDFDocument();
+    const doc = new PDFDocument({ margin: 50 });
     const stream = fs.createWriteStream(filepath);
     doc.pipe(stream);
 
-    // Add title
-    doc.fontSize(20).text('Sales Report', { align: 'center' });
-    doc.moveDown();
+    // Header with branding
+    doc
+      .fontSize(24)
+      .font('Helvetica-Bold')
+      .text('Sales Report', { align: 'center' })
+      .moveDown(0.5);
 
-    // Add date range
-    doc.fontSize(12).text(
-      `Period: ${formatDate(startDate)} to ${formatDate(endDate)}`,
-      { align: 'center' }
-    );
-    doc.moveDown();
+    doc
+      .fontSize(10)
+      .font('Helvetica')
+      .text(`Generated on: ${new Date().toLocaleString()}`, { align: 'right' })
+      .moveDown(1);
 
-    // Add summary
-    doc.fontSize(14).text('Summary');
-    doc.fontSize(12).text(`Total Orders: ${report.totalOrders}`);
-    doc.text(`Total Sales: ${formatCurrency(report.totalSales)}`);
-    doc.text(`Total Discounts: ${formatCurrency(report.totalDiscounts)}`);
-    doc.moveDown();
+    // Date range section
+    doc
+      .fontSize(12)
+      .font('Helvetica')
+      .text(`Period: ${formatDate(startDate)} to ${formatDate(endDate)}`, { align: 'center' })
+      .moveDown(1);
 
-    // Add order status breakdown
-    doc.fontSize(14).text('Orders by Status');
+    // Summary Section
+    doc
+      .fontSize(14)
+      .font('Helvetica-Bold')
+      .text('Summary')
+      .moveDown(0.3);
+    doc
+      .fontSize(12)
+      .font('Helvetica')
+      .text(`Total Orders: ${report.totalOrders}`)
+      .text(`Total Sales: ${formatCurrency(report.totalSales)}`)
+      .text(`Total Discounts: ${formatCurrency(report.totalDiscounts)}`)
+      .moveDown(1);
+
+    // Orders by Status
+    doc
+      .fontSize(14)
+      .font('Helvetica-Bold')
+      .text('Orders by Status')
+      .moveDown(0.3);
+
     Object.entries(report.orderCounts).forEach(([status, count]) => {
       if (status !== 'total') {
-        doc.fontSize(12).text(`${status.charAt(0).toUpperCase() + status.slice(1)}: ${count}`);
+        doc.fontSize(12).font('Helvetica').text(`${status}: ${count}`);
       }
     });
-    doc.moveDown();
+
+    doc.moveDown(1).moveTo(doc.x, doc.y).lineTo(550, doc.y).stroke().moveDown(1);
+
+    // Order Details Section
+    doc
+      .fontSize(14)
+      .font('Helvetica-Bold')
+      .text('Order Details')
+      .moveDown(0.5);
 
     // Add order details
-    doc.fontSize(14).text('Order Details');
-    doc.moveDown();
-
+    if (report.orderDetails && report.orderDetails.length > 0) {
     report.orderDetails.forEach(order => {
-      doc.fontSize(10)
-        .text(`Order ID: ${order.orderId}`)
-        .text(`Date: ${formatDate(order.date)}`)
-        .text(`Customer: ${order.userEmail}`)
-        .text(`Total: ${formatCurrency(order.total)}`)
-        .text(`Discount: ${formatCurrency(order.discount)}`)
-        .text(`Net Amount: ${formatCurrency(order.netAmount)}`)
-        .text(`Payment Method: ${order.paymentMethod}`)
-        .text(`Status: ${order.status}`)
-        .text(`Coupon Code: ${order.couponCode}`);
-      doc.moveDown();
-    });
+        // Check if we need a new page
+        if (doc.y > 700) {
+          doc.addPage();
+        }
 
-    // Finalize PDF
+        doc
+          .fontSize(10)
+          .font('Helvetica-Bold')
+          .text(`Order ID: ${order.orderId}`, { continued: true })
+          .font('Helvetica')
+          .text(`  (${formatDate(order.date)})`);
+        
+        doc
+          .fontSize(10)
+        .text(`Customer: ${order.userEmail}`)
+          .text(`Total: ${formatCurrency(order.total)} | Discount: ${formatCurrency(order.discount)} | Net: ${formatCurrency(order.netAmount)}`)
+          .text(`Payment Method: ${order.paymentMethod} | Status: ${order.status}`)
+          .text(`Coupon: ${order.couponCode || 'N/A'}`)
+          .moveDown(0.5);
+
+        doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke().moveDown(0.5);
+    });
+    } else {
+      doc
+        .fontSize(12)
+        .font('Helvetica')
+        .text('No orders found for the selected period')
+        .moveDown(1);
+    }
+
+    // Add page numbers
+    const pages = doc.bufferedPageRange();
+    for (let i = pages.start; i < pages.start + pages.count; i++) {
+      doc.switchToPage(i);
+      doc.fontSize(8).text(`Page ${i + 1} of ${pages.count}`, 50, 740, {
+        align: 'center',
+        width: 500
+      });
+    }
+
     doc.end();
 
-    // Wait for the stream to finish
     stream.on('finish', () => {
-      res.download(filepath, filename, (err) => {
+      res.download(filepath, filename, err => {
         if (err) {
-          console.error('Error downloading file:', err);
-          res.status(500).send('Error downloading file');
+          console.error('Download error:', err);
+          res.status(500).send('Download failed');
         }
-        // Delete the file after download
-        fs.unlink(filepath, (unlinkErr) => {
-          if (unlinkErr) console.error('Error deleting temporary file:', unlinkErr);
+        fs.unlink(filepath, err => {
+          if (err) console.error('File deletion error:', err);
         });
       });
     });
+
+    stream.on('error', (err) => {
+      console.error('Stream error:', err);
+      res.status(500).json({ error: 'PDF generation failed' });
+    });
+
   } catch (error) {
-    console.error('Error generating PDF report:', error);
-    res.status(500).json({ error: 'Failed to generate PDF report' });
+    console.error('PDF generation failed:', error);
+    res.status(500).json({ error: 'PDF report generation failed' });
   }
 };
+
 
 exports.downloadExcelReport = async (req, res) => {
   try {
