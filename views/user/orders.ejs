@@ -139,7 +139,7 @@
                     </button>
                   <% } %>
                   
-                  <% if (order.orderStatus === 'delivered' && order.isReturnEligible) { %>
+                  <% if (order.orderStatus === 'delivered' && order.isReturnEligible && !order.returnRequested) { %>
                     <button 
                       onclick="returnOrder('<%= order._id %>')" 
                       class="text-orange-600 hover:text-orange-900"

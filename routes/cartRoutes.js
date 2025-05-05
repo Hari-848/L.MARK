@@ -14,5 +14,6 @@ router.get('/', isUserAuthenticated, cartController.getCart);
 router.post('/add', isUserAuthenticated, cartController.addToCart);
 router.post('/update', isUserAuthenticated, cartController.updateCartItem);
 router.post('/clear', isUserAuthenticated, cartController.clearCart);
+router.post('/check', isUserAuthenticated, cartController.checkItemInCart);
 
 module.exports = router; 

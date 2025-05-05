@@ -259,11 +259,11 @@ exports.generateInvoice = async (req, res) => {
     
     const order = await Order.findOne({ _id: orderId, userId })
       .populate({
-        path: 'items.product',
+        path: 'items.productId',
         select: 'productName'
       })
       .populate({
-        path: 'items.variant',
+        path: 'items.variantId',
         select: 'variantType price discountPrice'
       })
       .populate('address');
@@ -272,8 +272,12 @@ exports.generateInvoice = async (req, res) => {
       return res.status(404).json({ error: 'Order not found' });
     }
     
-    // Create a PDF document
-    const doc = new PDFDocument({ margin: 50 });
+    // Create a PDF document with larger margins
+    const doc = new PDFDocument({ 
+      margin: 50,
+      size: 'A4',
+      bufferPages: true
+    });
     
     // Set response headers
     res.setHeader('Content-Type', 'application/pdf');
@@ -282,41 +286,78 @@ exports.generateInvoice = async (req, res) => {
     // Pipe the PDF to the response
     doc.pipe(res);
     
-    // Add company logo and header
-    doc.fontSize(20).text('L.MARK', { align: 'center' });
-    doc.fontSize(12).text('Invoice', { align: 'center' });
-    doc.moveDown();
+    // Add company header
+    doc.fontSize(24)
+       .font('Helvetica-Bold')
+       .text('L.MARK', { align: 'center' });
     
-    // Add order details
-    doc.fontSize(14).text('Order Details');
-    doc.fontSize(10).text(`Order ID: ${order._id}`);
-    doc.text(`Date: ${new Date(order.createdAt).toLocaleDateString()}`);
-    doc.text(`Payment Method: ${order.paymentMethod.toUpperCase()}`);
-    doc.text(`Payment Status: ${order.paymentStatus.toUpperCase()}`);
-    doc.moveDown();
+    doc.fontSize(12)
+       .font('Helvetica')
+       .text('INVOICE', { align: 'center' })
+       .moveDown(2);
     
-    // Add shipping address
-    doc.fontSize(14).text('Shipping Address');
-    doc.fontSize(10).text(`Name: ${order.address.fullName}`);
-    doc.text(`Address: ${order.address.address}`);
-    doc.text(`City: ${order.address.city}, ${order.address.state} - ${order.address.pincode}`);
-    doc.text(`Mobile: ${order.address.mobile}`);
-    doc.moveDown();
+    // Add invoice details in two columns
+    const invoiceDetails = {
+      'Invoice Number': order._id.toString(),
+      'Invoice Date': new Date(order.createdAt).toLocaleDateString('en-IN', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      }),
+      'Payment Method': order.paymentMethod.toUpperCase(),
+      'Payment Status': order.paymentStatus.toUpperCase()
+    };
     
-    // Add items table
-    doc.fontSize(14).text('Order Items');
-    doc.moveDown();
+    let y = doc.y;
+    Object.entries(invoiceDetails).forEach(([key, value]) => {
+      doc.fontSize(10)
+         .font('Helvetica-Bold')
+         .text(key, 50, y)
+         .font('Helvetica')
+         .text(value, 200, y);
+      y += 20;
+    });
+    
+    doc.moveDown(2);
+    
+    // Add shipping address with proper formatting
+    doc.fontSize(12)
+       .font('Helvetica-Bold')
+       .text('SHIPPING ADDRESS', { underline: true })
+       .moveDown(0.5);
+    
+    doc.fontSize(10)
+       .font('Helvetica')
+       .text(order.address.fullName)
+       .text(order.address.address)
+       .text(`${order.address.city}, ${order.address.state} - ${order.address.pincode}`)
+       .text(`Phone: ${order.address.mobile}`)
+       .moveDown(2);
+    
+    // Add items table with proper formatting
+    doc.fontSize(12)
+       .font('Helvetica-Bold')
+       .text('ORDER ITEMS', { underline: true })
+       .moveDown(0.5);
     
     // Table headers
-    let y = doc.y;
-    doc.fontSize(10).text('Item', 50, y);
-    doc.text('Variant', 200, y);
-    doc.text('Price', 300, y);
-    doc.text('Qty', 350, y);
-    doc.text('Total', 400, y);
+    const tableHeaders = ['Item', 'Variant', 'Price', 'Qty', 'Total'];
+    const columnWidths = [200, 100, 80, 50, 80];
+    const columnPositions = [50, 250, 350, 430, 480];
     
-    doc.moveTo(50, doc.y + 5).lineTo(550, doc.y + 5).stroke();
-    doc.moveDown();
+    y = doc.y;
+    tableHeaders.forEach((header, i) => {
+      doc.fontSize(10)
+         .font('Helvetica-Bold')
+         .text(header, columnPositions[i], y);
+    });
+    
+    // Draw header line
+    doc.moveTo(50, y + 15)
+       .lineTo(560, y + 15)
+       .stroke();
+    
+    doc.moveDown(0.5);
     
     // Table rows
     order.items.forEach(item => {
@@ -324,31 +365,77 @@ exports.generateInvoice = async (req, res) => {
       const price = item.discountPrice > 0 ? item.discountPrice : item.price;
       const total = price * item.quantity;
       
-      doc.fontSize(10).text(item.product.productName, 50, y, { width: 150 });
-      doc.text(item.variant.variantType, 200, y);
-      doc.text(`₹${price.toFixed(2)}`, 300, y);
-      doc.text(item.quantity.toString(), 350, y);
-      doc.text(`₹${total.toFixed(2)}`, 400, y);
+      // Item name
+      doc.fontSize(10)
+         .font('Helvetica')
+         .text(item.productId.productName, columnPositions[0], y, { width: columnWidths[0] });
       
-      doc.moveDown();
+      // Variant
+      doc.text(item.variantId.variantType, columnPositions[1], y, { width: columnWidths[1] });
+      
+      // Price
+      doc.text(`₹${price.toFixed(2)}`, columnPositions[2], y, { width: columnWidths[2] });
+      
+      // Quantity
+      doc.text(item.quantity.toString(), columnPositions[3], y, { width: columnWidths[3] });
+      
+      // Total
+      doc.text(`₹${total.toFixed(2)}`, columnPositions[4], y, { width: columnWidths[4] });
+      
+      doc.moveDown(0.5);
     });
     
-    doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
-    doc.moveDown();
+    // Draw footer line
+    doc.moveTo(50, doc.y)
+       .lineTo(560, doc.y)
+       .stroke();
     
-    // Order summary
-    doc.text(`Subtotal: ₹${order.subtotal.toFixed(2)}`, { align: 'right' });
-    doc.text(`Shipping: ₹${order.shipping.toFixed(2)}`, { align: 'right' });
+    doc.moveDown(1);
+    
+    // Order summary with proper alignment
+    const summaryItems = [
+      { label: 'Subtotal', value: `₹${order.subtotal.toFixed(2)}` },
+      { label: 'Shipping', value: `₹${order.shipping.toFixed(2)}` }
+    ];
+    
     if (order.discount > 0) {
-      doc.text(`Discount: -₹${order.discount.toFixed(2)}`, { align: 'right' });
+      summaryItems.push({ label: 'Discount', value: `-₹${order.discount.toFixed(2)}` });
     }
-    if (order.tax > 0) {
-      doc.text(`Tax: ₹${order.tax.toFixed(2)}`, { align: 'right' });
-    }
-    doc.fontSize(12).text(`Total: ₹${order.total.toFixed(2)}`, { align: 'right' });
     
-    doc.moveDown();
-    doc.fontSize(10).text('Thank you for shopping with us!', { align: 'center' });
+    if (order.tax > 0) {
+      summaryItems.push({ label: 'Tax', value: `₹${order.tax.toFixed(2)}` });
+    }
+    
+    summaryItems.push({ label: 'Total', value: `₹${order.total.toFixed(2)}` });
+    
+    summaryItems.forEach(item => {
+      doc.fontSize(10)
+         .font(item.label === 'Total' ? 'Helvetica-Bold' : 'Helvetica')
+         .text(item.label, 400)
+         .text(item.value, { align: 'right' })
+         .moveDown(0.5);
+    });
+    
+    // Add footer
+    doc.moveDown(2);
+    doc.fontSize(10)
+       .font('Helvetica')
+       .text('Thank you for shopping with us!', { align: 'center' })
+       .moveDown(0.5);
+    
+    doc.fontSize(8)
+       .text('This is a computer-generated invoice and does not require a signature.', { align: 'center' });
+    
+    // Add page numbers
+    const pages = doc.bufferedPageRange();
+    for (let i = pages.start; i < pages.start + pages.count; i++) {
+      doc.switchToPage(i);
+      doc.fontSize(8)
+         .text(`Page ${i + 1} of ${pages.count}`, 50, 740, {
+           align: 'center',
+           width: 500
+         });
+    }
     
     // Finalize the PDF
     doc.end();

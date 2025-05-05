@@ -639,6 +639,12 @@
           return; // Stop execution if validation fails
         }
 
+        // Show loading state
+        const submitButton = document.querySelector('#profileForm button[type="submit"]');
+        const originalButtonText = submitButton.textContent;
+        submitButton.disabled = true;
+        submitButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Updating...';
+
         try {
           // Send data to the server
           const response = await axios.post(
@@ -647,9 +653,13 @@
             { headers: { "Content-Type": "application/json" } }
           );
 
+          // Restore button state
+          submitButton.disabled = false;
+          submitButton.textContent = originalButtonText;
+
           // Check if email verification is required
           if (response.data.requireEmailVerification) {
-            // Show OTP verification dialog
+            // Show OTP verification dialog with loading state
             showEmailVerificationDialog(response.data.newEmail);
           } else {
             // Display success message using SweetAlert
@@ -661,6 +671,10 @@
             });
           }
         } catch (error) {
+          // Restore button state
+          submitButton.disabled = false;
+          submitButton.textContent = originalButtonText;
+
           console.error(
             "Error updating profile:",
             error.response?.data || error.message
@@ -750,41 +764,49 @@
       // Function to show email verification dialog
       function showEmailVerificationDialog(newEmail) {
         Swal.fire({
-          title: 'Verify Your Email',
+          title: 'Verifying Email',
           html: `
-            <p class="mb-4">We've sent a verification code to <strong>${newEmail}</strong></p>
-            <div class="mb-4">
-              <input type="text" id="email-otp" class="swal2-input" placeholder="Enter verification code">
+            <div class="text-center">
+              <i class="fas fa-spinner fa-spin text-4xl text-blue-500 mb-4"></i>
+              <p class="mb-4">Please wait while we send a verification code to <strong>${newEmail}</strong></p>
             </div>
-            <div id="otp-error" class="text-red-500 text-sm"></div>
           `,
-          showCancelButton: true,
-          confirmButtonText: 'Verify',
-          cancelButtonText: 'Cancel',
-          showLoaderOnConfirm: true,
-          footer: '<a href="#" id="resend-otp">Resend verification code</a>',
+          showConfirmButton: false,
+          allowOutsideClick: false,
           didOpen: () => {
-            // Add event listener for resend link
-            document.getElementById('resend-otp').addEventListener('click', () => {
-              resendEmailOTP(newEmail);
-            });
-          },
-          preConfirm: () => {
-            const otp = document.getElementById('email-otp').value;
-            if (!otp) {
-              Swal.showValidationMessage('Please enter the verification code');
-              return false;
-            }
-            
-            return verifyEmailOTP(newEmail, otp);
-          }
-        }).then((result) => {
-          if (result.isConfirmed) {
-            Swal.fire({
-              title: 'Success!',
-              text: 'Your email has been updated successfully',
-              icon: 'success'
-            });
+            // After a short delay, show the OTP input
+            setTimeout(() => {
+              Swal.fire({
+                title: 'Verify Your Email',
+                html: `
+                  <p class="mb-4">We've sent a verification code to <strong>${newEmail}</strong></p>
+                  <div class="mb-4">
+                    <input type="text" id="email-otp" class="swal2-input" placeholder="Enter verification code">
+                  </div>
+                  <div id="otp-error" class="text-red-500 text-sm"></div>
+                `,
+                showCancelButton: true,
+                confirmButtonText: 'Verify',
+                cancelButtonText: 'Cancel',
+                showLoaderOnConfirm: true,
+                footer: '<a href="#" id="resend-otp">Resend verification code</a>',
+                didOpen: () => {
+                  // Add event listener for resend link
+                  document.getElementById('resend-otp').addEventListener('click', () => {
+                    resendEmailOTP(newEmail);
+                  });
+                },
+                preConfirm: () => {
+                  const otp = document.getElementById('email-otp').value;
+                  if (!otp) {
+                    Swal.showValidationMessage('Please enter the verification code');
+                    return false;
+                  }
+                  
+                  return verifyEmailOTP(newEmail, otp);
+                }
+              });
+            }, 1500); // Show loading for 1.5 seconds
           }
         });
       }

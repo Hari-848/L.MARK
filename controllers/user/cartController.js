@@ -64,6 +64,29 @@ exports.addToCart = async (req, res) => {
 
     // Check if total requested quantity exceeds stock
     if (totalRequestedQuantity > variant.stock) {
+      // If the item is already in cart with full stock, remove it from wishlist and return success
+      if (existingQuantity === variant.stock) {
+        // Remove from wishlist if it exists there
+        const wishlist = await Wishlist.findOne({ userId });
+        if (wishlist) {
+          const wishlistItemIndex = wishlist.products.findIndex(
+            item => item.productId.toString() === productId
+          );
+          
+          if (wishlistItemIndex !== -1) {
+            wishlist.products.splice(wishlistItemIndex, 1);
+            await wishlist.save();
+          }
+        }
+
+        return res.status(200).json({
+          success: true,
+          message: 'Product is already in cart with full stock',
+          cartCount: cart.items.reduce((total, item) => total + item.quantity, 0),
+          removedFromWishlist: true
+        });
+      }
+
       return res.status(400).json({
         success: false,
         message: `Only ${variant.stock - existingQuantity} item${variant.stock - existingQuantity === 1 ? '' : 's'} available in stock`,
@@ -99,12 +122,26 @@ exports.addToCart = async (req, res) => {
       // Calculate discounted price
       const discountAmount = (variant.price * bestOffer.discountPercentage) / 100;
       finalPrice = Math.round(variant.price - discountAmount);
-      
       appliedOffer = {
         offerId: bestOffer._id,
         title: bestOffer.title,
         discountPercentage: bestOffer.discountPercentage
       };
+    }
+
+    // Remove from wishlist if it exists there
+    let removedFromWishlist = false;
+    const wishlist = await Wishlist.findOne({ userId });
+    if (wishlist) {
+      const wishlistItemIndex = wishlist.products.findIndex(
+        item => item.productId.toString() === productId
+      );
+      
+      if (wishlistItemIndex !== -1) {
+        wishlist.products.splice(wishlistItemIndex, 1);
+        await wishlist.save();
+        removedFromWishlist = true;
+      }
     }
 
     // Update or add item to cart
@@ -130,17 +167,20 @@ exports.addToCart = async (req, res) => {
 
     // Recalculate total
     cart.totalAmount = cart.items.reduce(
-      (total, item) => total + (item.finalPrice * item.quantity), 
+      (total, item) => total + (item.finalPrice * item.quantity),
       0
     );
 
     await cart.save();
 
+    // Get updated cart count
+    const cartCount = cart.items.reduce((total, item) => total + item.quantity, 0);
+
     res.status(200).json({
       success: true,
-      message: 'Item added to cart successfully',
-      cartCount: cart.items.reduce((total, item) => total + item.quantity, 0),
-      updatedStock: variant.stock
+      message: 'Product added to cart successfully',
+      cartCount,
+      removedFromWishlist
     });
 
   } catch (error) {
