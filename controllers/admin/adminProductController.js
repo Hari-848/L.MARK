@@ -38,25 +38,27 @@ exports.getProducts = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = 10;
     const skip = (page - 1) * limit;
+    const searchTerm = req.query.search ? req.query.search.trim() : '';
     
-    console.log('Fetching non-deleted products...');
+    console.log('Fetching products with search term:', searchTerm);
     
-    // Only show non-deleted products
-    const products = await Product.find({ isDeleted: { $ne: true } })
+    // Build search query
+    let query = { isDeleted: { $ne: true } };
+    if (searchTerm) {
+      query.$or = [
+        { productName: { $regex: searchTerm, $options: 'i' } },
+        { category: { $regex: searchTerm, $options: 'i' } }
+      ];
+    }
+    
+    // Only show non-deleted products with search
+    const products = await Product.find(query)
       .populate('category')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
     
-    console.log(`Found ${products.length} non-deleted products`);
-    
-    if (products.length > 0) {
-      console.log('Sample product:', {
-        id: products[0]._id,
-        name: products[0].productName,
-        isDeleted: products[0].isDeleted
-      });
-    }
+    console.log(`Found ${products.length} products matching search`);
     
     // Process products to include stock information and variant data
     const productsWithStock = await Promise.all(products.map(async (product) => {
@@ -66,17 +68,18 @@ exports.getProducts = async (req, res) => {
       return {
         ...product._doc,
         totalStock,
-        variants: variants // Include the actual variants
+        variants: variants
       };
     }));
     
-    const totalProducts = await Product.countDocuments({ isDeleted: { $ne: true } });
+    const totalProducts = await Product.countDocuments(query);
     const totalPages = Math.ceil(totalProducts / limit);
     
     res.render('admin/adminProduct', {
       products: productsWithStock,
       currentPage: page,
-      totalPages
+      totalPages,
+      searchTerm // Pass search term back to view
     });
   } catch (error) {
     console.error('Get products error:', error);
@@ -336,24 +339,69 @@ exports.updateProduct = async (req, res) => {
       product.categoriesId = updateData.categoriesId;
     }
 
+    // Track stock changes for each variant
+    const stockChanges = [];
+
     // Update variants if provided
     if (updateData.variants && Array.isArray(updateData.variants)) {
       for (const variantData of updateData.variants) {
         if (variantData._id) {
-          // Update existing variant
-          await Variant.findByIdAndUpdate(
-            variantData._id,
-            {
-              price: Number(variantData.price),
-              stock: Number(variantData.stock),
-            },
-            { new: true }
-          );
+          // Get current variant data before update
+          const currentVariant = await Variant.findById(variantData._id);
+          if (currentVariant) {
+            const newStock = Number(variantData.stock);
+            const oldStock = currentVariant.stock;
+            
+            // If stock is being reduced, track the change
+            if (newStock < oldStock) {
+              stockChanges.push({
+                variantId: variantData._id,
+                oldStock,
+                newStock
+              });
+            }
+
+            // Update existing variant
+            await Variant.findByIdAndUpdate(
+              variantData._id,
+              {
+                price: Number(variantData.price),
+                stock: newStock,
+              },
+              { new: true }
+            );
+          }
         }
       }
     }
 
     await product.save();
+
+    // If there were stock reductions, find and update affected carts
+    if (stockChanges.length > 0) {
+      const Cart = require('../../Models/cartModel');
+      
+      for (const change of stockChanges) {
+        // Find all carts containing this variant with quantity exceeding new stock
+        const affectedCarts = await Cart.find({
+          'items.variantId': change.variantId,
+          'items.quantity': { $gt: change.newStock }
+        });
+
+        // Update each affected cart
+        for (const cart of affectedCarts) {
+          const affectedItem = cart.items.find(item => 
+            item.variantId.toString() === change.variantId.toString()
+          );
+          
+          if (affectedItem) {
+            affectedItem.quantity = change.newStock;
+          }
+          
+          await cart.save();
+        }
+      }
+    }
 
     res.json({
       success: true,

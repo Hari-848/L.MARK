@@ -372,7 +372,7 @@ exports.getSalesReport = async (req, res) => {
     console.log('Received request with query:', req.query);
     
     const { startDate, endDate, type, page = 1 } = req.query;
-    const currentPage = parseInt(page);
+    const currentPage = Math.max(1, parseInt(page)); // Ensure page is at least 1
     let dateRange;
 
     if (type) {
@@ -393,6 +393,12 @@ exports.getSalesReport = async (req, res) => {
     });
 
     const report = await generateSalesReport(dateRange.start, dateRange.end, currentPage);
+    
+    // Validate pagination data
+    if (!report.pagination || report.pagination.currentPage < 1) {
+      throw new Error('Invalid pagination data received');
+    }
+
     console.log('Generated report:', report);
 
     res.json(report);

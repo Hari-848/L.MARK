@@ -225,7 +225,23 @@ exports.getCart = async (req, res) => {
     // Filter out items where product is null (due to deleted categories)
     if (cart) {
       cart.items = cart.items.filter(item => item.productId != null);
-      await cart.save();
+      
+      // Check and adjust quantities based on current stock
+      let cartModified = false;
+      for (const item of cart.items) {
+        if (item.variantId && item.quantity > item.variantId.stock) {
+          // If cart quantity exceeds stock, adjust it
+          const oldQuantity = item.quantity;
+          item.quantity = item.variantId.stock;
+          cartModified = true;
+          console.log(`Adjusted quantity for item ${item._id} from ${oldQuantity} to ${item.quantity} due to stock limit`);
+        }
+      }
+      
+      // Save cart if quantities were adjusted
+      if (cartModified) {
+        await cart.save();
+      }
     }
 
     if (!cart) {

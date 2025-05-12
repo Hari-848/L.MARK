@@ -240,19 +240,19 @@
           </div>
           <!-- Pagination -->
           <div class="flex justify-center items-center space-x-4 mt-6">
-            <% if (currentPage> 1) { %>
-            <a href="/admin/products?page=<%= currentPage - 1 %>"
-              class="px-4 py-2 bg-gray-700 rounded-lg">Previous</a>
+            <% if (currentPage > 1) { %>
+              <a href="/admin/products?page=<%= currentPage - 1 %><%= searchTerm ? `&search=${encodeURIComponent(searchTerm)}` : '' %>"
+                class="px-4 py-2 bg-gray-700 rounded-lg">Previous</a>
             <% } %>
             <% for (let i=1; i <=totalPages; i++) { %>
-            <a href="/admin/products?page=<%= i %>"
-              class="px-3 py-1 bg-gray-600 rounded-lg">
-              <%= i %>
-            </a>
+              <a href="/admin/products?page=<%= i %><%= searchTerm ? `&search=${encodeURIComponent(searchTerm)}` : '' %>"
+                class="px-3 py-1 bg-gray-600 rounded-lg">
+                <%= i %>
+              </a>
             <% } %>
             <% if (currentPage < totalPages) { %>
-            <a href="/admin/products?page=<%= currentPage + 1 %>"
-              class="px-4 py-2 bg-gray-700 rounded-lg">Next</a>
+              <a href="/admin/products?page=<%= currentPage + 1 %><%= searchTerm ? `&search=${encodeURIComponent(searchTerm)}` : '' %>"
+                class="px-4 py-2 bg-gray-700 rounded-lg">Next</a>
             <% } %>
           </div>
         </div>

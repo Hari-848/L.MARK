@@ -8,6 +8,7 @@ const Wallet = require('../../Models/walletModel');
 const Cart = require('../../Models/cartModel');
 const Address = require('../../Models/addressModel');
 const Offer = require('../../Models/offerModel');
+const Coupon = require('../../Models/couponModel');
 
 function isWithin7Days(deliveredAt) {
   const delivered = new Date(deliveredAt);
@@ -618,6 +619,23 @@ exports.placeOrder = async (req, res) => {
       // Update inventory
       variant.stock -= item.quantity;
       await variant.save();
+    }
+    
+    // If coupon was used, verify usage limit again before placing order
+    if (appliedCoupon) {
+      const coupon = await Coupon.findById(appliedCoupon.couponId);
+      if (!coupon) {
+        return res.status(400).json({ error: 'Invalid coupon' });
+      }
+
+      const userUsage = coupon.usedBy.filter(usage => 
+        usage.userId.toString() === userId.toString() && 
+        usage.status === 'completed'
+      ).length;
+
+      if (userUsage >= coupon.usageLimit) {
+        return res.status(400).json({ error: 'You have already used this coupon the maximum number of times' });
+      }
     }
     
     // Create order

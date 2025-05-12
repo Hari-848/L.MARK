@@ -37,7 +37,7 @@ exports.getCheckout = async (req, res) => {
       return res.redirect('/cart');
     }
     
-    // Calculate subtotal using finalPrice
+    // Calculate subtotal using finalPrice (which already includes product discounts)
     const subtotal = cart.items.reduce((total, item) => {
       return total + (item.finalPrice * item.quantity);
     }, 0);
@@ -57,7 +57,7 @@ exports.getCheckout = async (req, res) => {
     const appliedCoupon = req.session.appliedCoupon;
     const couponDiscount = appliedCoupon ? appliedCoupon.discount : 0;
 
-    // Calculate final total
+    // Calculate final total (subtotal already includes product discounts)
     const total = subtotal - couponDiscount + shipping;
     
     // Get user addresses
@@ -74,7 +74,7 @@ exports.getCheckout = async (req, res) => {
       addresses,
       subtotal,
       shipping,
-      discount: productDiscount,
+      productDiscount,
       couponDiscount,
       appliedCoupon,
       total,
@@ -492,43 +492,46 @@ exports.applyCoupon = async (req, res) => {
     const { couponCode } = req.body;
     const userId = req.session.user._id;
 
-    // Get cart total
-    const cart = await Cart.findOne({ user: userId }).populate('items.product');
-    if (!cart || cart.items.length === 0) {
-      return res.status(400).json({ error: 'Cart is empty' });
-    }
-
-    const cartTotal = cart.items.reduce((total, item) => {
-      return total + (item.product.price * item.quantity);
-    }, 0);
-
-    // Find coupon
+    // Find the coupon
     const coupon = await Coupon.findOne({ 
       code: couponCode.toUpperCase(),
       isActive: true,
       isDeleted: false,
       validFrom: { $lte: new Date() },
-      validUntil: { $gte: new Date() }
+      validUntil: { $gt: new Date() }
     });
 
     if (!coupon) {
       return res.status(400).json({ error: 'Invalid or expired coupon' });
     }
 
-    // Check if user can use the coupon
-    const canUse = await coupon.canBeUsedByUser(userId);
-    if (!canUse) {
-      const remaining = await coupon.getRemainingUses(userId);
+    // Get user's cart
+    const cart = await Cart.findOne({ userId })
+      .populate('items.productId')
+      .populate('items.variantId');
+
+    if (!cart || cart.items.length === 0) {
+      return res.status(400).json({ error: 'Cart is empty' });
+    }
+
+    // Calculate cart total
+    const cartTotal = cart.items.reduce((total, item) => total + (item.finalPrice * item.quantity), 0);
+
+    // Check minimum purchase amount
+    if (coupon.minPurchase && cartTotal < coupon.minPurchase) {
       return res.status(400).json({ 
-        error: `Coupon usage limit reached. You have ${remaining} uses remaining.` 
+        error: `Minimum purchase amount of ₹${coupon.minPurchase} required` 
       });
     }
 
-    // Check minimum purchase
-    if (cartTotal < coupon.minPurchase) {
-      return res.status(400).json({ 
-        error: `Minimum purchase of ₹${coupon.minPurchase} required` 
-      });
+    // Check usage limit - only count completed usages
+    const userUsage = coupon.usedBy.filter(usage => 
+      usage.userId.toString() === userId.toString() && 
+      usage.status === 'completed'
+    ).length;
+
+    if (userUsage >= coupon.usageLimit) {
+      return res.status(400).json({ error: 'You have already used this coupon the maximum number of times' });
     }
 
     // Calculate discount
@@ -542,27 +545,28 @@ exports.applyCoupon = async (req, res) => {
       discount = coupon.discountAmount;
     }
 
-    // Record coupon usage
-    coupon.usedBy.push({
-      userId: userId,
-      status: 'applied'
-    });
-    await coupon.save();
-
-    // Store in session
+    // Store coupon info in session
     req.session.appliedCoupon = {
+      couponId: coupon._id,
       code: coupon.code,
       discount: discount
     };
 
+    // Save session
+    await new Promise((resolve, reject) => {
+      req.session.save(err => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+
     res.json({
       success: true,
       discount: discount,
-      message: 'Coupon applied successfully'
+      finalTotal: cartTotal - discount
     });
-
   } catch (error) {
-    console.error('Error applying coupon:', error);
+    console.error('Apply coupon error:', error);
     res.status(500).json({ error: 'Failed to apply coupon' });
   }
 };
@@ -574,19 +578,7 @@ exports.removeCoupon = async (req, res) => {
     const couponCode = req.session.appliedCoupon?.code;
 
     if (couponCode) {
-      // Find and update the coupon usage status
-      const coupon = await Coupon.findOne({ code: couponCode });
-      if (coupon) {
-        const latestUsage = coupon.usedBy
-          .filter(usage => usage.userId.toString() === userId.toString())
-          .sort((a, b) => b.usedAt - a.usedAt)[0];
-
-        if (latestUsage && latestUsage.status === 'applied') {
-          latestUsage.status = 'cancelled';
-          await coupon.save();
-        }
-      }
-
+      // Just remove from session without updating usage count
       delete req.session.appliedCoupon;
     }
 
@@ -618,19 +610,20 @@ exports.getAvailableCoupons = async (req, res) => {
       return total + (item.finalPrice * item.quantity);
     }, 0);
 
-    // Find valid coupons
+    // Find valid coupons that are not expired
     const coupons = await Coupon.find({
       isActive: true,
       isDeleted: false,
       validFrom: { $lte: currentDate },
-      validUntil: { $gte: currentDate },
+      validUntil: { $gt: currentDate }, // Changed from $gte to $gt to exclude expired coupons
       minPurchase: { $lte: cartTotal }
     });
 
     // Filter out coupons that the user has already used up
     const availableCoupons = coupons.filter(coupon => {
       const userUsage = coupon.usedBy.filter(usage => 
-        usage.userId.toString() === userId.toString()
+        usage.userId.toString() === userId.toString() && 
+        usage.status === 'completed'
       ).length;
       return userUsage < coupon.usageLimit;
     });
@@ -646,7 +639,8 @@ exports.getAvailableCoupons = async (req, res) => {
       validUntil: coupon.validUntil,
       usageLimit: coupon.usageLimit,
       remainingUses: coupon.usageLimit - coupon.usedBy.filter(usage => 
-        usage.userId.toString() === userId.toString()
+        usage.userId.toString() === userId.toString() && 
+        usage.status === 'completed'
       ).length
     }));
 

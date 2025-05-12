@@ -198,17 +198,23 @@
               <span class="text-gray-600">Shipping</span>
               <span id="shipping" class="font-medium">₹<%= shipping.toFixed(2) %></span>
             </div>
-            <% if (discount > 0 || (appliedCoupon && appliedCoupon.discount > 0)) { %>
+            <% if (productDiscount > 0) { %>
               <div class="flex justify-between text-green-600">
-                <span>Discount</span>
-                <span id="discount" class="font-medium">-₹<%= ((discount || 0) + (appliedCoupon ? appliedCoupon.discount : 0)).toFixed(2) %></span>
+                <span>Product Discount</span>
+                <span id="productDiscount" class="font-medium">-₹<%= productDiscount.toFixed(2) %></span>
+              </div>
+            <% } %>
+            <% if (couponDiscount > 0) { %>
+              <div class="flex justify-between text-green-600">
+                <span>Coupon Discount</span>
+                <span id="couponDiscount" class="font-medium">-₹<%= couponDiscount.toFixed(2) %></span>
               </div>
             <% } %>
             
             <!-- Total -->
             <div class="flex justify-between pt-4 border-t mt-4 text-lg font-bold">
               <span>Total</span>
-              <span id="total">₹<%= (subtotal + shipping - (discount || 0) - (appliedCoupon ? appliedCoupon.discount : 0)).toFixed(2) %></span>
+              <span id="total">₹<%= total.toFixed(2) %></span>
             </div>
           </div>
 
@@ -511,10 +517,21 @@
       const availableCoupons = document.getElementById('availableCoupons');
 
       async function loadAvailableCoupons() {
+        const availableCoupons = document.getElementById('availableCoupons');
+        availableCoupons.innerHTML = `
+          <div class="text-center text-gray-500 py-4">
+            Loading available coupons...
+          </div>
+        `;
+
         try {
           const response = await fetch('/coupons/available');
+          if (!response.ok) {
+            throw new Error('Failed to fetch coupons');
+          }
+          
           const coupons = await response.json();
-
+          
           if (coupons.length === 0) {
             availableCoupons.innerHTML = `
               <div class="text-center text-gray-500 py-4">
@@ -524,36 +541,45 @@
             return;
           }
 
-          availableCoupons.innerHTML = coupons.map(coupon => `
-            <div class="border rounded-lg p-4 hover:border-indigo-500 transition-colors duration-200">
-              <div class="flex justify-between items-start">
-                <div>
-                  <h4 class="font-semibold text-lg">${coupon.code}</h4>
-                  <p class="text-sm text-gray-600 mt-1">${coupon.description}</p>
+          availableCoupons.innerHTML = coupons.map(coupon => {
+            const validUntil = new Date(coupon.validUntil);
+            const isExpiringSoon = (validUntil - new Date()) < (24 * 60 * 60 * 1000); // Less than 24 hours
+            
+            return `
+              <div class="border rounded-lg p-4 hover:border-indigo-500 transition-colors duration-200">
+                <div class="flex justify-between items-start">
+                  <div>
+                    <h4 class="font-semibold text-lg">${coupon.code}</h4>
+                    <p class="text-sm text-gray-600 mt-1">${coupon.description || ''}</p>
+                  </div>
+                  <button 
+                    onclick="applyCouponCode('${coupon.code}')" 
+                    class="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
+                  >
+                    Apply
+                  </button>
                 </div>
-                <button 
-                  onclick="applyCouponCode('${coupon.code}')" 
-                  class="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
-                >
-                  Apply
-                </button>
+                <div class="mt-2 text-sm">
+                  <p class="text-green-600 font-medium">
+                    ${coupon.discountType === 'percentage' 
+                      ? `${coupon.discountAmount}% off` 
+                      : `₹${coupon.discountAmount} off`}
+                  </p>
+                  <p class="text-gray-500 mt-1">
+                    Min. Purchase: ₹${coupon.minPurchase || 0}
+                    ${coupon.maxDiscount ? ` | Max Discount: ₹${coupon.maxDiscount}` : ''}
+                  </p>
+                  <p class="text-gray-500 mt-1 ${isExpiringSoon ? 'text-red-500' : ''}">
+                    Valid till: ${validUntil.toLocaleDateString()}
+                    ${isExpiringSoon ? ' (Expiring soon!)' : ''}
+                  </p>
+                  <p class="text-gray-500 mt-1">
+                    Remaining uses: ${coupon.remainingUses}
+                  </p>
+                </div>
               </div>
-              <div class="mt-2 text-sm">
-                <p class="text-green-600 font-medium">
-                  ${coupon.discountType === 'percentage' 
-                    ? `${coupon.discountAmount}% off` 
-                    : `₹${coupon.discountAmount} off`}
-                </p>
-                <p class="text-gray-500 mt-1">
-                  Min. Purchase: ₹${coupon.minPurchase}
-                  ${coupon.maxDiscount ? ` | Max Discount: ₹${coupon.maxDiscount}` : ''}
-                </p>
-                <p class="text-gray-500 mt-1">
-                  Valid till: ${new Date(coupon.validUntil).toLocaleDateString()}
-                </p>
-              </div>
-            </div>
-          `).join('');
+            `;
+          }).join('');
         } catch (error) {
           console.error('Error loading coupons:', error);
           availableCoupons.innerHTML = `
@@ -594,6 +620,9 @@
           const result = await response.json();
           
           if (response.ok) {
+            // Close the coupons modal
+            document.getElementById('couponsModal').classList.add('hidden');
+            
             Swal.fire({
               icon: 'success',
               title: 'Coupon Applied!',
@@ -607,7 +636,8 @@
             Swal.fire({
               icon: 'error',
               title: 'Error',
-              text: result.error || 'Failed to apply coupon'
+              text: result.error || 'Failed to apply coupon',
+              confirmButtonColor: '#3085d6'
             });
           }
         } catch (error) {
@@ -615,7 +645,8 @@
           Swal.fire({
             icon: 'error',
             title: 'Error',
-            text: 'An unexpected error occurred'
+            text: 'An unexpected error occurred while applying the coupon',
+            confirmButtonColor: '#3085d6'
           });
         }
       };
