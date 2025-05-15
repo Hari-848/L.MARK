@@ -138,6 +138,13 @@ exports.placeOrder = async (req, res) => {
     const discount = appliedCoupon ? appliedCoupon.discount : 0;
     const total = subtotal + shipping + tax - discount;
 
+    // Check COD restriction
+    if (paymentMethod === 'cod' && total > 1000) {
+      return res.status(400).json({ 
+        error: 'Cash on Delivery is not available for orders above ₹1000. Please choose a different payment method.' 
+      });
+    }
+
     // If coupon was used, verify usage limit again before placing order
     if (appliedCoupon) {
       const coupon = await Coupon.findById(appliedCoupon.couponId);

@@ -76,16 +76,19 @@
           <h2 class="text-lg font-semibold mb-4">Payment Method</h2>
           
           <div class="space-y-3">
-            <label class="flex items-center p-3 border rounded-lg cursor-pointer">
-              <input type="radio" name="paymentMethod" value="cod" checked class="mr-3">
+            <label class="flex items-center p-3 border rounded-lg cursor-pointer <%= total > 1000 ? 'opacity-50 cursor-not-allowed' : '' %>">
+              <input type="radio" name="paymentMethod" value="cod" <%= total > 1000 ? 'disabled' : 'checked' %> class="mr-3">
               <div>
                 <p class="font-medium">Cash on Delivery</p>
                 <p class="text-sm text-gray-600">Pay when your order is delivered</p>
+                  <% if (total > 1000) { %>
+                  <p class="text-sm text-red-500 mt-1">Not available for orders above ₹1000</p>
+                <% } %>
               </div>
             </label>
             
             <label class="flex items-center p-3 border rounded-lg cursor-pointer">
-              <input type="radio" name="paymentMethod" value="online" class="mr-3">
+              <input type="radio" name="paymentMethod" value="online" <%= total > 1000 ? 'checked' : '' %> class="mr-3">
               <div>
                 <p class="font-medium">Online Payment</p>
                 <p class="text-sm text-gray-600">Pay securely with Razorpay</p>
