@@ -9,71 +9,652 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 </head>
-<body class="bg-[#1E0033] text-gray-200 min-h-screen">
-
+<body class="bg-black text-white min-h-screen">
   <!-- Sidebar -->
   <%- include("../partials/admin/sidebar") %>
 
-  <!-- Main Content -->
-  <main class="p-6">
-    
-    <!-- Header -->
-    <header class="flex items-center justify-between mb-6">
-      <h1 class="text-3xl font-semibold text-gray-100">L.Mark</h1>
+  <main class="ml-64 p-8">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
+      <h1 class="text-3xl font-bold text-white mb-4 md:mb-0">Dashboard</h1>
       <div class="flex items-center space-x-4">
-        <select id="yearFilter" class="px-4 py-2 text-gray-800 bg-gray-100 rounded-md">
-          <option value="2024"></option>
-          <option value="2023"></option>
-          <option value="2022"></option>
+        <select id="monthFilter" class="px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-md shadow-sm text-white hover:border-violet-500 transition-colors focus:outline-none focus:border-violet-500">
+          <option value="1">January</option>
+          <option value="2">February</option>
+          <option value="3">March</option>
+          <option value="4">April</option>
+          <option value="5">May</option>
+          <option value="6">June</option>
+          <option value="7">July</option>
+          <option value="8">August</option>
+          <option value="9">September</option>
+          <option value="10">October</option>
+          <option value="11">November</option>
+          <option value="12">December</option>
         </select>
-        <button class="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"></button>
-        <button class="px-4 py-2 bg-purple-400 text-white rounded-md hover:bg-purple-500"></button>
+        <select id="yearFilter" class="px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-md shadow-sm text-white hover:border-violet-500 transition-colors focus:outline-none focus:border-violet-500">
+          <option value="2025">2025</option>
+          <option value="2024">2024</option>
+          <option value="2023">2023</option>
+        </select>
+        <button id="applyFilters" class="px-4 py-2 bg-violet-600 text-white rounded-md shadow-md hover:bg-violet-700 transform transition-all duration-300 ease-in-out hover:scale-105 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:ring-opacity-50">
+          Apply Filters
+        </button>
       </div>
-    </header>
+    </div>
 
-    <!-- Sales Summary Cards -->
-    <section class="grid grid-cols-4 gap-6 mb-8">
-      
-      <!-- Revenue -->
-      <div class="bg-purple-800 p-4 rounded-lg shadow-md">
-        <h2 class="text-lg font-semibold"></h2>
-        <p class="text-2xl font-bold"></p>
-        <p class="text-yellow-400"></p>
+    <!-- Metrics Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div class="bg-gradient-to-br from-zinc-800 to-zinc-900 p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 border border-zinc-700 hover:border-blue-500 transform hover:-translate-y-1">
+        <div class="flex items-center mb-2">
+          <div class="bg-blue-900 text-blue-400 rounded-full p-2 mr-3 shadow-inner">
+            <i class="fas fa-shopping-cart fa-lg"></i>
+          </div>
+          <span class="text-gray-400 text-sm font-medium">Total Orders</span>
+        </div>
+        <div class="text-3xl font-bold text-white"><%= orderStats.total %></div>
       </div>
-
-      <!-- Orders -->
-      <div class="bg-blue-900 p-4 rounded-lg shadow-md border border-blue-500">
-        <h2 class="text-lg font-semibold"></h2>
-        <p class="text-2xl font-bold"></p>
-        <p class="text-red-500"></p>
-      </div>  
-
-      <!-- Products Sold -->
-      <div class="bg-purple-800 p-4 rounded-lg shadow-md">
-        <h2 class="text-lg font-semibold"></h2>
-        <p class="text-2xl font-bold"></p>
-        <p class="text-green-400"></p>
+      <div class="bg-gradient-to-br from-zinc-800 to-zinc-900 p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 border border-zinc-700 hover:border-green-500 transform hover:-translate-y-1">
+        <div class="flex items-center mb-2">
+          <div class="bg-green-900 text-green-400 rounded-full p-2 mr-3 shadow-inner">
+            <i class="fas fa-rupee-sign fa-lg"></i>
+          </div>
+          <span class="text-gray-400 text-sm font-medium">Total Revenue</span>
+        </div>
+        <div class="text-3xl font-bold text-white">₹<%= orderStats.revenue.toFixed(2) %></div>
       </div>
-
-      <!-- Total Customers -->
-      <div class="bg-purple-800 p-4 rounded-lg shadow-md">
-        <h2 class="text-lg font-semibold"></h2>
-        <p class="text-2xl font-bold"></p>
-        <p class="text-yellow-400"></p>
+      <div class="bg-gradient-to-br from-zinc-800 to-zinc-900 p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 border border-zinc-700 hover:border-purple-500 transform hover:-translate-y-1">
+        <div class="flex items-center mb-2">
+          <div class="bg-purple-900 text-purple-400 rounded-full p-2 mr-3 shadow-inner">
+            <i class="fas fa-users fa-lg"></i>
+          </div>
+          <span class="text-gray-400 text-sm font-medium">Customers</span>
+        </div>
+        <div class="text-3xl font-bold text-white"><%= userCount %></div>
       </div>
-
-    </section>
-
-    <!-- Orders Chart -->
-    <section class="bg-zinc-800 p-6 rounded-lg shadow-md">
-      <div class="flex items-center justify-between">
-        <h2 class="text-xl font-semibold"></h2>
-        <a href="#" class="text-purple-400 hover:underline"></a>
+      <div class="bg-gradient-to-br from-zinc-800 to-zinc-900 p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 border border-zinc-700 hover:border-yellow-500 transform hover:-translate-y-1">
+        <div class="flex items-center mb-2">
+          <div class="bg-yellow-900 text-yellow-400 rounded-full p-2 mr-3 shadow-inner">
+            <i class="fas fa-box fa-lg"></i>
+          </div>
+          <span class="text-gray-400 text-sm font-medium">Products</span>
+        </div>
+        <div class="text-3xl font-bold text-white"><%= productCount %></div>
       </div>
-      <canvas id="ordersChart"></canvas>
-    </section>
+    </div>
 
+    <!-- Charts Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+      <!-- Monthly Sales Chart -->
+      <div class="bg-gradient-to-br from-zinc-800 to-zinc-900 p-8 rounded-2xl shadow-xl border border-zinc-700 hover:border-indigo-500 transition-all duration-300">
+        <div class="flex items-center justify-between mb-6">
+          <h2 class="text-xl font-semibold text-white flex items-center">
+            <i class="fas fa-chart-line mr-3 text-indigo-400"></i>
+            Monthly Sales
+          </h2>
+        </div>
+        <div class="flex items-center space-x-4 mb-6">
+          <label for="salesType" class="text-sm text-gray-300 font-medium">Sales View:</label>
+          <select id="salesType" class="px-4 py-2 rounded-lg bg-zinc-800 text-white border border-zinc-700 focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 transition-all">
+            <option value="monthly">Monthly</option>
+            <option value="yearly">Yearly</option>
+          </select>
+          <span id="salesLoading" class="ml-2 hidden text-xs text-yellow-400">Loading...</span>
+          <span id="salesError" class="ml-2 hidden text-xs text-red-400"></span>
+        </div>
+        <canvas id="monthlySalesChart" height="220"></canvas>
+      </div>
+      <!-- Top Products and Categories Charts -->
+      <div class="space-y-8">
+        <!-- Top Products Chart -->
+        <div class="bg-gradient-to-br from-zinc-800 to-zinc-900 p-8 rounded-2xl shadow-xl border border-zinc-700 hover:border-indigo-500 transition-all duration-300">
+          <div class="flex items-center justify-between mb-6">
+            <h2 class="text-xl font-semibold text-white flex items-center">
+              <i class="fas fa-box mr-3 text-indigo-400"></i>
+              Top Products
+            </h2>
+          </div>
+          <canvas id="topProductsChart" height="180"></canvas>
+        </div>
+        <!-- Top Categories Chart -->
+        <div class="bg-gradient-to-br from-zinc-800 to-zinc-900 p-8 rounded-2xl shadow-xl border border-zinc-700 hover:border-indigo-500 transition-all duration-300">
+          <div class="flex items-center justify-between mb-6">
+            <h2 class="text-xl font-semibold text-white flex items-center">
+              <i class="fas fa-tags mr-3 text-indigo-400"></i>
+              Top Categories
+            </h2>
+          </div>
+          <canvas id="topCategoriesChart" height="180"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Orders Table -->
+    <div class="bg-gradient-to-br from-zinc-800 to-zinc-900 rounded-2xl shadow-xl p-8 border border-zinc-700 hover:border-indigo-500 transition-all duration-300">
+      <div class="flex justify-between items-center mb-6">
+        <h2 class="text-xl font-semibold text-white flex items-center">
+          <i class="fas fa-shopping-cart mr-3 text-indigo-400"></i>
+          Recent Orders
+        </h2>
+        <a href="/admin/orders" class="text-indigo-400 hover:text-indigo-300 transition-colors flex items-center">
+          View All
+          <i class="fas fa-arrow-right ml-2"></i>
+        </a>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-zinc-700">
+          <thead class="bg-zinc-900 rounded-t-lg">
+            <tr>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Order ID</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Date</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Customer</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Amount</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Action</th>
+            </tr>
+          </thead>
+          <tbody class="bg-zinc-800 divide-y divide-zinc-700">
+            <% if (recentOrders.length === 0) { %>
+              <tr>
+                <td colspan="6" class="px-6 py-4 text-center text-gray-400">No orders found</td>
+              </tr>
+            <% } else { %>
+              <% recentOrders.forEach(order => { %>
+                <tr class="hover:bg-zinc-700 transition-colors">
+                  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">
+                    <%= order._id.toString().substring(0, 10) %>...
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                    <%= new Date(order.createdAt).toLocaleDateString() %>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                    <%= order.userId ? order.userId.email : 'Unknown' %>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                    ₹<%= order.total.toFixed(2) %>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <% let statusColor = '';
+                      if (order.orderStatus === 'pending') statusColor = 'bg-yellow-900 text-yellow-400';
+                      if (order.orderStatus === 'processing') statusColor = 'bg-blue-900 text-blue-400';
+                      if (order.orderStatus === 'shipped') statusColor = 'bg-indigo-900 text-indigo-400';
+                      if (order.orderStatus === 'delivered') statusColor = 'bg-green-900 text-green-400';
+                      if (order.orderStatus === 'cancelled') statusColor = 'bg-red-900 text-red-400';
+                      if (order.orderStatus === 'returned') statusColor = 'bg-gray-900 text-gray-400';
+                    %>
+                    <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full <%= statusColor %>">
+                      <%= order.orderStatus.charAt(0).toUpperCase() + order.orderStatus.slice(1) %>
+                    </span>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <a href="/admin/order/<%= order._id %>" class="text-indigo-400 hover:text-indigo-200 transition-colors">View</a>
+                  </td>
+                </tr>
+              <% }); %>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </main>
 
+  <script>
+    // Chart.js Monthly Sales Chart
+    const salesType = document.getElementById('salesType');
+    const salesLoading = document.getElementById('salesLoading');
+    const salesError = document.getElementById('salesError');
+    const ctxSales = document.getElementById('monthlySalesChart').getContext('2d');
+    const monthFilter = document.getElementById('monthFilter');
+    const yearFilter = document.getElementById('yearFilter');
+    const applyFiltersBtn = document.getElementById('applyFilters');
+
+    // Set current month and year as default
+    const currentDate = new Date();
+    monthFilter.value = currentDate.getMonth() + 1; // JavaScript months are 0-based
+    const foundYear = Array.from(yearFilter.options).find(option => option.value == currentDate.getFullYear());
+    if (foundYear) {
+      yearFilter.value = currentDate.getFullYear();
+    }
+
+    // Handle filter application
+    applyFiltersBtn.addEventListener('click', () => {
+      // You can implement the filtering logic here
+      // For now, we'll just show a notification that filters were applied
+      updateDashboard();
+    });
+
+    function updateDashboard() {
+      const month = monthFilter.value;
+      const year = yearFilter.value;
+      
+      // Refresh charts with new data
+      fetchSalesData(salesType.value, month, year);
+      fetchTopProducts(month, year);
+      fetchTopCategories(month, year);
+      
+      // You could also refresh the orders table here
+    }
+
+    // Initial dummy chart with better styling
+    let salesChart = new Chart(ctxSales, {
+      type: 'bar',
+      data: { 
+        labels: [], 
+        datasets: [{ 
+          label: 'Sales', 
+          data: [], 
+          backgroundColor: 'rgba(99,102,241,0.7)',
+          borderColor: 'rgba(99,102,241,1)',
+          borderWidth: 1,
+          borderRadius: 4,
+          hoverBackgroundColor: 'rgba(99,102,241,0.9)'
+        }] 
+      },
+      options: { 
+        responsive: true, 
+        plugins: { 
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: 'rgba(30,30,30,0.8)',
+            titleColor: '#fff',
+            bodyColor: '#fff',
+            borderColor: 'rgba(99,102,241,0.5)',
+            borderWidth: 1,
+            displayColors: false,
+            callbacks: {
+              label: function(context) {
+                return `₹${context.parsed.y.toFixed(2)}`;
+              }
+            }
+          }
+        }, 
+        scales: { 
+          y: { 
+            beginAtZero: true, 
+            grid: {
+              color: 'rgba(255,255,255,0.05)'
+            },
+            ticks: { 
+              color: '#fff',
+              callback: function(value) {
+                return '₹' + value;
+              }
+            } 
+          }, 
+          x: { 
+            grid: {
+              color: 'rgba(255,255,255,0.05)'
+            },
+            ticks: { 
+              color: '#fff' 
+            } 
+          } 
+        },
+        animation: {
+          duration: 1000,
+          easing: 'easeOutQuart'
+        }
+      }
+    });
+
+    async function fetchSalesData(type, month, year) {
+      salesLoading.classList.remove('hidden');
+      salesError.classList.add('hidden');
+      try {
+        let url = `/admin/analytics/sales?type=${type}`;
+        if (month && year) {
+          url += `&month=${month}&year=${year}`;
+        }
+        
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Failed to fetch sales data');
+        const data = await res.json();
+        // Format data for chart
+        let labels = [], values = [];
+        if (type === 'yearly') {
+          labels = data.map(d => d._id.year);
+          values = data.map(d => d.totalSales);
+        } else {
+          labels = data.map(d => `${d._id.year}-${String(d._id.month).padStart(2, '0')}`);
+          values = data.map(d => d.totalSales);
+        }
+        salesChart.data.labels = labels;
+        salesChart.data.datasets[0].data = values;
+        salesChart.update();
+      } catch (err) {
+        salesError.textContent = err.message;
+        salesError.classList.remove('hidden');
+      } finally {
+        salesLoading.classList.add('hidden');
+      }
+    }
+
+    // Initial load
+    fetchSalesData(salesType.value);
+
+    salesType.addEventListener('change', () => {
+      fetchSalesData(salesType.value);
+    });
+
+    // Chart.js Top Products Chart with improved styling
+    const ctxProducts = document.getElementById('topProductsChart').getContext('2d');
+    const ctxCategories = document.getElementById('topCategoriesChart').getContext('2d');
+    
+    async function fetchTopProducts(month, year) {
+      try {
+        let url = '/admin/analytics/top-products';
+        if (month && year) {
+          url += `?month=${month}&year=${year}`;
+        }
+        
+        const res = await fetch(url);
+        if (!res.ok) {
+          throw new Error(`HTTP error! Status: ${res.status}`);
+        }
+        
+        const data = await res.json();
+        console.log("Data received:", data);
+        
+        if (!Array.isArray(data) || data.length === 0) {
+          // Handle empty data
+          if (window.topProductsChart && typeof window.topProductsChart.destroy === 'function') {
+            window.topProductsChart.destroy();
+          }
+          window.topProductsChart = new Chart(ctxProducts, {
+            type: 'doughnut',
+            data: {
+              labels: ['No Data Available'],
+              datasets: [{
+                label: 'Top Products',
+                data: [1],
+                backgroundColor: ['rgba(200, 200, 200, 0.7)'],
+                borderColor: 'rgba(200, 200, 200, 0.9)',
+                borderWidth: 1
+              }]
+            },
+            options: {
+              responsive: true,
+              cutout: '70%',
+              plugins: {
+                legend: { 
+                  position: 'bottom', 
+                  labels: { 
+                    color: '#fff',
+                    padding: 15,
+                    usePointStyle: true,
+                    pointStyle: 'circle'
+                  } 
+                },
+                tooltip: {
+                  backgroundColor: 'rgba(30,30,30,0.8)',
+                  titleColor: '#fff',
+                  bodyColor: '#fff',
+                  borderColor: 'rgba(99,102,241,0.5)',
+                  borderWidth: 1,
+                  callbacks: {
+                    label: function(context) {
+                      return 'No product data available';
+                    }
+                  }
+                }
+              },
+              animation: {
+                animateScale: true,
+                animateRotate: true,
+                duration: 1000,
+                easing: 'easeOutCirc'
+              }
+            }
+          });
+          return;
+        }
+        
+        // Regular chart creation with data
+        const labels = data.map(d => d.productName || 'Unknown');
+        const values = data.map(d => d.totalQuantity || 0);
+
+        if (window.topProductsChart && typeof window.topProductsChart.destroy === 'function') {
+          window.topProductsChart.destroy();
+        }
+        window.topProductsChart = new Chart(ctxProducts, {
+          type: 'doughnut',
+          data: {
+            labels,
+            datasets: [{
+              label: 'Top Products',
+              data: values,
+              backgroundColor: [
+                'rgba(99, 102, 241, 0.8)',
+                'rgba(16, 185, 129, 0.8)',
+                'rgba(251, 191, 36, 0.8)',
+                'rgba(239, 68, 68, 0.8)',
+                'rgba(139, 92, 246, 0.8)',
+                'rgba(34, 197, 94, 0.8)',
+                'rgba(253, 224, 71, 0.8)',
+                'rgba(244, 63, 94, 0.8)',
+                'rgba(59, 130, 246, 0.8)',
+                'rgba(245, 158, 11, 0.8)'
+              ],
+              borderColor: [
+                'rgba(99, 102, 241, 1)',
+                'rgba(16, 185, 129, 1)',
+                'rgba(251, 191, 36, 1)',
+                'rgba(239, 68, 68, 1)',
+                'rgba(139, 92, 246, 1)',
+                'rgba(34, 197, 94, 1)',
+                'rgba(253, 224, 71, 1)',
+                'rgba(244, 63, 94, 1)',
+                'rgba(59, 130, 246, 1)',
+                'rgba(245, 158, 11, 1)'
+              ],
+              borderWidth: 2,
+              hoverOffset: 10
+            }]
+          },
+          options: {
+            responsive: true,
+            cutout: '70%',
+            plugins: {
+              legend: { 
+                position: 'bottom', 
+                labels: { 
+                  color: '#fff',
+                  padding: 15,
+                  usePointStyle: true,
+                  pointStyle: 'circle'
+                } 
+              },
+              tooltip: {
+                backgroundColor: 'rgba(30,30,30,0.8)',
+                titleColor: '#fff',
+                bodyColor: '#fff',
+                borderColor: 'rgba(99,102,241,0.5)',
+                borderWidth: 1,
+                displayColors: true,
+                callbacks: {
+                  label: function(context) {
+                    return `${context.label}: ${context.parsed} sold`;
+                  }
+                }
+              }
+            },
+            animation: {
+              animateScale: true,
+              animateRotate: true,
+              duration: 1000,
+              easing: 'easeOutCirc'
+            }
+          }
+        });
+      } catch (err) {
+        console.error("Error fetching top products:", err);
+        document.getElementById('topProductsChart').insertAdjacentHTML('beforebegin', 
+          `<div class="text-red-500 text-center p-2">Error: ${err.message}</div>`);
+      }
+    }
+    fetchTopProducts();
+
+    // Chart.js Top Categories Chart
+    async function fetchTopCategories(month, year) {
+      try {
+        let url = '/admin/analytics/top-categories';
+        if (month && year) {
+          url += `?month=${month}&year=${year}`;
+        }
+        
+        const res = await fetch(url);
+        if (!res.ok) {
+          throw new Error(`HTTP error! Status: ${res.status}`);
+        }
+        
+        const data = await res.json();
+        console.log("Categories data received:", data);
+        
+        if (!Array.isArray(data) || data.length === 0) {
+          // Handle empty data
+          if (window.topCategoriesChart && typeof window.topCategoriesChart.destroy === 'function') {
+            window.topCategoriesChart.destroy();
+          }
+          window.topCategoriesChart = new Chart(ctxCategories, {
+            type: 'doughnut',
+            data: {
+              labels: ['No Data Available'],
+              datasets: [{
+                label: 'Top Categories',
+                data: [1],
+                backgroundColor: ['rgba(200, 200, 200, 0.7)'],
+                borderColor: 'rgba(200, 200, 200, 0.9)',
+                borderWidth: 1
+              }]
+            },
+            options: {
+              responsive: true,
+              cutout: '70%',
+              plugins: {
+                legend: { 
+                  position: 'bottom', 
+                  labels: { 
+                    color: '#fff',
+                    padding: 15,
+                    usePointStyle: true,
+                    pointStyle: 'circle'
+                  } 
+                },
+                tooltip: {
+                  backgroundColor: 'rgba(30,30,30,0.8)',
+                  titleColor: '#fff',
+                  bodyColor: '#fff',
+                  borderColor: 'rgba(99,102,241,0.5)',
+                  borderWidth: 1,
+                  callbacks: {
+                    label: function(context) {
+                      return 'No category data available';
+                    }
+                  }
+                }
+              },
+              animation: {
+                animateScale: true,
+                animateRotate: true,
+                duration: 1000,
+                easing: 'easeOutCirc'
+              }
+            }
+          });
+          return;
+        }
+        
+        // Regular chart creation with data
+        const labels = data.map(d => d._id || 'Unknown');
+        const values = data.map(d => d.totalQuantity || 0);
+
+        if (window.topCategoriesChart && typeof window.topCategoriesChart.destroy === 'function') {
+          window.topCategoriesChart.destroy();
+        }
+        window.topCategoriesChart = new Chart(ctxCategories, {
+          type: 'doughnut',
+          data: {
+            labels,
+            datasets: [{
+              label: 'Top Categories',
+              data: values,
+              backgroundColor: [
+                'rgba(99, 102, 241, 0.8)',
+                'rgba(16, 185, 129, 0.8)',
+                'rgba(251, 191, 36, 0.8)',
+                'rgba(239, 68, 68, 0.8)',
+                'rgba(139, 92, 246, 0.8)',
+                'rgba(34, 197, 94, 0.8)',
+                'rgba(253, 224, 71, 0.8)',
+                'rgba(244, 63, 94, 0.8)',
+                'rgba(59, 130, 246, 0.8)',
+                'rgba(245, 158, 11, 0.8)'
+              ],
+              borderColor: [
+                'rgba(99, 102, 241, 1)',
+                'rgba(16, 185, 129, 1)',
+                'rgba(251, 191, 36, 1)',
+                'rgba(239, 68, 68, 1)',
+                'rgba(139, 92, 246, 1)',
+                'rgba(34, 197, 94, 1)',
+                'rgba(253, 224, 71, 1)',
+                'rgba(244, 63, 94, 1)',
+                'rgba(59, 130, 246, 1)',
+                'rgba(245, 158, 11, 1)'
+              ],
+              borderWidth: 2,
+              hoverOffset: 10
+            }]
+          },
+          options: {
+            responsive: true,
+            cutout: '70%',
+            plugins: {
+              legend: { 
+                position: 'bottom', 
+                labels: { 
+                  color: '#fff',
+                  padding: 15,
+                  usePointStyle: true,
+                  pointStyle: 'circle'
+                } 
+              },
+              tooltip: {
+                backgroundColor: 'rgba(30,30,30,0.8)',
+                titleColor: '#fff',
+                bodyColor: '#fff',
+                borderColor: 'rgba(99,102,241,0.5)',
+                borderWidth: 1,
+                displayColors: true,
+                callbacks: {
+                  label: function(context) {
+                    return `${context.label}: ${context.parsed} items sold`;
+                  }
+                }
+              }
+            },
+            animation: {
+              animateScale: true,
+              animateRotate: true,
+              duration: 1000,
+              easing: 'easeOutCirc'
+            }
+          }
+        });
+      } catch (err) {
+        console.error("Error fetching top categories:", err);
+        document.getElementById('topCategoriesChart').insertAdjacentHTML('beforebegin', 
+          `<div class="text-red-500 text-center p-2">Error: ${err.message}</div>`);
+      }
+    }
+    fetchTopCategories();
+
+    // Update both charts when filters are applied
+    applyFiltersBtn.addEventListener('click', () => {
+      const month = monthFilter.value;
+      const year = yearFilter.value;
+      fetchTopProducts(month, year);
+      fetchTopCategories(month, year);
+    });
+  </script>
 </body>
 </html>

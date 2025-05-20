@@ -1,12 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const adminController = require('../controllers/admin/adminController.js');
+const adminController = require('../controllers/admin/adminController');
 const adminAuthenticated = require('../middleware/adminauthMiddleware');
 const uploadMiddleware = require('../middleware/uploadMiddleware');
 const adminOrderController = require('../controllers/admin/adminOrderController');
 const adminCouponController = require('../controllers/admin/adminCouponController');
 const adminOfferController = require('../controllers/admin/adminOfferController');
 const adminSalesReportController = require('../controllers/admin/adminSalesReportController');
+const adminDashboardController = require('../controllers/admin/adminDashboardController');
 
 router.use((req, res, next) => {
     req.session.admin = true;
@@ -103,5 +104,11 @@ router.get('/sales-report', adminSalesReportController.getSalesReportPage);
 router.get('/api/sales-report', adminSalesReportController.getSalesReport);
 router.get('/sales-report/download-pdf', adminSalesReportController.downloadPDFReport);
 router.get('/sales-report/download-excel', adminSalesReportController.downloadExcelReport);
+
+// Analytics routes
+router.get('/analytics/sales', adminAuthenticated, adminDashboardController.getSalesAnalytics);
+router.get('/analytics/top-products', adminAuthenticated, adminDashboardController.getTopProducts);
+router.get('/analytics/top-categories', adminAuthenticated, adminDashboardController.getTopCategories);
+router.get('/analytics/top-brands', adminAuthenticated, adminDashboardController.getTopBrands);
 
 module.exports = router;

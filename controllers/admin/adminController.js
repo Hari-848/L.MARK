@@ -1,5 +1,7 @@
 const adminAuthenticated = require('../../middleware/adminauthMiddleware');
 const User = require('../../Models/userModel');
+const Order = require('../../Models/orderModel');
+const Product = require('../../Models/productSchema');
 
 ///////////////////Admin Login-------------------
 exports.getLogin = (req, res) => {
@@ -41,12 +43,56 @@ exports.logout = (req, res) => {
 
 ///////////////////Dashboard-------------------
 
-exports.getDashboard = (req, res) => {
-  res.setHeader(
-    'Cache-Control',
-    'no-store, no-cache, must-revalidate, proxy-revalidate'
-  );
-  res.render('admin/adminDashboard');
+exports.getDashboard = async (req, res) => {
+  try {
+    // Get user count
+    const userCount = await User.countDocuments();
+    // Get product count
+    const productCount = await Product.countDocuments();
+    // Get order statistics
+    const orderStats = {
+      total: 0,
+      revenue: 0
+    };
+    
+    // Get order counts by status
+    const orderStatusCounts = await Order.aggregate([
+      {
+        $group: {
+          _id: '$orderStatus',
+          count: { $sum: 1 },
+          totalAmount: { $sum: '$total' }
+        }
+      }
+    ]);
+    
+    // Calculate total orders and revenue (only from delivered and shipped orders)
+    orderStatusCounts.forEach(status => {
+      // Add to total count
+      orderStats.total += status.count;
+      
+      // Only add to revenue if order is delivered or shipped
+      if (status._id === 'delivered' || status._id === 'shipped') {
+        orderStats.revenue += status.totalAmount;
+      }
+    });
+    
+    // Get recent orders
+    const recentOrders = await Order.find()
+      .populate('userId', 'email')
+      .sort({ createdAt: -1 })
+      .limit(5);
+
+    res.render('admin/adminDashboard', {
+      orderStats,
+      userCount,
+      productCount,
+      recentOrders
+    });
+  } catch (error) {
+    console.error('Dashboard error:', error);
+    res.status(500).render('error', { error: 'Failed to load dashboard' });
+  }
 };
 
 ///////////////////Dashboard Customers-------------------
