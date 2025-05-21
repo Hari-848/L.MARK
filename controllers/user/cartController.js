@@ -202,20 +202,20 @@ exports.getCart = async (req, res) => {
     
     // Find cart and populate product and variant details, excluding deleted categories
     const cart = await Cart.findOne({ userId })
-      .populate({
-        path: 'items.productId',
-        match: { 
-          'isDeleted': { $ne: true }, 
-          'categoriesId': { 
-            $in: await Category.find({ isDeleted: { $ne: true } }).distinct('_id') 
-          }
-        },
-        select: 'productName imageUrl status'
-      })
-      .populate({
-        path: 'items.variantId',
-        select: 'variantType price discountPrice stock'
-      });
+    .populate({
+      path: 'items.productId',
+      match: { 
+        'isDeleted': { $ne: true }, 
+        'categoriesId': { 
+          $in: await Category.find({ isDeleted: { $ne: true } }).distinct('_id') 
+        }
+      },
+      select: 'productName imageUrl status'
+    })
+    .populate({
+      path: 'items.variantId',
+      select: 'variantType price discountPrice stock'
+    });
     
     console.log("Cart found:", cart ? "Yes" : "No");
     if (cart) {
@@ -228,15 +228,15 @@ exports.getCart = async (req, res) => {
       
       // Check and adjust quantities based on current stock
       let cartModified = false;
-      for (const item of cart.items) {
-        if (item.variantId && item.quantity > item.variantId.stock) {
-          // If cart quantity exceeds stock, adjust it
-          const oldQuantity = item.quantity;
-          item.quantity = item.variantId.stock;
-          cartModified = true;
-          console.log(`Adjusted quantity for item ${item._id} from ${oldQuantity} to ${item.quantity} due to stock limit`);
+        for (const item of cart.items) {
+          if (item.variantId && item.quantity > item.variantId.stock) {
+            // If cart quantity exceeds stock, adjust it
+            const oldQuantity = item.quantity;
+            item.quantity = item.variantId.stock;
+            cartModified = true;
+            console.log(`Adjusted quantity for item ${item._id} from ${oldQuantity} to ${item.quantity} due to stock limit`);
+          }
         }
-      }
       
       // Save cart if quantities were adjusted
       if (cartModified) {
