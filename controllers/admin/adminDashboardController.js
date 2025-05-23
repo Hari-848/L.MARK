@@ -45,6 +45,10 @@ exports.getDashboard = async (req, res) => {
       orderStats[status._id] = status.count;
     });
     
+    // Calculate total refunded amount from returned orders
+    const refundedOrderStats = orderStatusCounts.find(status => status._id === 'returned');
+    const totalRefunded = refundedOrderStats ? refundedOrderStats.totalAmount : 0;
+
     // Get recent orders
     const recentOrders = await Order.find()
       .populate('userId', 'email')
@@ -56,7 +60,8 @@ exports.getDashboard = async (req, res) => {
       userCount,
       productCount,
       orderStats,
-      recentOrders
+      recentOrders,
+      totalRefunded
     });
   } catch (error) {
     console.error('Dashboard error:', error);

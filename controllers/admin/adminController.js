@@ -83,11 +83,16 @@ exports.getDashboard = async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(5);
 
+    // Calculate total refunded amount from returned orders
+    const refundedOrderStats = orderStatusCounts.find(status => status._id === 'returned');
+    const totalRefunded = refundedOrderStats ? refundedOrderStats.totalAmount : 0;
+
     res.render('admin/adminDashboard', {
       orderStats,
       userCount,
       productCount,
-      recentOrders
+      recentOrders,
+      totalRefunded
     });
   } catch (error) {
     console.error('Dashboard error:', error);

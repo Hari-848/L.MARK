@@ -9,6 +9,7 @@ const path = require('path');
 const fs = require('fs');
 const cloudinary = require('cloudinary').v2;
 const Wallet = require('../../Models/walletModel');
+const Cart = require('../../Models/cartModel');
 
 // -------------User Home Page--------------------
 exports.home = async (req, res) => {
@@ -26,6 +27,31 @@ exports.home = async (req, res) => {
     }).populate('applicableProduct', 'productName imageUrl')
       .populate('applicableCategory', 'name');
 
+    // Get top 3 best-selling products
+    const topProducts = await Order.aggregate([
+      { $unwind: '$items' },
+      { $group: {
+        _id: '$items.productId',
+        totalQuantity: { $sum: '$items.quantity' }
+      }},
+      { $sort: { totalQuantity: -1 } },
+      { $limit: 3 },
+      {
+        $lookup: {
+          from: 'products',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'product'
+        }
+      },
+      { $unwind: '$product' },
+      { $project: { 
+        productName: '$product.productName',
+        imageUrl: '$product.imageUrl',
+        totalQuantity: 1
+      }}
+    ]);
+
     // Get other data for the homepage
     const orders = await Order.find({ userId: user._id })
       .sort({ createdAt: -1 })
@@ -39,12 +65,19 @@ exports.home = async (req, res) => {
       await wallet.save();
     }
 
+    // Get cart count
+    const cart = await Cart.findOne({ userId: user._id });
+    const cartCount = cart ? cart.items.reduce((total, item) => total + item.quantity, 0) : 0;
+
     res.render('user/home', {
+      title: 'Home',
       user,
       activeOffers,
       orders,
       addresses,
       wallet,
+      topProducts,
+      cartCount
     });
   } catch (error) {
     console.error('Error loading homepage:', error);

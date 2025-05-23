@@ -4,38 +4,120 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.tailwindcss.com"></script>
-    <title>About Us</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+    <title>About L.Mark - Your Premium Notebook Destination</title>
 </head>
 <body class="bg-gray-50">
     <%- include("../partials/user/navbar") %>
     
-    <!-- Banner Section -->
-    <div class="relative w-full h-screen">
-        <img src="/images/banner-collage.png" alt="L.Mark Banner" class="w-full h-full object-cover object-center">
-        <div class="absolute inset-0 flex flex-col justify-center items-center px-4">
-           
-            <div class="bg-white p-6 md:p-10 shadow-lg max-w-xl text-center rounded-lg">
-                <h1 class="text-gray-700 text-3xl md:text-4xl leading-relaxed" style="font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;">ABOUT US</h1>
-                <p class="text-gray-700 text-lg leading-relaxed" style="font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;">
-                    Welcome to L.Mark! We're here to provide high-quality notebooks that make your work, studies, and creativity easier and more enjoyable. Stay organized and inspired with our premium collection!
+    <!-- Hero Section with Parallax -->
+    <div class="relative w-full h-[80vh] overflow-hidden">
+        <!-- Darker overlay for better text readability -->
+        <div class="absolute inset-0 bg-gradient-to-b from-black/70 to-black/50 z-10"></div>
+        
+        <!-- Improved image container with better positioning -->
+        <div class="absolute inset-0">
+            <img src="/images/marvel1 (1).jpg" 
+                 alt="L.Mark Banner" 
+                 class="w-full h-full object-cover object-center transform hover:scale-105 transition-transform duration-700"
+                 style="object-position: center 30%;"
+            >
+        </div>
+
+        <!-- Content with improved positioning and styling -->
+        <div class="absolute inset-0 flex flex-col justify-center items-center px-4 z-20">
+            <div class="text-center transform -translate-y-8">
+                <h1 class="text-white text-5xl md:text-7xl font-bold mb-6 tracking-wider drop-shadow-lg">
+                    L.MARK
+                </h1>
+                <p class="text-white text-xl md:text-2xl text-center max-w-2xl drop-shadow-md">
+                    Where Quality Meets Creativity
                 </p>
             </div>
         </div>
     </div>
 
-    <!-- Content Section -->
-    <div class="max-w-3xl mx-auto px-6 py-12 text-center">
-        <p class="text-gray-800 text-lg leading-relaxed" style="font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;">
-            Welcome to L.Mark, your trusted destination for premium notebooks. We understand the importance of having the right notebook to spark creativity and boost productivity.
-        </p>
-        <p class="text-gray-800 text-lg leading-relaxed mt-4" style="font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;">
-            Our collection features high-quality notebooks designed for students, professionals, and creatives alike. Whether you're jotting down notes, organizing your day, or capturing new ideas, we're here to support your journey.
-        </p>
-        <p class="text-gray-800 text-lg leading-relaxed mt-4" style="font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;">
-            At L.Mark, we're dedicated to quality, style, and affordability, ensuring that every notebook adds value to your daily life. Let us help you turn your ideas into reality, one page at a time!
-        </p>
+    <!-- Mission Statement -->
+    <div class="bg-white py-16">
+        <div class="max-w-4xl mx-auto px-6">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl md:text-4xl font-bold text-gray-800 mb-4">Our Mission</h2>
+                <div class="w-24 h-1 bg-blue-600 mx-auto"></div>
+            </div>
+            <p class="text-gray-600 text-lg leading-relaxed text-center">
+                At L.Mark, we believe that every great idea deserves a beautiful canvas. We're dedicated to providing premium notebooks that inspire creativity, enhance productivity, and make your thoughts come alive on paper.
+            </p>
+        </div>
     </div>
-    
+
+    <!-- Features Grid -->
+    <div class="bg-gray-50 py-16">
+        <div class="max-w-6xl mx-auto px-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <!-- Quality -->
+                <div class="bg-white p-8 rounded-lg shadow-lg transform hover:-translate-y-2 transition-transform duration-300">
+                    <div class="text-blue-600 text-4xl mb-4">
+                        <i class="fas fa-award"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-3">Premium Quality</h3>
+                    <p class="text-gray-600">Crafted with the finest materials to ensure durability and a luxurious writing experience.</p>
+                </div>
+
+                <!-- Sustainability -->
+                <div class="bg-white p-8 rounded-lg shadow-lg transform hover:-translate-y-2 transition-transform duration-300">
+                    <div class="text-green-600 text-4xl mb-4">
+                        <i class="fas fa-leaf"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-3">Eco-Friendly</h3>
+                    <p class="text-gray-600">Committed to sustainable practices and environmentally conscious production.</p>
+                </div>
+
+                <!-- Innovation -->
+                <div class="bg-white p-8 rounded-lg shadow-lg transform hover:-translate-y-2 transition-transform duration-300">
+                    <div class="text-purple-600 text-4xl mb-4">
+                        <i class="fas fa-lightbulb"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-3">Innovative Design</h3>
+                    <p class="text-gray-600">Unique layouts and features that enhance your writing and organization experience.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Story Section -->
+    <div class="bg-white py-16">
+        <div class="max-w-4xl mx-auto px-6">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl md:text-4xl font-bold text-gray-800 mb-4">Our Story</h2>
+                <div class="w-24 h-1 bg-blue-600 mx-auto"></div>
+            </div>
+            <div class="space-y-6 text-gray-600 text-lg leading-relaxed">
+                <p>
+                    Founded with a passion for quality stationery, L.Mark began as a small workshop dedicated to creating the perfect notebook. Today, we've grown into a beloved brand, serving students, professionals, and creatives worldwide.
+                </p>
+                <p>
+                    Our journey is marked by continuous innovation and an unwavering commitment to quality. Each notebook we create is a testament to our dedication to excellence and our understanding of what makes writing truly special.
+                </p>
+            </div>
+        </div>
+    </div>
+
+   
+
+
+
     <%- include("../partials/user/footer") %>
+
+    <script>
+        // Add smooth scroll behavior
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelector(this.getAttribute('href')).scrollIntoView({
+                    behavior: 'smooth'
+                });
+            });
+        });
+    </script>
 </body>
 </html>

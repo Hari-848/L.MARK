@@ -80,6 +80,15 @@
         </div>
         <div class="text-3xl font-bold text-white"><%= productCount %></div>
       </div>
+      <div class="bg-gradient-to-br from-zinc-800 to-zinc-900 p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 border border-zinc-700 hover:border-red-500 transform hover:-translate-y-1">
+        <div class="flex items-center mb-2">
+          <div class="bg-red-900 text-red-400 rounded-full p-2 mr-3 shadow-inner">
+            <i class="fas fa-undo fa-lg"></i>
+          </div>
+          <span class="text-gray-400 text-sm font-medium">Total Refunds</span>
+        </div>
+        <div class="text-3xl font-bold text-white">₹<%= totalRefunded.toFixed(2) %></div>
+      </div>
     </div>
 
     <!-- Charts Section -->

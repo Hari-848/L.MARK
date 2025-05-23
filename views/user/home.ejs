@@ -20,54 +20,102 @@
     <div class="text-content">
         <h2>Best Selling <br> <span>Books</span></h2>
         <p>A healthy mind starts with your favorite notebook—capture your thoughts, ideas, and creativity effortlessly! ✨</p>
-        <a href="#" class="btn">See more →</a>
+        <a href="/products" class="btn">See more →</a>
     </div>
 
     <div class="books-container">
-        <div class="book">
-            <div class="book-img">
-                <img src="/images/ronaldo.jpg" alt="Cristiano Ronaldo Notebook">
-            </div>
-            <p>Cristiano Ronaldo</p>
-        </div>
-        <div class="book">
-            <div class="book-img">
-                <img src="/images/messi.jpg" alt="Lionel Messi Notebook">
-            </div>
-            <p>Lionel Messi</p>
-        </div>
-        <div class="book">
-            <div class="book-img">
-                <img src="/images/jujutsu kaisen.jpg" alt="Jujutsu Kaisen Notebook">
-            </div>
-            <p>Jujutsu Kaisen</p>
-        </div>
+        <% if (topProducts && topProducts.length > 0) { %>
+            <% topProducts.forEach(product => { %>
+                <a href="/product/<%= product._id %>" class="book-link">
+                    <div class="book">
+                        <div class="book-img">
+                            <img src="<%= product.imageUrl && product.imageUrl.length > 0 ? product.imageUrl[0] : '/images/placeholder.jpg' %>" 
+                                 alt="<%= product.productName %>">
+                        </div>
+                        <p><%= product.productName %></p>
+                    </div>
+                </a>
+            <% }); %>
+        <% } else { %>
+            <!-- Fallback content if no products are found -->
+            <a href="/product/ronaldo" class="book-link">
+                <div class="book">
+                    <div class="book-img">
+                        <img src="/images/ronaldo.jpg" alt="Cristiano Ronaldo Notebook">
+                    </div>
+                    <p>Cristiano Ronaldo</p>
+                </div>
+            </a>
+            <a href="/product/messi" class="book-link">
+                <div class="book">
+                    <div class="book-img">
+                        <img src="/images/messi.jpg" alt="Lionel Messi Notebook">
+                    </div>
+                    <p>Lionel Messi</p>
+                </div>
+            </a>
+            <a href="/product/jujutsu" class="book-link">
+                <div class="book">
+                    <div class="book-img">
+                        <img src="/images/jujutsu kaisen.jpg" alt="Jujutsu Kaisen Notebook">
+                    </div>
+                    <p>Jujutsu Kaisen</p>
+                </div>
+            </a>
+        <% } %>
     </div>
 </section>
+
+<style>
+    .book-link {
+        text-decoration: none;
+        color: inherit;
+        display: block;
+        transition: transform 0.3s ease;
+    }
+
+    .book-link:hover {
+        transform: translateY(-5px);
+    }
+
+    .book-link:hover .book {
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .book {
+        transition: all 0.3s ease;
+    }
+</style>
 
     <!-- Categories -->
     <section class="categories">
         <h2>Categories</h2>
         <p class="subheading">Find what you are looking for</p>
         <div class="category-container">
-            <div class="category">
-                <div class="category-card">
-                    <img src="/images/ronaldo.jpg" alt="Sports">
+            <a href="/products?category=Sports" class="category-link">
+                <div class="category">
+                    <div class="category-card">
+                        <img src="/images/ronaldo.jpg" alt="Sports">
+                    </div>
+                    <p>Sports</p>
                 </div>
-                <p>Sports</p>
-            </div>
-            <div class="category">
-                <div class="category-card">
-                    <img src="/images/jujutsu kaisen.jpg" alt="Anime">
+            </a>
+            <a href="/products?category=Anime" class="category-link">
+                <div class="category">
+                    <div class="category-card">
+                        <img src="/images/jujutsu kaisen.jpg" alt="Anime">
+                    </div>
+                    <p>Anime</p>
                 </div>
-                <p>Anime</p>
-            </div>
-            <div class="category">
-                <div class="category-card">
-                    <img src="/images/thor.jpg" alt="Marvel">
+            </a>
+            <a href="/products?category=Marvel" class="category-link">
+                <div class="category">
+                    <div class="category-card">
+                        <img src="/images/thor.jpg" alt="Marvel">
+                    </div>
+                    <p>Marvel</p>
                 </div>
-                <p>Marvel</p>
-            </div>
+            </a>
         </div>
     </section>
 
@@ -94,3 +142,24 @@
     </section>
     
    <%-include("../../views/partials/user/footer")%>
+
+<style>
+    .category-link {
+        text-decoration: none;
+        color: inherit;
+        display: block;
+        transition: transform 0.3s ease;
+    }
+
+    .category-link:hover {
+        transform: translateY(-5px);
+    }
+
+    .category-link:hover .category-card {
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .category-card {
+        transition: all 0.3s ease;
+    }
+</style>
