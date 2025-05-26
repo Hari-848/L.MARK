@@ -161,10 +161,6 @@ exports.addToCart = async (req, res) => {
       });
     }
 
-    // Update stock
-    variant.stock -= quantity;
-    await variant.save();
-
     // Recalculate total
     cart.totalAmount = cart.items.reduce(
       (total, item) => total + (item.finalPrice * item.quantity),
@@ -180,7 +176,8 @@ exports.addToCart = async (req, res) => {
       success: true,
       message: 'Product added to cart successfully',
       cartCount,
-      removedFromWishlist
+      removedFromWishlist,
+      updatedStock: variant.stock // Send current stock without reducing it
     });
 
   } catch (error) {

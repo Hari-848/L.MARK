@@ -197,7 +197,7 @@ exports.cancelOrder = async (req, res) => {
     // Restore stock for all items
     for (const item of order.items) {
       await Variant.findByIdAndUpdate(
-        item.variant,
+        item.variantId,
         { $inc: { stock: item.quantity } }
       );
     }
@@ -467,6 +467,19 @@ exports.processReturn = async (req, res) => {
     order.refundStatus = refundStatus;
     if (refundStatus === 'completed' && refundAmount) {
       order.refundAmount = parseFloat(refundAmount);
+      
+      // Restore stock for all items when return is approved
+      for (const item of order.items) {
+        await Variant.findByIdAndUpdate(
+          item.variantId,
+          { $inc: { stock: item.quantity } }
+        );
+      }
+      
+      // Update order status to returned
+      order.orderStatus = 'returned';
+      order.returnStatus = 'completed';
+      order.returnedAt = new Date();
     }
     
     // Save the updated order

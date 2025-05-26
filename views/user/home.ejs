@@ -5,10 +5,12 @@
         <div class="hero-content">
             <h2>Unleash your creativity today with a notebook filled with <br> 
                 the thrill of Marvel, the passion of sports, and the adventure of anime!</h2>
-            <div class="search-box">
-                <input type="text" placeholder="What are you looking for?">
-                <button type="submit">🔍</button>
-            </div>
+            <form action="/products" method="GET" class="search-form">
+                <div class="search-box">
+                    <input type="text" name="query" placeholder="What are you looking for?">
+                    <button type="submit">🔍</button>
+                </div>
+            </form>
         </div>
         <div class="hero-image">
             <img src="images/ronaldo.jpg" alt="Ronaldo Notebook">
