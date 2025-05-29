@@ -331,8 +331,22 @@
             const variantSelect = document.querySelector('select#variantType');
             const variantId = variantSelect.value;
             
+            // Check cart status
             isInCart = await checkIfInCart(productId, variantId);
             updateButtonState(isInCart);
+
+            // Check wishlist status
+            try {
+                const response = await fetch(`/wishlist/check?productId=${productId}`);
+                const data = await response.json();
+                const heartIcon = document.querySelector('.wishlist-button i');
+                if (data.inWishlist && heartIcon) {
+                    heartIcon.classList.remove('fa-regular');
+                    heartIcon.classList.add('fa-solid');
+                }
+            } catch (error) {
+                console.error('Error checking wishlist status:', error);
+            }
         });
 
         // Add this function before the addToCartHandler

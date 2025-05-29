@@ -228,6 +228,33 @@
     <div class="pt-6"><%- include("../partials/user/footer") %></div>
 
     <script>
+        // Function to check wishlist status for all products
+        async function checkWishlistStatus() {
+            const heartIcons = document.querySelectorAll('.fa-heart');
+            for (const icon of heartIcons) {
+                const anchorElement = icon.closest('a');
+                if (!anchorElement) continue; // Skip if no anchor parent found
+                
+                const onclickAttr = anchorElement.getAttribute('onclick');
+                if (!onclickAttr) continue; // Skip if no onclick attribute found
+                
+                const match = onclickAttr.match(/'([^']+)'/);
+                if (!match) continue; // Skip if no product ID found in onclick
+                
+                const productId = match[1];
+                try {
+                    const response = await fetch(`/wishlist/check?productId=${productId}`);
+                    const data = await response.json();
+                    if (data.inWishlist) {
+                        icon.classList.remove('fa-regular');
+                        icon.classList.add('fa-solid');
+                    }
+                } catch (error) {
+                    console.error('Error checking wishlist status:', error);
+                }
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             // Initialize all DOM element references at the start using the actual IDs in your HTML
             const searchInput = document.getElementById('searchInput');
@@ -461,6 +488,9 @@
                     // Update pagination controls
                     updatePaginationControls(totalPages);
                     
+                    // Check wishlist status after products are loaded
+                    await checkWishlistStatus();
+                    
                 } catch (error) {
                     console.error('Error fetching products:', error);
                     productGrid.innerHTML = `
@@ -675,6 +705,115 @@
         });
         
         // Reuse existing addToWishlist and addToCart functions (already defined in your HTML)
+    </script>
+
+    <script>
+        // Add to wishlist function
+        async function addToWishlist(event, productId, variantId) {
+            try {
+                // Check if the item is already in wishlist (heart is solid)
+                const heartIcon = event.currentTarget.querySelector('i');
+                const isInWishlist = heartIcon && heartIcon.classList.contains('fa-solid');
+                
+                let url = isInWishlist ? `/wishlist/remove/${productId}` : '/wishlist/add';
+                let method = isInWishlist ? 'DELETE' : 'POST';
+                let body = null;
+                
+                if (!isInWishlist) {
+                    body = JSON.stringify({
+                        productId,
+                        variantId
+                    });
+                }
+                
+                const response = await fetch(url, {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // Toggle heart icon
+                    if (heartIcon) {
+                        heartIcon.classList.toggle('fa-regular');
+                        heartIcon.classList.toggle('fa-solid');
+                    }
+                    
+                    // Show success message
+                    Swal.fire({
+                        icon: 'success',
+                        title: isInWishlist ? 'Removed from Wishlist' : 'Added to Wishlist',
+                        text: isInWishlist ? 'Product has been removed from your wishlist' : 'Product has been added to your wishlist',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                } else {
+                    throw new Error(data.error || 'Failed to update wishlist');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: error.message || 'Failed to update wishlist'
+                });
+            }
+        }
+
+        // Add to cart function
+        async function addToCart(productId, variantId) {
+            try {
+                const response = await fetch('/cart/add', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        productId,
+                        variantId,
+                        quantity: 1
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // Update cart count in navbar
+                    const cartCountElement = document.getElementById('cartCount');
+                    if (cartCountElement) {
+                        cartCountElement.textContent = data.cartCount;
+                        cartCountElement.classList.remove('hidden');
+                    }
+                    
+                    // Show success message
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Added to Cart',
+                        text: 'Product has been added to your cart',
+                        showCancelButton: true,
+                        confirmButtonText: 'View Cart',
+                        cancelButtonText: 'Continue Shopping'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            window.location.href = '/cart';
+                        }
+                    });
+                } else {
+                    throw new Error(data.message || 'Failed to add to cart');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: error.message || 'Failed to add product to cart'
+                });
+            }
+        }
     </script>
 </body>
 </html>
