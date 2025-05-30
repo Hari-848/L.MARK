@@ -134,7 +134,16 @@ const generateSalesReport = async (startDate, endDate, page = 1, limit = 10) => 
         $gte: startDate,
         $lte: endDate
       }
-    }).lean();
+    }).populate('userId', 'email')
+      .populate({
+        path: 'items.productId',
+        select: 'productName'
+      })
+      .populate({
+        path: 'items.variantId',
+        select: 'variantType price'
+      })
+      .lean();
 
     if (!allOrders || !Array.isArray(allOrders)) {
       throw new Error('Failed to fetch orders');
@@ -160,14 +169,12 @@ const generateSalesReport = async (startDate, endDate, page = 1, limit = 10) => 
       const status = order.orderStatus || 'processing';
       orderCounts[status] = (orderCounts[status] || 0) + 1;
       
-      // Only include delivered orders in sales calculations
-      if (status === 'delivered') {
-        const orderSubtotal = Number(order.subtotal) || 0;
-        const orderDiscount = Number(order.discount) || 0;
-        const orderTotal = Number(order.total) || 0;
-        totalSales += orderTotal;
-        totalDiscounts += orderDiscount;
-      }
+      // Include all orders in sales calculations, not just delivered ones
+      const orderSubtotal = Number(order.subtotal) || 0;
+      const orderDiscount = Number(order.discount) || 0;
+      const orderTotal = Number(order.total) || 0;
+      totalSales += orderTotal;
+      totalDiscounts += orderDiscount;
     });
 
     // Calculate total pages
@@ -210,7 +217,13 @@ const generateSalesReport = async (startDate, endDate, page = 1, limit = 10) => 
       paymentMethod: order.paymentMethod || 'N/A',
       couponCode: order.couponCode || 'N/A',
       status: order.orderStatus || 'processing',
-      userEmail: order.userId?.email || 'N/A'
+      userEmail: order.userId?.email || 'N/A',
+      items: order.items.map(item => ({
+        productName: item.productId?.productName || 'N/A',
+        variantType: item.variantId?.variantType || 'N/A',
+        quantity: item.quantity || 0,
+        price: item.price || 0
+      }))
     }));
 
     return {
@@ -492,7 +505,7 @@ exports.downloadPDFReport = async (req, res) => {
 
     // Add order details
     if (report.orderDetails && report.orderDetails.length > 0) {
-    report.orderDetails.forEach(order => {
+      report.orderDetails.forEach(order => {
         // Check if we need a new page
         if (doc.y > 700) {
           doc.addPage();
@@ -507,14 +520,31 @@ exports.downloadPDFReport = async (req, res) => {
         
         doc
           .fontSize(10)
-        .text(`Customer: ${order.userEmail}`)
+          .text(`Customer: ${order.userEmail}`)
           .text(`Total: ${formatCurrency(order.total)} | Discount: ${formatCurrency(order.discount)} | Net: ${formatCurrency(order.netAmount)}`)
           .text(`Payment Method: ${order.paymentMethod} | Status: ${order.status}`)
-          .text(`Coupon: ${order.couponCode || 'N/A'}`)
+          .text(`Coupon: ${order.couponCode}`)
           .moveDown(0.5);
 
+        // Add product details
+        doc
+          .fontSize(10)
+          .font('Helvetica-Bold')
+          .text('Products:')
+          .moveDown(0.2);
+
+        order.items.forEach(item => {
+          doc
+            .fontSize(9)
+            .font('Helvetica')
+            .text(`• ${item.productName} (${item.variantType})`)
+            .text(`  Quantity: ${item.quantity} | Price: ${formatCurrency(item.price)}`)
+            .moveDown(0.2);
+        });
+
+        doc.moveDown(0.5);
         doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke().moveDown(0.5);
-    });
+      });
     } else {
       doc
         .fontSize(12)

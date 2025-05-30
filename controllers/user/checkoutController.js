@@ -153,7 +153,8 @@ exports.placeOrder = async (req, res) => {
       }
 
       const userUsage = coupon.usedBy.filter(usage => 
-        usage.userId.toString() === userId.toString()
+        usage.userId.toString() === userId.toString() && 
+        usage.status === 'completed'  // Only count completed usages
       ).length;
 
       if (userUsage >= coupon.usageLimit) {
@@ -622,39 +623,39 @@ exports.getAvailableCoupons = async (req, res) => {
       return total + (item.finalPrice * item.quantity);
     }, 0);
 
-    // Find valid coupons that are not expired
+    // Find all valid coupons that are not expired
     const coupons = await Coupon.find({
       isActive: true,
       isDeleted: false,
       validFrom: { $lte: currentDate },
-      validUntil: { $gt: currentDate }, // Changed from $gte to $gt to exclude expired coupons
+      validUntil: { $gt: currentDate },
       minPurchase: { $lte: cartTotal }
     });
 
-    // Filter out coupons that the user has already used up
-    const availableCoupons = coupons.filter(coupon => {
+    // Format coupons for display with usage information
+    const formattedCoupons = coupons.map(coupon => {
       const userUsage = coupon.usedBy.filter(usage => 
         usage.userId.toString() === userId.toString() && 
-        usage.status === 'completed'
+        usage.status === 'completed'  // Only count completed usages
       ).length;
-      return userUsage < coupon.usageLimit;
-    });
+      
+      const remainingUses = coupon.usageLimit - userUsage;
+      const isUsed = userUsage >= coupon.usageLimit;
 
-    // Format coupons for display
-    const formattedCoupons = availableCoupons.map(coupon => ({
-      code: coupon.code,
-      description: coupon.description,
-      discountType: coupon.discountType,
-      discountAmount: coupon.discountAmount,
-      minPurchase: coupon.minPurchase,
-      maxDiscount: coupon.maxDiscount,
-      validUntil: coupon.validUntil,
-      usageLimit: coupon.usageLimit,
-      remainingUses: coupon.usageLimit - coupon.usedBy.filter(usage => 
-        usage.userId.toString() === userId.toString() && 
-        usage.status === 'completed'
-      ).length
-    }));
+      return {
+        code: coupon.code,
+        description: coupon.description,
+        discountType: coupon.discountType,
+        discountAmount: coupon.discountAmount,
+        minPurchase: coupon.minPurchase,
+        maxDiscount: coupon.maxDiscount,
+        validUntil: coupon.validUntil,
+        usageLimit: coupon.usageLimit,
+        remainingUses,
+        isUsed,
+        userUsage
+      };
+    });
 
     res.json(formattedCoupons);
   } catch (error) {

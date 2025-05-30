@@ -568,7 +568,7 @@ exports.checkout = async (req, res) => {
 exports.placeOrder = async (req, res) => {
   try {
     const userId = req.session.user._id;
-    const { addressId, paymentMethod } = req.body;
+    const { addressId, paymentMethod, couponCode } = req.body;
     
     const cart = await Cart.findOne({ userId });
     if (!cart || cart.items.length === 0) {
@@ -579,6 +579,44 @@ exports.placeOrder = async (req, res) => {
     const currentDate = new Date();
     const orderItems = [];
     let subtotal = 0;
+    let appliedCoupon = null;
+    
+    // If coupon code is provided, validate it
+    if (couponCode) {
+      const coupon = await Coupon.findOne({
+        code: couponCode,
+        isActive: true,
+        isDeleted: false,
+        validFrom: { $lte: currentDate },
+        validUntil: { $gte: currentDate }
+      });
+
+      if (!coupon) {
+        return res.status(400).json({ error: 'Invalid or expired coupon' });
+      }
+
+      // Check if user can use the coupon
+      const canUseCoupon = await coupon.canBeUsedByUser(userId);
+      if (!canUseCoupon) {
+        return res.status(400).json({ error: 'You have already used this coupon the maximum number of times' });
+      }
+
+      // Check minimum purchase amount
+      const cartTotal = cart.items.reduce((total, item) => total + (item.finalPrice * item.quantity), 0);
+      if (cartTotal < coupon.minPurchase) {
+        return res.status(400).json({ 
+          error: `Minimum purchase amount of ₹${coupon.minPurchase} required for this coupon` 
+        });
+      }
+
+      appliedCoupon = {
+        couponId: coupon._id,
+        code: coupon.code,
+        discountType: coupon.discountType,
+        discountAmount: coupon.discountAmount,
+        maxDiscount: coupon.maxDiscount
+      };
+    }
     
     for (const item of cart.items) {
       const variant = await Variant.findById(item.variantId);
@@ -634,35 +672,54 @@ exports.placeOrder = async (req, res) => {
       await variant.save();
     }
     
-    // If coupon was used, verify usage limit again before placing order
+    // Calculate final total with coupon discount if applicable
+    let total = subtotal;
+    let discount = 0;
+    
     if (appliedCoupon) {
-      const coupon = await Coupon.findById(appliedCoupon.couponId);
-      if (!coupon) {
-        return res.status(400).json({ error: 'Invalid coupon' });
+      if (appliedCoupon.discountType === 'percentage') {
+        discount = Math.round((subtotal * appliedCoupon.discountAmount) / 100);
+        // Apply max discount if set
+        if (appliedCoupon.maxDiscount && discount > appliedCoupon.maxDiscount) {
+          discount = appliedCoupon.maxDiscount;
+        }
+      } else {
+        // Fixed amount discount
+        discount = appliedCoupon.discountAmount;
       }
-
-      const userUsage = coupon.usedBy.filter(usage => 
-        usage.userId.toString() === userId.toString() && 
-        usage.status === 'completed'
-      ).length;
-
-      if (userUsage >= coupon.usageLimit) {
-        return res.status(400).json({ error: 'You have already used this coupon the maximum number of times' });
-      }
+      total = subtotal - discount;
     }
     
     // Create order
     const order = new Order({
       userId,
       items: orderItems,
-      totalAmount: subtotal,
+      subtotal,
+      discount,
+      total,
       shippingAddress: addressId,
       paymentMethod,
       paymentStatus: paymentMethod === 'cod' ? 'pending' : 'completed',
-      orderStatus: 'placed'
+      orderStatus: 'placed',
+      couponCode: appliedCoupon ? appliedCoupon.code : null,
+      couponDiscount: discount
     });
     
     await order.save();
+    
+    // Update coupon usage if coupon was applied
+    if (appliedCoupon) {
+      await Coupon.findByIdAndUpdate(appliedCoupon.couponId, {
+        $push: {
+          usedBy: {
+            userId,
+            orderId: order._id,
+            status: 'completed',
+            usedAt: new Date()
+          }
+        }
+      });
+    }
     
     // Clear cart
     await Cart.findOneAndUpdate(
