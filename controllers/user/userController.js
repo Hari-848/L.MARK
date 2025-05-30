@@ -1,6 +1,6 @@
 const User = require('../../Models/userModel');
 const Offer = require('../../Models/offerModel');
-const bcrypt = require('bcryptjs');
+const bcrypt = require('bcrypt');
 const userAuthenticated = require('../../middleware/authMiddleware');
 const Address = require('../../Models/addressModel');
 const Order = require('../../Models/orderModel');
