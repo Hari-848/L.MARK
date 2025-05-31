@@ -1,6 +1,6 @@
 const User = require('../../Models/userModel');
 const Offer = require('../../Models/offerModel');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const userAuthenticated = require('../../middleware/authMiddleware');
 const Address = require('../../Models/addressModel');
 const Order = require('../../Models/orderModel');
@@ -10,6 +10,13 @@ const fs = require('fs');
 const cloudinary = require('cloudinary').v2;
 const Wallet = require('../../Models/walletModel');
 const Cart = require('../../Models/cartModel');
+const crypto = require('crypto');
+
+// Set random fallback for bcryptjs
+bcrypt.setRandomFallback((len) => {
+  const buf = crypto.randomBytes(len);
+  return buf;
+});
 
 // -------------User Home Page--------------------
 exports.home = async (req, res) => {
@@ -206,7 +213,6 @@ exports.logoutPOST = async (req, res) => {
 const { OTP, saveOTP } = require('../../Models/otpModel');
 const nodemailer = require('nodemailer');
 const { generateOTP, sendOTPEmail } = require('../../utils/sendOTPutil');
-const crypto = require('crypto');
 
 exports.signupGET = (req, res) => {
   res.render('user/signup');
