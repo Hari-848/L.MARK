@@ -468,7 +468,7 @@ exports.getAddvariant = async (req, res) => {
       });
     }
 
-    res.render('admin/adminAddvariant', {
+    res.render('admin/adminAddVariant', {
       pageTitle: 'Add Variant',
       path: '/admin/products/add/variant',
       productId,
