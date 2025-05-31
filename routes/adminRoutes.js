@@ -9,10 +9,10 @@ const adminOfferController = require('../controllers/admin/adminOfferController'
 const adminSalesReportController = require('../controllers/admin/adminSalesReportController');
 const adminDashboardController = require('../controllers/admin/adminDashboardController');
 
-router.use((req, res, next) => {
-    req.session.admin = true;
-    next();
-});
+// router.use((req, res, next) => {
+//     req.session.admin = true;
+//     next();
+// });
 
 // Admin login page
 router.get('/login', adminController.getLogin);
