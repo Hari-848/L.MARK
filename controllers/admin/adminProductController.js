@@ -440,20 +440,46 @@ exports.deleteProduct = async (req, res) => {
 //                VARIANTS
 
 exports.getAddvariant = async (req, res) => {
-  const { productId } = req.query;
-  if (!productId) {
-    return res.status(400).send('Product ID is required');
-  }
-
   try {
+    const { productId } = req.query;
+    
+    // Validate productId
+    if (!productId) {
+      return res.status(400).render('error', { 
+        error: 'Product ID is required',
+        message: 'Please provide a valid product ID'
+      });
+    }
+
+    // Validate if productId is a valid MongoDB ObjectId
+    if (!mongoose.Types.ObjectId.isValid(productId)) {
+      return res.status(400).render('error', {
+        error: 'Invalid Product ID',
+        message: 'The provided product ID is not valid'
+      });
+    }
+
+    // Check if product exists
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).render('error', {
+        error: 'Product Not Found',
+        message: 'The requested product does not exist'
+      });
+    }
+
     res.render('admin/adminAddvariant', {
       pageTitle: 'Add Variant',
       path: '/admin/products/add/variant',
       productId,
+      productName: product.productName
     });
   } catch (err) {
     console.error('Error rendering add variant form:', err);
-    res.status(500).send('Error rendering add variant form');
+    res.status(500).render('error', {
+      error: 'Server Error',
+      message: 'Failed to load the add variant form'
+    });
   }
 };
 
